@@ -7,8 +7,8 @@ FROM debian:12-slim
 LABEL maintainer="carolcoral"
 LABEL description="Mock Server v2.1.2"
 
-# ---- 基础依赖 + Eclipse Temurin JDK 21 ----
-# Debian 12 默认源无 openjdk-21，通过 Adoptium 官方源安装
+# ---- 基础依赖 + Eclipse Temurin JDK 21 + Maven + Node.js ----
+# 一次性装完所有构建依赖，setup-env.sh 检测到全部就绪后直接跳过
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates gnupg sudo bash procps tzdata wget gosu \
     && mkdir -p /etc/apt/keyrings \
@@ -17,12 +17,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" \
     > /etc/apt/sources.list.d/adoptium.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends temurin-21-jdk \
+    && apt-get install -y --no-install-recommends temurin-21-jdk maven nodejs npm \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo "Asia/Shanghai" > /etc/timezone \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# ---- 确保 Java 21 优先（Maven 安装可能拉入 openjdk-17）----
+# ---- 确保 Java 21 优先 ----
 ENV JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
 ENV PATH=$JAVA_HOME/bin:$PATH
 
@@ -30,10 +30,25 @@ ENV PATH=$JAVA_HOME/bin:$PATH
 COPY . /app/build
 WORKDIR /app/build
 
-# ---- 安装环境 + 构建 ----
-# setup-env.sh 检测到 Java 21 后跳过，只装 Maven + Node.js
-RUN bash setup-env.sh < /dev/null \
-    && bash build-all-in-one.sh
+# ---- 配置 Maven 阿里云镜像加速 ----
+RUN mkdir -p /root/.m2 \
+    && printf '<?xml version="1.0" encoding="UTF-8"?>\n\
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"\n\
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n\
+  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">\n\
+  <mirrors>\n\
+    <mirror>\n\
+      <id>aliyunmaven</id>\n\
+      <mirrorOf>central</mirrorOf>\n\
+      <name>阿里云公共仓库</name>\n\
+      <url>https://maven.aliyun.com/repository/public</url>\n\
+    </mirror>\n\
+  </mirrors>\n\
+</settings>\n' > /root/.m2/settings.xml
+
+# ---- 构建 ----
+# JDK 21、Maven、Node.js、npm 已全部预装，跳过 setup-env.sh 直接构建
+RUN bash build-all-in-one.sh
 
 # ---- 保留产物，删除源码 ----
 RUN mkdir -p /app/data /app/logs /app/frontend/dist \
