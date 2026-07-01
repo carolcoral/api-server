@@ -493,7 +493,28 @@ export default {
     importConflictNew: 'New',
     importConflictChangeCount: '{count} change(s)',
     pleaseSelectFile: 'Please select a file first',
-    pleaseEnterUrl: 'Please enter a Swagger doc URL'
+    pleaseEnterUrl: 'Please enter a Swagger doc URL',
+    // Export / Import
+    exportSwagger: 'Export Swagger',
+    exportData: 'Export Project Data',
+    importData: 'Import Project Data',
+    exportSwaggerTitle: 'Select Swagger Version',
+    swaggerVersion2: 'Swagger 2.0',
+    swaggerVersion3: 'OpenAPI 3.0',
+    exportSuccess: 'Export successful',
+    exportFailed: 'Export failed',
+    importDataTitle: 'Import Project Data',
+    importDataHint: 'Upload a previously exported project JSON file to automatically import APIs and their response data',
+    importDataConflictTitle: 'Project "{name}" (code: {code}) already exists',
+    importDataConflictHint: 'Please select import mode:',
+    importDataMode: 'Import Mode',
+    importDataMerge: 'Merge (append new APIs, keep existing ones)',
+    importDataReplace: 'Replace (clear existing APIs, replace with new data)',
+    importDataUpload: 'Drag project data JSON file here, or click to upload',
+    importDataFormat: 'Only .json files are supported',
+    importDataSuccess: 'Import successful, {count} APIs imported',
+    importDataFailed: 'Import failed',
+    pleaseSelectFile: 'Please select a file first'
   },
 
   // API Management
@@ -632,7 +653,17 @@ export default {
     paramPathValueHint: '• Set to "Universal" or "*": match any parameter value<br/>• Set to specific value: only match when request parameter equals this value',
     paramMatchHint: 'When the request parameter value matches this value, return the corresponding response',
     paramRequiredHint: 'If checked and the parameter is missing from the request, matching will fail',
-    randomNotEnabled: 'Random response is not enabled for this API, multiple active responses are not allowed. Please enable "Enable Random Response" first.'
+    randomNotEnabled: 'Random response is not enabled for this API, multiple active responses are not allowed. Please enable "Enable Random Response" first.',
+    // Template Engine
+    showTemplateHelper: 'Template Helper',
+    hideTemplateHelper: 'Hide Helper',
+    previewTemplate: 'Preview',
+    templateHelperTitle: 'Click a tag to insert placeholder into response body (supported functions)',
+    noTemplatePlaceholder: 'No template placeholder {{...}} found in response body',
+    previewResult: 'Preview Result',
+    previewFailed: 'Preview failed',
+    templateDoc: 'Template Guide',
+    templateDocTitle: 'Template Function Guide'
   },
 
   // User Management

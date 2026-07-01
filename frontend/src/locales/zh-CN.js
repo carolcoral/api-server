@@ -493,7 +493,28 @@ export default {
     importConflictNew: '导入',
     importConflictChangeCount: '{count} 项变更',
     pleaseSelectFile: '请先选择文件',
-    pleaseEnterUrl: '请输入 Swagger 文档地址'
+    pleaseEnterUrl: '请输入 Swagger 文档地址',
+    // 导出 / 导入
+    exportSwagger: '导出 Swagger',
+    exportData: '导出项目数据',
+    importData: '导入项目数据',
+    exportSwaggerTitle: '选择 Swagger 版本',
+    swaggerVersion2: 'Swagger 2.0',
+    swaggerVersion3: 'OpenAPI 3.0',
+    exportSuccess: '导出成功',
+    exportFailed: '导出失败',
+    importDataTitle: '导入项目数据',
+    importDataHint: '上传之前导出的项目 JSON 文件，将自动导入接口及其响应数据',
+    importDataConflictTitle: '检测到项目「{name}」(编码: {code}) 已存在',
+    importDataConflictHint: '请选择导入模式：',
+    importDataMode: '导入模式',
+    importDataMerge: '增量导入（追加新接口，不覆盖已有接口）',
+    importDataReplace: '覆盖导入（清空现有接口，完全替换为新数据）',
+    importDataUpload: '将项目数据 JSON 文件拖到此处，或点击上传',
+    importDataFormat: '仅支持 .json 格式文件',
+    importDataSuccess: '导入成功，共导入 {count} 个接口',
+    importDataFailed: '导入失败',
+    pleaseSelectFile: '请先选择文件'
   },
 
   // 接口管理
@@ -632,7 +653,17 @@ export default {
     paramPathValueHint: '• 设置为"通用"或"*"：匹配任意参数值<br/>• 设置为具体值：仅当请求参数值等于该值时匹配',
     paramMatchHint: '当请求的该参数值与此值匹配时，返回对应的响应',
     paramRequiredHint: '如果勾选且请求中没有该参数，则匹配失败',
-    randomNotEnabled: '接口未启用随机返回，不允许激活多个响应。如需使用多个响应，请先启用"启用随机返回"选项。'
+    randomNotEnabled: '接口未启用随机返回，不允许激活多个响应。如需使用多个响应，请先启用"启用随机返回"选项。',
+    // 模板引擎
+    showTemplateHelper: '模板助手',
+    hideTemplateHelper: '收起模板',
+    previewTemplate: '预览模板',
+    templateHelperTitle: '点击标签将占位符插入到响应体输入框（支持的模板函数）',
+    noTemplatePlaceholder: '响应体中未检测到模板占位符 {{...}}',
+    previewResult: '模板预览结果',
+    previewFailed: '模板预览失败',
+    templateDoc: '模板说明',
+    templateDocTitle: '模板函数说明'
   },
 
   // 用户管理

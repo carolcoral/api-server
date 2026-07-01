@@ -312,7 +312,7 @@
 
       <div class="response-header">
         <el-row :gutter="20">
-          <el-col :span="18">
+          <el-col :span="14">
             <span style="color: #909399; font-size: 14px;">
               <span>{{ $t('api.apiPathInfo') }}</span>
               <span style="color: #303133; font-weight: 600;">/api/mock-server/{{ currentApi?.project?.code }}{{ currentApi?.path }}</span>
@@ -320,12 +320,16 @@
               <el-tag :type="getMethodTagType(currentApi?.method)">{{ currentApi?.method }}</el-tag>
             </span>
           </el-col>
-          <el-col :span="6" style="text-align: right;">
-            <el-button type="warning" @click="handleAiGenerateDialog">
+          <el-col :span="10" style="text-align: right;">
+            <el-button type="warning" size="small" @click="handleAiGenerateDialog">
               <MagicStick :width="'1em'" :height="'1em'" />
               {{ $t('ai.generateResponse') }}
             </el-button>
-            <el-button type="primary" @click="handleAddResponse">
+            <el-button type="info" size="small" @click="templateDocDialogVisible = true" v-if="canUseTemplateEngine">
+              <el-icon><Document /></el-icon>
+              {{ $t('api.templateDoc') }}
+            </el-button>
+            <el-button type="primary" size="small" @click="handleAddResponse">
               <Plus :width="'1em'" :height="'1em'" />
               {{ $t('api.addResponse') }}
             </el-button>
@@ -425,7 +429,34 @@
           <el-input v-model="responseForm.headers" type="textarea" :rows="2" placeholder='{"X-Custom-Header": "value"}' />
         </el-form-item>
         <el-form-item :label="$t('api.responseBody')" prop="responseBody">
-          <el-input v-model="responseForm.responseBody" type="textarea" :rows="8" :placeholder="$t('api.responseBody')" />
+          <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+            <el-input v-model="responseForm.responseBody" ref="responseBodyInputRef" type="textarea" :rows="8" :placeholder="$t('api.responseBody')" />
+            <div v-if="canUseTemplateEngine" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <el-button size="small" type="info" @click="showTemplateHelper = !showTemplateHelper">
+                <el-icon><MagicStick /></el-icon>
+                {{ showTemplateHelper ? $t('api.hideTemplateHelper') : $t('api.showTemplateHelper') }}
+              </el-button>
+              <el-button size="small" type="success" @click="handleTemplatePreview" :loading="templatePreviewLoading">
+                {{ $t('api.previewTemplate') }}
+              </el-button>
+            </div>
+            <!-- 模板函数帮助面板 -->
+            <div v-if="showTemplateHelper && canUseTemplateEngine" style="max-height: 200px; overflow-y: auto; border: 1px solid #e4e7ed; border-radius: 4px; padding: 8px; background: #fafafa;">
+              <div style="font-size: 12px; color: #909399; margin-bottom: 6px;">{{ $t('api.templateHelperTitle') }}</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                <el-tag
+                  v-for="(desc, func) in templateFunctions"
+                  :key="func"
+                  size="small"
+                  style="cursor: pointer;"
+                  @click="insertTemplate(func)"
+                >
+                  {{ func }}
+                </el-tag>
+              </div>
+            </div>
+            <!-- 模板预览结果已改为弹窗展示 -->
+          </div>
         </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
@@ -645,20 +676,36 @@
         <el-button type="primary" :loading="requestParamSubmitLoading" @click="handleRequestParamSubmit">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
+
+    <!-- 模板说明弹窗 -->
+    <el-dialog v-model="templateDocDialogVisible" :title="$t('api.templateDocTitle')" width="700px" align-center>
+      <div style="max-height: 60vh; overflow-y: auto; padding: 0 4px;">
+        <el-table :data="templateFunctionsList" style="width: 100%; border-radius: 8px; overflow: hidden;" :header-cell-style="{ background: '#409EFF', color: '#fff', fontWeight: 600, fontSize: '14px' }" :cell-style="{ fontSize: '13px' }" stripe>
+          <el-table-column prop="func" label="模板函数" width="200" />
+          <el-table-column prop="desc" label="说明" />
+        </el-table>
+      </div>
+    </el-dialog>
+
+    <!-- 模板预览弹窗 -->
+    <el-dialog v-model="templatePreviewDialogVisible" :title="$t('api.previewResult')" width="700px">
+      <pre style="margin: 0; background: #f5f7fa; padding: 16px; border-radius: 4px; overflow-x: auto; font-family: monospace; font-size: 13px; line-height: 1.6;">{{ templatePreviewFormattedResult }}</pre>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Edit, Delete, InfoFilled, WarningFilled, ArrowDown, CopyDocument, MagicStick } from '@element-plus/icons-vue'
+import { Plus, Refresh, Edit, Delete, InfoFilled, WarningFilled, ArrowDown, CopyDocument, MagicStick, Document } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { useRoute } from 'vue-router'
 import { getAccessibleProjects, getAllAccessibleProjects } from '@/api/project'
 import { getEnabledTemplatesByProjectId } from '@/api/codeTemplate'
 import { generateMockResponse, generateApiDescriptionStream } from '@/api/ai'
+import { getTemplateFunctions, previewTemplate } from '@/api/mockTemplate'
 import { defineAsyncComponent } from 'vue'
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/MonacoEditor.vue'))
@@ -671,6 +718,7 @@ const userStore = useUserStore()
 const canCreateApi = computed(() => userStore.hasPermission('api:create'))
 const canEditApi = computed(() => userStore.hasPermission('api:edit'))
 const canDeleteApi = computed(() => userStore.hasPermission('api:delete'))
+const canUseTemplateEngine = computed(() => userStore.hasPermission('api:template_engine'))
 
 // 搜索表单
 const searchForm = reactive({
@@ -766,6 +814,81 @@ const aiDescLoading = ref(false)
 const currentApi = ref(null)
 const activeResponseId = ref(null)
 const responseFormTitle = ref('')
+
+// 模板引擎相关
+const showTemplateHelper = ref(false)
+const templateFunctions = ref({})
+const templatePreviewLoading = ref(false)
+const templatePreviewResult = ref('')
+const templatePreviewDialogVisible = ref(false)
+const templatePreviewFormattedResult = ref('')
+const templateDocDialogVisible = ref(false)
+const responseBodyInputRef = ref(null)
+
+// 模板函数列表（用于表格展示）
+const templateFunctionsList = computed(() => {
+  return Object.entries(templateFunctions.value).map(([func, desc]) => ({ func, desc }))
+})
+
+// 加载模板函数列表
+const loadTemplateFunctions = async () => {
+  try {
+    const res = await getTemplateFunctions()
+    if (res.code === 200) {
+      templateFunctions.value = res.data || {}
+    }
+  } catch (e) {
+    console.error('加载模板函数失败', e)
+  }
+}
+
+// 插入模板占位符
+const insertTemplate = (func) => {
+  const textarea = responseBodyInputRef.value?.textarea || responseBodyInputRef.value?.$el?.querySelector('textarea')
+  if (!textarea) {
+    responseForm.responseBody = (responseForm.responseBody || '') + func
+    return
+  }
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = responseForm.responseBody || ''
+  const before = text.substring(0, start)
+  const after = text.substring(end)
+  responseForm.responseBody = before + func + after
+  nextTick(() => {
+    textarea.selectionStart = textarea.selectionEnd = start + func.length
+    textarea.focus()
+  })
+}
+
+// 预览模板
+const handleTemplatePreview = async () => {
+  if (!canUseTemplateEngine.value) return
+  if (!responseForm.responseBody || !responseForm.responseBody.includes('{{')) {
+    ElMessage.warning(t('api.noTemplatePlaceholder'))
+    return
+  }
+  templatePreviewLoading.value = true
+  try {
+    const res = await previewTemplate(responseForm.responseBody)
+    if (res.code === 200) {
+      let result = res.data
+      // 尝试 JSON 格式化
+      try {
+        const parsed = JSON.parse(result)
+        result = JSON.stringify(parsed, null, 2)
+      } catch (e) {
+        // 不是 JSON，保持原样
+      }
+      templatePreviewFormattedResult.value = result
+      templatePreviewDialogVisible.value = true
+    }
+  } catch (e) {
+    ElMessage.error(t('api.previewFailed'))
+  } finally {
+    templatePreviewLoading.value = false
+  }
+}
 
 // 表单数据
 const form = reactive({
@@ -1363,6 +1486,8 @@ const handleUpdateResponse = async (row) => {
         responseBody: row.responseBody,
         weight: row.weight,
         enabled: row.enabled,
+        active: row.active,
+        isDefault: row.isDefault,
         mockApi: { id: currentApi.value.id }
       }
     })
@@ -1486,6 +1611,8 @@ const handleResponseDialogClose = () => {
 // 关闭响应表单对话框
 const handleResponseFormDialogClose = () => {
   responseFormRef.value?.resetFields()
+  showTemplateHelper.value = false
+  templatePreviewResult.value = ''
 }
 
 // 打开请求参数管理
@@ -1820,6 +1947,7 @@ onMounted(() => {
   fetchProjects()
   fetchAccessibleProjects()
   fetchApis()
+  loadTemplateFunctions()
 })
 </script>
 

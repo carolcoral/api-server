@@ -14,7 +14,6 @@ import com.carolcoral.mockserver.entity.Project;
 import com.carolcoral.mockserver.entity.ResponseRequestParam;
 import com.carolcoral.mockserver.plugin.TransformerRegistry;
 import com.carolcoral.mockserver.repository.MockApiRepository;
-import com.carolcoral.mockserver.service.SystemConfigService;
 import com.carolcoral.mockserver.util.CacheUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,7 +47,8 @@ public class MockService {
      */
     public MockService(CacheUtil cacheUtil, ObjectMapper objectMapper, RequestLogService requestLogService,
                       ResponseRequestParamService responseRequestParamService, MockApiRepository mockApiRepository,
-                      TransformerRegistry transformerRegistry, SystemConfigService systemConfigService) {
+                      TransformerRegistry transformerRegistry, SystemConfigService systemConfigService,
+                      MockTemplateEngine mockTemplateEngine) {
         this.cacheUtil = cacheUtil;
         this.objectMapper = objectMapper;
         this.requestLogService = requestLogService;
@@ -56,6 +56,7 @@ public class MockService {
         this.mockApiRepository = mockApiRepository;
         this.transformerRegistry = transformerRegistry;
         this.systemConfigService = systemConfigService;
+        this.mockTemplateEngine = mockTemplateEngine;
     }
 
     private final CacheUtil cacheUtil;
@@ -65,6 +66,7 @@ public class MockService {
     private final MockApiRepository mockApiRepository;
     private final TransformerRegistry transformerRegistry;
     private final SystemConfigService systemConfigService;
+    private final MockTemplateEngine mockTemplateEngine;
 
     /** 自定义接口响应缓存 key=apiId, value=缓存条目 */
     private final java.util.concurrent.ConcurrentHashMap<Long, CachedCustomResponse> customResponseCache =
@@ -831,7 +833,7 @@ public class MockService {
     }
 
     /**
-     * 解析响应体
+     * 解析响应体，自动处理模板占位符
      *
      * @param responseBody 响应体字符串
      * @return 解析后的响应体
@@ -842,6 +844,23 @@ public class MockService {
         }
 
         responseBody = responseBody.trim();
+
+        // 检查是否包含模板占位符 {{xxx}}
+        if (responseBody.contains("{{")) {
+            // JSON 模板：递归处理 JSON 中的占位符
+            if ((responseBody.startsWith("{") && responseBody.endsWith("}")) ||
+                    (responseBody.startsWith("[") && responseBody.endsWith("]"))) {
+                try {
+                    String processed = mockTemplateEngine.processJson(responseBody);
+                    return objectMapper.readValue(processed, Object.class);
+                } catch (Exception e) {
+                    log.debug("JSON模板处理失败，回退到纯文本处理: {}", e.getMessage());
+                }
+            }
+            // 纯文本模板
+            String processed = mockTemplateEngine.process(responseBody);
+            return processed;
+        }
 
         // 尝试解析为JSON对象或数组
         if ((responseBody.startsWith("{") && responseBody.endsWith("}")) ||

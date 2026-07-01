@@ -446,6 +446,10 @@ public class MockApiService {
             if (!hasAuthorityOrAdmin("api:view_all")) {
                 accessibleProjectIds = projectRepository.findAccessibleProjectsByUserId(user.getId())
                         .stream().map(Project::getId).collect(Collectors.toList());
+                // 用户没有任何可访问的项目，直接返回空结果
+                if (accessibleProjectIds.isEmpty()) {
+                    return ApiResponse.success(new PageResult<>());
+                }
             }
 
             Specification<MockApi> spec = buildMockApiSpec(name, path, method, projectId, enabled, accessibleProjectIds);
@@ -673,6 +677,12 @@ public class MockApiService {
             }
             if (mockResponse.getEnabled() != null) {
                 existingResponse.setEnabled(mockResponse.getEnabled());
+            }
+            if (mockResponse.getActive() != null) {
+                existingResponse.setActive(mockResponse.getActive());
+            }
+            if (mockResponse.getIsDefault() != null) {
+                existingResponse.setIsDefault(mockResponse.getIsDefault());
             }
 
             MockResponse updatedResponse = mockResponseRepository.save(existingResponse);

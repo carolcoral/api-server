@@ -89,6 +89,18 @@ public class DynamicCompiler {
      * @return {@link javax.tools.JavaCompiler} 实例，失败返回 {@code null}
      */
     private static JavaCompiler initCompiler() {
+        // Java 21+ 在 Spring Boot fat jar 环境下调用 ToolProvider 可能触发 SPI 循环加载
+        // 临时切换线程上下文类加载器到系统类加载器以避免此问题
+        ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(ClassLoader.getSystemClassLoader());
+            return doInitCompiler();
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalLoader);
+        }
+    }
+
+    private static JavaCompiler doInitCompiler() {
         // 方式1: 直接获取
         JavaCompiler c = ToolProvider.getSystemJavaCompiler();
         if (c != null) {

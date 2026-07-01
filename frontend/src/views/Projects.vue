@@ -8,10 +8,16 @@
   <div class="projects">
     <div class="page-header">
       <h1>{{ $t('project.title') }}</h1>
-      <el-button type="primary" @click="handleCreate" v-if="canCreateProject">
-        <Plus :width="'1em'" :height="'1em'" />
-        {{ $t('project.createProject') }}
-      </el-button>
+      <div class="header-actions">
+        <el-button type="primary" @click="handleCreate" v-if="canCreateProject">
+          <Plus :width="'1em'" :height="'1em'" />
+          {{ $t('project.createProject') }}
+        </el-button>
+        <el-button type="success" @click="handleImportData" v-if="canCreateProject && canImportDataPerm">
+          <UploadFilled :width="'1em'" :height="'1em'" />
+          {{ $t('project.importData') }}
+        </el-button>
+      </div>
     </div>
 
     <el-card class="search-card">
@@ -69,7 +75,9 @@
                 <el-dropdown-menu>
                   <el-dropdown-item command="edit" :disabled="!canEditProject(row)">{{ $t('project.editProject') }}</el-dropdown-item>
                   <el-dropdown-item command="api">{{ $t('project.apiManagement') }}</el-dropdown-item>
-                  <el-dropdown-item command="import">{{ $t('project.importSwagger') }}</el-dropdown-item>
+                  <el-dropdown-item command="import" :disabled="!canImportSwagger(row)">{{ $t('project.importSwagger') }}</el-dropdown-item>
+                  <el-dropdown-item command="exportSwagger" :disabled="!canExportSwagger(row)">{{ $t('project.exportSwagger') }}</el-dropdown-item>
+                  <el-dropdown-item command="exportData" :disabled="!canExportData(row)">{{ $t('project.exportData') }}</el-dropdown-item>
                   <el-dropdown-item command="members" :disabled="!canManageMembers(row)">{{ $t('project.memberManagement') }}</el-dropdown-item>
                   <el-dropdown-item command="delete" :disabled="!canDeleteProject(row)" divided style="color: #f56c6c;">{{ $t('project.deleteProject') }}</el-dropdown-item>
                 </el-dropdown-menu>
@@ -352,6 +360,64 @@
         <el-button type="primary" :loading="memberSubmitLoading" @click="handleMemberSubmit">{{ $t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
+
+    <!-- Swagger 版本选择对话框 -->
+    <el-dialog v-model="swaggerExportDialogVisible" :title="$t('project.exportSwaggerTitle')" width="420px">
+      <div style="padding: 16px 0;">
+        <el-radio-group v-model="swaggerExportVersion">
+          <el-radio value="2.0" size="large" style="display: block;">{{ $t('project.swaggerVersion2') }}</el-radio>
+          <el-radio value="3.0" size="large" style="display: block;">{{ $t('project.swaggerVersion3') }}</el-radio>
+        </el-radio-group>
+      </div>
+      <template #footer>
+        <el-button @click="swaggerExportDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="swaggerExportLoading" @click="handleSwaggerExportConfirm">
+          {{ $t('common.download') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 导入项目数据对话框 -->
+    <el-dialog v-model="importDataDialogVisible" :title="$t('project.importDataTitle')" width="520px" @close="handleImportDataDialogClose">
+      <div style="margin-bottom: 12px; padding: 10px; background: #f0f9ff; border: 1px solid #b3d8ff; border-radius: 4px;">
+        <el-icon style="color: #409eff; margin-right: 6px;"><InfoFilled /></el-icon>
+        <span style="color: #409eff; font-size: 13px;">{{ $t('project.importDataHint') }}</span>
+      </div>
+      <el-upload
+        ref="dataUploadRef"
+        class="import-upload"
+        drag
+        :auto-upload="false"
+        :limit="1"
+        accept=".json"
+        :on-change="handleDataFileChange"
+        :on-remove="handleDataFileRemove"
+      >
+        <el-icon class="upload-icon"><UploadFilled /></el-icon>
+        <div class="upload-text">
+          <p>{{ $t('project.importDataUpload') }}</p>
+          <p class="upload-sub">{{ $t('project.importDataFormat') }}</p>
+        </div>
+      </el-upload>
+      <!-- 检测到已存在项目时显示 -->
+      <div v-if="importDataConflictInfo" style="margin-top: 16px; padding: 12px; background: #fef9e7; border: 1px solid #faecd8; border-radius: 4px;">
+        <p style="margin: 0 0 8px; color: #e6a23c; font-weight: 600; font-size: 14px;">
+          <el-icon style="margin-right: 4px;"><WarningFilled /></el-icon>
+          {{ $t('project.importDataConflictTitle', { name: importDataConflictInfo.name, code: importDataConflictInfo.code }) }}
+        </p>
+        <p style="margin: 0 0 12px; color: #909399; font-size: 13px;">{{ $t('project.importDataConflictHint') }}</p>
+        <el-radio-group v-model="importDataMode">
+          <el-radio value="merge">{{ $t('project.importDataMerge') }}</el-radio>
+          <el-radio value="replace">{{ $t('project.importDataReplace') }}</el-radio>
+        </el-radio-group>
+      </div>
+      <template #footer>
+        <el-button @click="importDataDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="importDataLoading" @click="handleImportDataSubmit" :disabled="!importDataFile">
+          {{ $t('common.import') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -361,9 +427,10 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Search, ArrowDown, UploadFilled, Link, CircleCheckFilled, CircleCloseFilled, RemoveFilled } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, ArrowDown, UploadFilled, Link, CircleCheckFilled, CircleCloseFilled, RemoveFilled, Download, InfoFilled, WarningFilled } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { formatTime, loadDateFormat } from '@/utils/dateFormat'
+import { exportSwagger, exportProjectData, importProjectData } from '@/api/projectExport'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -386,6 +453,27 @@ const canDeleteProject = (project) => {
   const role = project.userRole
   return role === 'ADMIN' || role === 'CREATOR'
 }
+// 项目操作权限
+// 导入 Swagger：仅项目管理员可操作（且有 project:import_swagger 权限）
+const canImportSwagger = (project) => {
+  if (canViewAllProjects.value && userStore.hasPermission('project:import_swagger')) return true
+  const role = project.userRole
+  return (role === 'ADMIN' || role === 'CREATOR') && userStore.hasPermission('project:import_swagger')
+}
+// 导出 Swagger：项目成员可操作（需 project:export_swagger 权限）
+const canExportSwagger = (project) => {
+  if (canViewAllProjects.value && userStore.hasPermission('project:export_swagger')) return true
+  const role = project.userRole
+  return (role === 'ADMIN' || role === 'CREATOR' || role === 'MEMBER') && userStore.hasPermission('project:export_swagger')
+}
+// 导出项目数据：项目成员可操作（需 project:export_data 权限）
+const canExportData = (project) => {
+  if (canViewAllProjects.value && userStore.hasPermission('project:export_data')) return true
+  const role = project.userRole
+  return (role === 'ADMIN' || role === 'CREATOR' || role === 'MEMBER') && userStore.hasPermission('project:export_data')
+}
+// 导入项目数据：页面级操作，需 project:import_data 权限
+const canImportDataPerm = computed(() => userStore.hasPermission('project:import_data'))
 
 const searchForm = reactive({
   name: '',
@@ -539,7 +627,13 @@ const handleActionCommand = (command, row) => {
       router.push(`/apis?projectId=${row.id}`)
       break
     case 'import':
-      handleImportSwagger(row)
+      if (canImportSwagger(row)) handleImportSwagger(row)
+      break
+    case 'exportSwagger':
+      if (canExportSwagger(row)) handleExportSwagger(row)
+      break
+    case 'exportData':
+      if (canExportData(row)) handleExportData(row)
       break
     case 'members':
       handleManageMembers(row)
@@ -802,6 +896,120 @@ const importFile = ref(null)
 const uploadRef = ref(null)
 const currentImportProject = ref(null)
 
+// ====== Swagger 导出相关 ======
+const swaggerExportDialogVisible = ref(false)
+const swaggerExportLoading = ref(false)
+const swaggerExportVersion = ref('3.0')
+const currentExportProject = ref(null)
+
+const handleExportSwagger = (row) => {
+  currentExportProject.value = row
+  swaggerExportVersion.value = '3.0'
+  swaggerExportDialogVisible.value = true
+}
+
+const handleSwaggerExportConfirm = async () => {
+  if (!currentExportProject.value) return
+  swaggerExportLoading.value = true
+  try {
+    await exportSwagger(currentExportProject.value.id, swaggerExportVersion.value)
+    ElMessage.success(t('project.exportSuccess'))
+    swaggerExportDialogVisible.value = false
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error(t('project.exportFailed'))
+  } finally {
+    swaggerExportLoading.value = false
+  }
+}
+
+// ====== 项目数据导出 ======
+const handleExportData = async (row) => {
+  try {
+    await exportProjectData(row.id)
+    ElMessage.success(t('project.exportSuccess'))
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error(t('project.exportFailed'))
+  }
+}
+
+// ====== 项目数据导入 ======
+const importDataDialogVisible = ref(false)
+const importDataLoading = ref(false)
+const importDataFile = ref(null)
+const importDataMode = ref('merge')
+const dataUploadRef = ref(null)
+const importDataConflictInfo = ref(null) // 冲突的项目信息 { name, code, id }
+
+const handleImportData = () => {
+  importDataFile.value = null
+  importDataMode.value = 'merge'
+  importDataConflictInfo.value = null
+  importDataDialogVisible.value = true
+}
+
+const handleDataFileChange = async (file) => {
+  importDataFile.value = file.raw
+  importDataConflictInfo.value = null
+
+  // 解析 JSON 检测项目是否已存在
+  try {
+    const text = await file.raw.text()
+    const data = JSON.parse(text)
+    if (data && data.project && data.project.code) {
+      const code = data.project.code
+      // 查找当前项目列表中是否有相同 code 的项目
+      const existing = projectList.value.find(p => p.code === code)
+      if (existing) {
+        importDataConflictInfo.value = {
+          name: existing.name,
+          code: existing.code,
+          id: existing.id
+        }
+        importDataMode.value = 'merge'
+      }
+    }
+  } catch (e) {
+    // 解析失败不阻止，由后端处理
+    console.warn('解析导入文件失败:', e)
+  }
+}
+
+const handleDataFileRemove = () => {
+  importDataFile.value = null
+  importDataConflictInfo.value = null
+}
+
+const handleImportDataSubmit = async () => {
+  if (!importDataFile.value) {
+    ElMessage.warning(t('project.pleaseSelectFile'))
+    return
+  }
+  importDataLoading.value = true
+  try {
+    const res = await importProjectData(null, importDataFile.value, importDataMode.value)
+    if (res.code === 200) {
+      ElMessage.success(t('project.importDataSuccess', { count: res.data?.successCount || 0 }))
+      importDataDialogVisible.value = false
+      fetchProjects()
+    } else {
+      ElMessage.error(res.message || t('project.importDataFailed'))
+    }
+  } catch (error) {
+    console.error('导入失败:', error)
+    ElMessage.error(t('project.importDataFailed'))
+  } finally {
+    importDataLoading.value = false
+  }
+}
+
+const handleImportDataDialogClose = () => {
+  importDataFile.value = null
+  importDataConflictInfo.value = null
+  dataUploadRef.value?.clearFiles()
+}
+
 const importResultVisible = ref(false)
 const importResult = reactive({
   total: 0,
@@ -1040,6 +1248,12 @@ onMounted(async () => {
   font-size: 24px;
   font-weight: 600;
   color: #303133;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .search-card {

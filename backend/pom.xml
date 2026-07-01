@@ -162,6 +162,13 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!-- Datafaker for mock data generation (Chinese names, phone numbers, ID cards, etc.) -->
+        <dependency>
+            <groupId>net.datafaker</groupId>
+            <artifactId>datafaker</artifactId>
+            <version>2.4.2</version>
+        </dependency>
+
         <!-- Dotenv for .env file support -->
         <dependency>
             <groupId>io.github.cdimascio</groupId>
