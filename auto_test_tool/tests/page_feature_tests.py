@@ -18,6 +18,7 @@ class PageFeatureTests:
         self._created_email_template_id = None
         self._created_role_id = None
         self._created_test_user_id = None
+        self._created_announcement_id = None
 
     def build_suite(self) -> TestSuite:
         """构建页面功能测试套件"""
@@ -289,6 +290,77 @@ class PageFeatureTests:
             self._test_public_config,
             description="GET /api/public-configs",
             category="system_config"
+        ))
+
+        # === 模板引擎功能 ===
+        suite.cases.append(self.runner.run_test(
+            "feat_template_engine_preview",
+            "模板引擎预览渲染",
+            self._test_template_engine_preview,
+            description="POST /api/mock-template/preview（v2.3.2 新功能）",
+            category="template_engine"
+        ))
+        suite.cases.append(self.runner.run_test(
+            "feat_template_engine_functions",
+            "模板引擎函数列表",
+            self._test_template_engine_functions,
+            description="GET /api/mock-template/functions（v2.3.2 新功能）",
+            category="template_engine"
+        ))
+
+        # === 批量删除代码模板 ===
+        suite.cases.append(self.runner.run_test(
+            "feat_template_batch_delete",
+            "批量删除代码模板",
+            self._test_template_batch_delete,
+            description="DELETE /api/code-templates/batch-delete（v2.3.2 新功能）",
+            category="code_template"
+        ))
+
+        # === 项目导入导出 ===
+        suite.cases.append(self.runner.run_test(
+            "feat_project_export_data",
+            "导出项目数据",
+            self._test_project_export_data,
+            description="GET /api/projects/{id}/export-data（v2.3.2 新功能）",
+            category="project"
+        ))
+        suite.cases.append(self.runner.run_test(
+            "feat_project_export_swagger",
+            "导出 Swagger/OpenAPI",
+            self._test_project_export_swagger,
+            description="GET /api/projects/{id}/export-swagger（v2.3.2 新功能）",
+            category="project"
+        ))
+
+        # === 系统公告 ===
+        suite.cases.append(self.runner.run_test(
+            "feat_announcement_list",
+            "获取系统公告列表",
+            self._test_announcement_list,
+            description="GET /api/system-announcement",
+            category="announcement"
+        ))
+        suite.cases.append(self.runner.run_test(
+            "feat_announcement_create",
+            "创建系统公告",
+            self._test_announcement_create,
+            description="POST /api/system-announcement",
+            category="announcement"
+        ))
+        suite.cases.append(self.runner.run_test(
+            "feat_announcement_toggle",
+            "切换公告启用状态",
+            self._test_announcement_toggle,
+            description="PUT /api/system-announcement/{id}/toggle",
+            category="announcement"
+        ))
+        suite.cases.append(self.runner.run_test(
+            "feat_announcement_delete",
+            "删除系统公告",
+            self._test_announcement_delete,
+            description="DELETE /api/system-announcement/{id}",
+            category="announcement"
         ))
 
         # === 统计功能 ===
@@ -883,4 +955,150 @@ class PageFeatureTests:
         if err:
             return False, err, {}
         passed, msg = self.runner.assert_api_success(status, resp)
+        return passed, msg, {}
+
+    # ========== 模板引擎功能 ==========
+
+    def _test_template_engine_preview(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        status, resp, err = self.runner.client.post("/mock-template/preview", data={
+            "template": '{"name":"{{name()}}","email":"{{email()}}"}',
+            "count": 1
+        })
+        if err:
+            return False, err, {}
+        if status == 403:
+            return True, None, {"note": "模板预览返回403（权限不足）", "status": 403}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        return passed, msg, {}
+
+    def _test_template_engine_functions(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        status, resp, err = self.runner.client.get("/mock-template/functions")
+        if err:
+            return False, err, {}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        return passed, msg, {}
+
+    # ========== 批量删除代码模板 ==========
+
+    def _test_template_batch_delete(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        # 批量删除用空列表测试端点是否可达
+        status, resp, err = self.runner.client.delete("/code-templates/batch-delete", data=[])
+        if err:
+            return False, err, {}
+        if status == 403:
+            return True, None, {"note": "批量删除返回403（权限不足）", "status": 403}
+        # 空列表可能返回 200（无操作）或 400（参数校验）
+        passed = status in (200, 400)
+        return passed, None, {"status": status}
+
+    # ========== 项目导入导出 ==========
+
+    def _test_project_export_data(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        if not self._created_project_id:
+            return True, None, {"note": "无可用项目"}
+
+        status, resp, err = self.runner.client.get(f"/projects/{self._created_project_id}/export-data")
+        if err:
+            return False, err, {}
+        if status == 403:
+            return True, None, {"note": "导出返回403（权限不足）", "status": 403}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        return passed, msg, {}
+
+    def _test_project_export_swagger(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        if not self._created_project_id:
+            return True, None, {"note": "无可用项目"}
+
+        status, resp, err = self.runner.client.get(
+            f"/projects/{self._created_project_id}/export-swagger",
+            params={"format": "swagger"}
+        )
+        if err:
+            return False, err, {}
+        if status == 403:
+            return True, None, {"note": "Swagger导出返回403（权限不足）", "status": 403}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        return passed, msg, {}
+
+    # ========== 系统公告 ==========
+
+    def _test_announcement_list(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        status, resp, err = self.runner.client.get("/system-announcement")
+        if err:
+            return False, err, {}
+        if status == 403:
+            return True, None, {"note": "公告列表返回403（权限不足）", "status": 403}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        return passed, msg, {}
+
+    def _test_announcement_create(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        title = f"自动化测试公告_{random_string(4)}"
+        status, resp, err = self.runner.client.post("/system-announcement", data={
+            "title": title,
+            "content": "这是自动化测试创建的公告",
+            "level": "INFO",
+            "enabled": True
+        })
+        if err:
+            return False, err, {}
+        if status == 403:
+            return True, None, {"note": "创建公告返回403（权限不足）", "status": 403}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        if passed:
+            data = self.runner.client.get_data(resp)
+            if isinstance(data, dict):
+                self._created_announcement_id = data.get("id")
+        return passed, msg, {"title": title}
+
+    def _test_announcement_toggle(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        if not self._created_announcement_id:
+            return True, None, {"note": "无待切换公告"}
+
+        status, resp, err = self.runner.client.put(
+            f"/system-announcement/{self._created_announcement_id}/toggle"
+        )
+        if err:
+            return False, err, {}
+        if status == 403:
+            return True, None, {"note": "切换公告返回403（权限不足）", "status": 403}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        return passed, msg, {}
+
+    def _test_announcement_delete(self):
+        ok, err = self.runner.auth.login_as_admin()
+        if not ok:
+            return False, f"登录失败: {err}", {}
+        if not self._created_announcement_id:
+            return True, None, {"note": "无待删除公告"}
+
+        status, resp, err = self.runner.client.delete(f"/system-announcement/{self._created_announcement_id}")
+        if err:
+            return False, err, {}
+        passed, msg = self.runner.assert_api_success(status, resp)
+        if passed:
+            self._created_announcement_id = None
         return passed, msg, {}

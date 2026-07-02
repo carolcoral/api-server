@@ -44,6 +44,12 @@ class RBACTests:
         "statistics:view": ("GET", "/statistics/request-frequency"),
         "settings:view": ("GET", "/system-configs"),
         "system-info:view": ("GET", "/system-info"),
+        # v2.3.2 新增权限
+        "api:template_engine": ("POST", "/mock-template/preview"),
+        "project:export_data": ("GET", "/projects/1/export-data"),
+        "project:import_data": ("POST", "/projects/import-data"),
+        "project:export_swagger": ("GET", "/projects/1/export-swagger"),
+        "project:import_swagger": ("POST", "/projects/1/import-swagger-file"),
     }
 
     def __init__(self, runner: TestRunner):

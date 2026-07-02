@@ -6,11 +6,15 @@
 
 <template>
   <div class="welcome-page">
+    <!-- Canvas 粒子背景 -->
+    <canvas ref="particleCanvas" class="particle-canvas"></canvas>
+
     <!-- 背景装饰 -->
     <div class="bg-decor">
       <div class="bg-orb orb-1"></div>
       <div class="bg-orb orb-2"></div>
       <div class="bg-orb orb-3"></div>
+      <div class="bg-orb orb-4"></div>
       <div class="bg-grid"></div>
     </div>
 
@@ -46,7 +50,10 @@
     <main class="welcome-main">
       <!-- Hero 区域 -->
       <section class="hero-section">
-        <div class="hero-badge">{{ welcomeBadge }}</div>
+        <div class="hero-badge">
+          <span class="badge-dot"></span>
+          {{ welcomeBadge }}
+        </div>
         <h1 class="hero-title">{{ $t('welcome.title') }}</h1>
         <p class="hero-subtitle">{{ $t('welcome.subtitle') }}</p>
         <p class="hero-desc">{{ $t('welcome.description') }}</p>
@@ -58,21 +65,50 @@
         </div>
       </section>
 
-      <!-- 特性卡片 8个 -->
+      <!-- 核心数据 -->
+      <section class="stats-section">
+        <div ref="statsRef" class="stats-row">
+          <div class="stat-item" v-for="(stat, idx) in stats" :key="idx">
+            <span class="stat-number" :ref="el => statRefs[idx] = el">
+              <span class="stat-count">{{ animatedCounts[idx] }}</span>
+              <span class="stat-suffix">{{ stat.suffix }}</span>
+            </span>
+            <span class="stat-label">{{ stat.label }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 特性卡片 10 个 -->
       <section class="features-section">
         <div class="section-header">
           <h2 class="section-title">{{ $t('welcome.featuresTitle') }}</h2>
           <p class="section-subtitle">{{ $t('welcome.featuresSubtitle') }}</p>
         </div>
         <div class="features-grid">
-          <div class="feature-card" v-for="(feature, idx) in features" :key="idx" :style="{ '--delay': idx * 0.05 + 's' }">
+          <div class="feature-card" v-for="(feature, idx) in features" :key="idx"
+               :style="{ '--delay': idx * 0.05 + 's', '--i': idx }">
             <div class="feature-icon" :style="{ background: feature.bg }">
-              <el-icon :size="22">
+              <el-icon :size="20">
                 <component :is="feature.icon" />
               </el-icon>
             </div>
             <h3 class="feature-title">{{ feature.title }}</h3>
             <p class="feature-desc">{{ feature.desc }}</p>
+            <div class="feature-glow" :style="{ background: feature.bg }"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 技术栈 -->
+      <section class="tech-stack-section">
+        <div class="section-header">
+          <h2 class="section-title">{{ $t('welcome.techStackTitle') }}</h2>
+        </div>
+        <div class="tech-badges">
+          <div class="tech-badge" v-for="(tech, idx) in techStack" :key="idx"
+               :style="{ '--idx': idx }">
+            <span class="tech-name">{{ tech.name }}</span>
+            <span class="tech-ver">{{ tech.ver }}</span>
           </div>
         </div>
       </section>
@@ -115,7 +151,7 @@
         <div class="ai-caps-grid">
           <div class="ai-cap-card" v-for="(cap, idx) in aiCaps" :key="idx" :style="{ '--idx': idx }">
             <div class="ai-cap-icon">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </div>
@@ -138,7 +174,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import request from '@/utils/request'
@@ -151,7 +187,11 @@ import {
   Document,
   UserFilled,
   ChatDotSquare,
-  MagicStick
+  MagicStick,
+  Files,
+  DataAnalysis,
+  DocumentCopy,
+  Monitor
 } from '@element-plus/icons-vue'
 
 const { t, locale } = useI18n()
@@ -159,19 +199,21 @@ const router = useRouter()
 
 const currentLocale = ref(locale.value)
 const appVersion = ref('')
+const particleCanvas = ref(null)
+const statsRef = ref(null)
+const statRefs = ref([])
+const animatedCounts = ref([0, 0, 0, 0])
+
+let animationId = null
+let statsObserved = false
 
 const switchLocale = (val) => {
   locale.value = val
   localStorage.setItem('locale', val)
 }
 
-const goLogin = () => {
-  router.push('/login')
-}
-
-const goChangelog = () => {
-  router.push('/changelog')
-}
+const goLogin = () => router.push('/login')
+const goChangelog = () => router.push('/changelog')
 
 const fetchVersion = async () => {
   try {
@@ -190,81 +232,215 @@ const welcomeBadge = computed(() => {
   return ver ? ver + ' · ' + desc : desc
 })
 
-onMounted(() => {
-  fetchVersion()
-})
+// ========== 核心数据 ==========
+const stats = computed(() => [
+  { value: 9, suffix: '', label: t('welcome.statsItem1') },
+  { value: 30, suffix: '+', label: t('welcome.statsItem2') },
+  { value: 3, suffix: '', label: t('welcome.statsItem3') },
+  { value: 12, suffix: '+', label: t('welcome.statsItem4') },
+])
 
+const animateStats = () => {
+  const targets = stats.value.map(s => s.value)
+  const duration = 1600
+  const startTime = performance.now()
+
+  const tick = (now) => {
+    const elapsed = now - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    // easeOutCubic
+    const eased = 1 - Math.pow(1 - progress, 3)
+    animatedCounts.value = targets.map(t => Math.round(t * eased))
+    if (progress < 1) {
+      requestAnimationFrame(tick)
+    }
+  }
+  requestAnimationFrame(tick)
+}
+
+// ========== 特性卡片 ==========
 const features = computed(() => [
   {
-    icon: Connection,
-    title: t('welcome.feature1Title'),
-    desc: t('welcome.feature1Desc'),
+    icon: Connection, title: t('welcome.feature1Title'), desc: t('welcome.feature1Desc'),
     bg: 'linear-gradient(135deg, #667eea, #764ba2)'
   },
   {
-    icon: EditPen,
-    title: t('welcome.feature2Title'),
-    desc: t('welcome.feature2Desc'),
+    icon: EditPen, title: t('welcome.feature2Title'), desc: t('welcome.feature2Desc'),
     bg: 'linear-gradient(135deg, #f093fb, #f5576c)'
   },
   {
-    icon: MagicStick,
-    title: t('welcome.feature3Title'),
-    desc: t('welcome.feature3Desc'),
+    icon: MagicStick, title: t('welcome.feature3Title'), desc: t('welcome.feature3Desc'),
     bg: 'linear-gradient(135deg, #f6d365, #fda085)'
   },
   {
-    icon: Upload,
-    title: t('welcome.feature4Title'),
-    desc: t('welcome.feature4Desc'),
+    icon: Upload, title: t('welcome.feature4Title'), desc: t('welcome.feature4Desc'),
     bg: 'linear-gradient(135deg, #4facfe, #00f2fe)'
   },
   {
-    icon: TrendCharts,
-    title: t('welcome.feature5Title'),
-    desc: t('welcome.feature5Desc'),
+    icon: DocumentCopy, title: t('welcome.feature5Title'), desc: t('welcome.feature5Desc'),
     bg: 'linear-gradient(135deg, #43e97b, #38f9d7)'
   },
   {
-    icon: Document,
-    title: t('welcome.feature6Title'),
-    desc: t('welcome.feature6Desc'),
+    icon: Files, title: t('welcome.feature6Title'), desc: t('welcome.feature6Desc'),
     bg: 'linear-gradient(135deg, #a18cd1, #fbc2eb)'
   },
   {
-    icon: UserFilled,
-    title: t('welcome.feature7Title'),
-    desc: t('welcome.feature7Desc'),
+    icon: UserFilled, title: t('welcome.feature7Title'), desc: t('welcome.feature7Desc'),
     bg: 'linear-gradient(135deg, #ff9a9e, #fecfef)'
   },
   {
-    icon: ChatDotSquare,
-    title: t('welcome.feature8Title'),
-    desc: t('welcome.feature8Desc'),
+    icon: TrendCharts, title: t('welcome.feature8Title'), desc: t('welcome.feature8Desc'),
     bg: 'linear-gradient(135deg, #89f7fe, #66a6ff)'
-  }
+  },
+  {
+    icon: DataAnalysis, title: t('welcome.feature9Title'), desc: t('welcome.feature9Desc'),
+    bg: 'linear-gradient(135deg, #fa709a, #fee140)'
+  },
+  {
+    icon: ChatDotSquare, title: t('welcome.feature10Title'), desc: t('welcome.feature10Desc'),
+    bg: 'linear-gradient(135deg, #a8edea, #fed6e3)'
+  },
 ])
 
+// ========== 技术栈 ==========
+const techStack = [
+  { name: 'Vue 3', ver: 'Composition API' },
+  { name: 'Spring Boot', ver: '3.2.x' },
+  { name: 'JDK', ver: '21' },
+  { name: 'MySQL', ver: '8.0+' },
+  { name: 'PostgreSQL', ver: '15+' },
+  { name: 'SQLite', ver: '3.x' },
+  { name: 'Docker', ver: '' },
+  { name: 'Element Plus', ver: '' },
+  { name: 'Monaco Editor', ver: '' },
+  { name: 'OpenAI', ver: 'Protocol' },
+]
+
+// ========== 快速上手 ==========
 const workflowSteps = computed(() => [
   { title: t('welcome.workflow1Title'), desc: t('welcome.workflow1Desc') },
   { title: t('welcome.workflow2Title'), desc: t('welcome.workflow2Desc') },
   { title: t('welcome.workflow3Title'), desc: t('welcome.workflow3Desc') },
-  { title: t('welcome.workflow4Title'), desc: t('welcome.workflow4Desc') }
+  { title: t('welcome.workflow4Title'), desc: t('welcome.workflow4Desc') },
 ])
 
+// ========== AI 能力 ==========
 const aiCaps = computed(() => [
-  t('welcome.aiCap1'),
-  t('welcome.aiCap2'),
-  t('welcome.aiCap3'),
-  t('welcome.aiCap4'),
-  t('welcome.aiCap5'),
-  t('welcome.aiCap6'),
-  t('welcome.aiCap7'),
-  t('welcome.aiCap8')
+  t('welcome.aiCap1'), t('welcome.aiCap2'), t('welcome.aiCap3'), t('welcome.aiCap4'),
+  t('welcome.aiCap5'), t('welcome.aiCap6'), t('welcome.aiCap7'), t('welcome.aiCap8'),
 ])
+
+// ========== Canvas 粒子系统 ==========
+class Particle {
+  constructor(w, h) {
+    this.x = Math.random() * w
+    this.y = Math.random() * h
+    this.vx = (Math.random() - 0.5) * 0.6
+    this.vy = (Math.random() - 0.5) * 0.6
+    this.size = Math.random() * 2 + 0.8
+    this.opacity = Math.random() * 0.5 + 0.15
+  }
+
+  update(w, h) {
+    this.x += this.vx
+    this.y += this.vy
+    if (this.x < 0 || this.x > w) this.vx *= -1
+    if (this.y < 0 || this.y > h) this.vy *= -1
+  }
+}
+
+const initParticles = () => {
+  const canvas = particleCanvas.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  let particles = []
+  const PARTICLE_COUNT = 70
+  const CONNECT_DIST = 130
+
+  const resize = () => {
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+  }
+  resize()
+  window.addEventListener('resize', resize)
+
+  // Initialize particles
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    particles.push(new Particle(canvas.width, canvas.height))
+  }
+
+  const animate = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i]
+      p.update(canvas.width, canvas.height)
+
+      // Draw particle
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(102, 126, 234, ${p.opacity})`
+      ctx.fill()
+
+      // Connect nearby particles
+      for (let j = i + 1; j < particles.length; j++) {
+        const p2 = particles[j]
+        const dx = p.x - p2.x
+        const dy = p.y - p2.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+
+        if (dist < CONNECT_DIST) {
+          const alpha = (1 - dist / CONNECT_DIST) * 0.12
+          ctx.beginPath()
+          ctx.moveTo(p.x, p.y)
+          ctx.lineTo(p2.x, p2.y)
+          ctx.strokeStyle = `rgba(120, 150, 255, ${alpha})`
+          ctx.lineWidth = 0.5
+          ctx.stroke()
+        }
+      }
+    }
+
+    animationId = requestAnimationFrame(animate)
+  }
+
+  animate()
+}
+
+// ========== 生命周期 ==========
+onMounted(async () => {
+  await fetchVersion()
+  await nextTick()
+  initParticles()
+
+  // IntersectionObserver for stats counter
+  if (statsRef.value) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !statsObserved) {
+            statsObserved = true
+            animateStats()
+            observer.disconnect()
+          }
+        })
+      },
+      { threshold: 0.3 }
+    )
+    observer.observe(statsRef.value)
+  }
+})
+
+onUnmounted(() => {
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+  }
+})
 </script>
 
 <style scoped>
+/* ==================== 基础布局 ==================== */
 .welcome-page {
   min-height: 100vh;
   min-height: 100dvh;
@@ -276,7 +452,15 @@ const aiCaps = computed(() => [
   position: relative;
 }
 
-/* 背景装饰 */
+/* ==================== Canvas 粒子特效 ==================== */
+.particle-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ==================== 背景装饰 ==================== */
 .bg-decor {
   position: fixed;
   inset: 0;
@@ -288,64 +472,72 @@ const aiCaps = computed(() => [
 .bg-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.12;
+  filter: blur(100px);
+  opacity: 0.08;
 }
 
 .orb-1 {
-  width: 500px;
-  height: 500px;
-  background: #667eea;
-  top: -150px;
-  right: -100px;
-  animation: orbFloat1 12s ease-in-out infinite;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, #667eea, transparent 70%);
+  top: -200px; right: -150px;
+  animation: orbFloat1 14s ease-in-out infinite;
 }
 
 .orb-2 {
-  width: 400px;
-  height: 400px;
-  background: #764ba2;
-  bottom: 20%;
-  left: -120px;
-  animation: orbFloat2 15s ease-in-out infinite;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #764ba2, transparent 70%);
+  bottom: 15%; left: -180px;
+  animation: orbFloat2 18s ease-in-out infinite;
 }
 
 .orb-3 {
-  width: 350px;
-  height: 350px;
-  background: #4facfe;
-  top: 50%;
-  right: -80px;
-  animation: orbFloat3 10s ease-in-out infinite;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, #4facfe, transparent 70%);
+  top: 45%; right: -100px;
+  animation: orbFloat3 12s ease-in-out infinite;
+}
+
+.orb-4 {
+  width: 350px; height: 350px;
+  background: radial-gradient(circle, #f6d365, transparent 70%);
+  bottom: 30%; right: 30%;
+  animation: orbFloat4 16s ease-in-out infinite;
 }
 
 .bg-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-  background-size: 60px 60px;
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 64px 64px;
 }
 
 @keyframes orbFloat1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(-30px, 40px) scale(1.05); }
-  66% { transform: translate(20px, -20px) scale(0.95); }
+  25% { transform: translate(-40px, 50px) scale(1.06); }
+  50% { transform: translate(20px, -30px) scale(0.94); }
+  75% { transform: translate(-20px, -20px) scale(1.03); }
 }
 
 @keyframes orbFloat2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(40px, -30px) scale(1.06); }
-  66% { transform: translate(-20px, 20px) scale(0.94); }
+  33% { transform: translate(50px, -40px) scale(1.07); }
+  66% { transform: translate(-30px, 30px) scale(0.93); }
 }
 
 @keyframes orbFloat3 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-25px, -35px) scale(1.04); }
+  50% { transform: translate(-35px, -45px) scale(1.05); }
 }
 
-/* 导航栏 */
+@keyframes orbFloat4 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.04); }
+  66% { transform: translate(-40px, 20px) scale(0.96); }
+}
+
+/* ==================== 导航栏 ==================== */
 .welcome-header {
   position: sticky;
   top: 0;
@@ -374,6 +566,7 @@ const aiCaps = computed(() => [
 
 .brand-icon {
   color: #667eea;
+  filter: drop-shadow(0 0 6px rgba(102, 126, 234, 0.3));
 }
 
 .brand-name {
@@ -422,14 +615,9 @@ const aiCaps = computed(() => [
   opacity: 0.8;
 }
 
-.header-nav-link:hover .nav-link-icon {
-  opacity: 1;
-}
+.header-nav-link:hover .nav-link-icon { opacity: 1; }
 
-/* 语言选择器 */
-.locale-select {
-  width: 110px;
-}
+.locale-select { width: 110px; }
 
 .locale-select :deep(.el-input__wrapper) {
   background: rgba(255, 255, 255, 0.08);
@@ -451,15 +639,12 @@ const aiCaps = computed(() => [
   cursor: pointer;
 }
 
-.locale-select :deep(.el-input__suffix) {
-  color: rgba(255, 255, 255, 0.55);
-}
-
+.locale-select :deep(.el-input__suffix),
 .locale-select :deep(.el-input .el-input__icon) {
   color: rgba(255, 255, 255, 0.55);
 }
 
-/* 主体 */
+/* ==================== 主体 ==================== */
 .welcome-main {
   flex: 1;
   position: relative;
@@ -469,10 +654,10 @@ const aiCaps = computed(() => [
   padding-bottom: 40px;
 }
 
-/* Hero 区域 */
+/* ==================== Hero ==================== */
 .hero-section {
   text-align: center;
-  padding: clamp(48px, 8vh, 96px) 24px clamp(32px, 5vh, 56px);
+  padding: clamp(56px, 9vh, 100px) 24px clamp(32px, 5vh, 56px);
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
@@ -482,39 +667,39 @@ const aiCaps = computed(() => [
 .hero-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 18px;
-  margin-bottom: 28px;
-  border-radius: 20px;
+  gap: 8px;
+  padding: 7px 22px;
+  margin-bottom: 32px;
+  border-radius: 24px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: #a78bfa;
   background: rgba(167, 139, 250, 0.1);
   border: 1px solid rgba(167, 139, 250, 0.2);
   letter-spacing: 0.3px;
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.08);
 }
 
-.hero-badge::before {
-  content: '';
-  width: 6px;
-  height: 6px;
+.badge-dot {
+  width: 7px; height: 7px;
   border-radius: 50%;
   background: #a78bfa;
+  box-shadow: 0 0 8px #a78bfa;
   animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px #a78bfa; }
+  50% { opacity: 0.35; box-shadow: 0 0 2px #a78bfa; }
 }
 
 .hero-title {
-  font-size: clamp(36px, 6vw, 60px);
+  font-size: clamp(38px, 6.5vw, 64px);
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.12;
   margin: 0 0 16px;
-  background: linear-gradient(135deg, #fff 0%, #c4b5fd 35%, #818cf8 65%, #fff 100%);
-  background-size: 200% 200%;
+  background: linear-gradient(135deg, #fff 0%, #c4b5fd 30%, #818cf8 60%, #fff 85%);
+  background-size: 300% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -527,18 +712,18 @@ const aiCaps = computed(() => [
 }
 
 .hero-subtitle {
-  font-size: clamp(18px, 2.5vw, 24px);
+  font-size: clamp(18px, 2.6vw, 25px);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
   margin: 0 0 14px;
 }
 
 .hero-desc {
-  font-size: clamp(14px, 1.8vw, 16px);
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.75;
-  margin: 0 auto 40px;
-  max-width: 600px;
+  font-size: clamp(14px, 1.7vw, 15px);
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.8;
+  margin: 0 auto 44px;
+  max-width: 640px;
 }
 
 .hero-actions {
@@ -549,32 +734,91 @@ const aiCaps = computed(() => [
 }
 
 .hero-cta {
-  padding: 14px 40px !important;
+  padding: 15px 44px !important;
   font-size: 16px !important;
   font-weight: 600 !important;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   border: none !important;
-  box-shadow: 0 4px 24px rgba(102, 126, 234, 0.35);
-  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+  box-shadow: 0 4px 28px rgba(102, 126, 234, 0.4);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.35s ease !important;
 }
 
 .hero-cta:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.5) !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 40px rgba(102, 126, 234, 0.55) !important;
 }
 
-.cta-icon {
-  margin-left: 4px;
+.cta-icon { margin-left: 6px; }
+
+/* ==================== 核心数据 ==================== */
+.stats-section {
+  padding: 0 24px;
+  max-width: 900px;
+  margin: 0 auto 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* 通用 section header */
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 28px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: border-color 0.3s, background 0.3s;
+  min-width: 120px;
+}
+
+.stat-item:hover {
+  border-color: rgba(102, 126, 234, 0.2);
+  background: rgba(102, 126, 234, 0.04);
+}
+
+.stat-number {
+  font-size: clamp(32px, 4vw, 42px);
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea, #c4b5fd);
+  background-size: 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+}
+
+.stat-suffix {
+  font-size: 0.6em;
+  background: linear-gradient(135deg, #667eea, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.3px;
+}
+
+/* ==================== 通用 Section Header ==================== */
 .section-header {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 44px;
 }
 
 .section-title {
-  font-size: clamp(24px, 3.5vw, 32px);
+  font-size: clamp(24px, 3.5vw, 30px);
   font-weight: 700;
   margin: 0 0 10px;
   color: rgba(255, 255, 255, 0.9);
@@ -584,16 +828,16 @@ const aiCaps = computed(() => [
 }
 
 .section-subtitle {
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.38);
   margin: 0;
   line-height: 1.6;
 }
 
-/* 特性区域 */
+/* ==================== 特性卡片 ==================== */
 .features-section {
-  padding: 40px 24px 48px;
-  max-width: 1200px;
+  padding: 48px 24px 32px;
+  max-width: 1280px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
@@ -601,75 +845,149 @@ const aiCaps = computed(() => [
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
 }
 
 .feature-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  padding: 28px 22px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.028);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  padding: 26px 18px;
   text-align: center;
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.35s ease,
-              background 0.35s ease,
-              box-shadow 0.35s ease;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.4s ease,
+              background 0.4s ease,
+              box-shadow 0.4s ease;
   animation: fadeInUp 0.6s ease backwards;
   animation-delay: var(--delay, 0s);
 }
 
+.feature-card .feature-glow {
+  position: absolute;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 60px;
+  border-radius: 50%;
+  filter: blur(30px);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.feature-card:hover .feature-glow {
+  opacity: 0.25;
+}
+
 .feature-card:hover {
-  transform: translateY(-6px);
-  border-color: rgba(102, 126, 234, 0.25);
-  background: rgba(102, 126, 234, 0.05);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  transform: translateY(-8px);
+  border-color: rgba(120, 150, 255, 0.3);
+  background: rgba(102, 126, 234, 0.06);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3),
+              0 0 30px rgba(102, 126, 234, 0.06);
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .feature-icon {
-  width: 48px;
-  height: 48px;
+  width: 44px; height: 44px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto 14px;
   color: #fff;
-  transition: transform 0.3s ease;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.35s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .feature-card:hover .feature-icon {
-  transform: scale(1.08);
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .feature-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  margin: 0 0 8px;
-  color: rgba(255, 255, 255, 0.88);
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.9);
+  position: relative;
+  z-index: 1;
 }
 
 .feature-desc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
   line-height: 1.6;
   margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
-/* 快速上手 */
+/* ==================== 技术栈 ==================== */
+.tech-stack-section {
+  padding: 32px 24px 48px;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tech-badges {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tech-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: default;
+  opacity: 0;
+  animation: fadeInUp 0.4s ease forwards;
+  animation-delay: calc(var(--idx, 0) * 0.06s);
+}
+
+.tech-badge:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(120, 150, 255, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.1);
+}
+
+.tech-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tech-ver {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ==================== 快速上手 ==================== */
 .workflow-section {
-  padding: 48px 24px;
+  padding: 40px 24px 48px;
   max-width: 1100px;
   margin: 0 auto;
   width: 100%;
@@ -691,14 +1009,13 @@ const aiCaps = computed(() => [
   text-align: center;
   flex: 1;
   min-width: 200px;
-  max-width: 280px;
-  padding: 0 12px;
+  max-width: 260px;
+  padding: 0 16px;
   position: relative;
 }
 
 .step-number {
-  width: 48px;
-  height: 48px;
+  width: 50px; height: 50px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea, #764ba2);
   display: flex;
@@ -710,22 +1027,26 @@ const aiCaps = computed(() => [
   margin-bottom: 16px;
   position: relative;
   z-index: 2;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.35);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.workflow-step:hover .step-number {
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px rgba(102, 126, 234, 0.5);
 }
 
 .step-line {
   position: absolute;
-  top: 24px;
-  left: calc(50% + 36px);
-  width: calc(100% - 72px);
+  top: 25px;
+  left: calc(50% + 35px);
+  width: calc(100% - 70px);
   display: flex;
   align-items: center;
   z-index: 1;
 }
 
-.step-content {
-  padding: 0 8px;
-}
+.step-content { padding: 0 8px; }
 
 .step-title {
   font-size: 16px;
@@ -741,9 +1062,9 @@ const aiCaps = computed(() => [
   margin: 0;
 }
 
-/* AI 能力矩阵 */
+/* ==================== AI 能力矩阵 ==================== */
 .ai-section {
-  padding: 48px 24px 56px;
+  padding: 40px 24px 56px;
   max-width: 1080px;
   margin: 0 auto;
   width: 100%;
@@ -761,26 +1082,26 @@ const aiCaps = computed(() => [
 .ai-sparkle {
   color: #f6d365;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 8px rgba(246, 211, 101, 0.4));
+  filter: drop-shadow(0 0 10px rgba(246, 211, 101, 0.5));
   animation: sparklePulse 2s ease-in-out infinite;
 }
 
 @keyframes sparklePulse {
-  0%, 100% { filter: drop-shadow(0 0 8px rgba(246, 211, 101, 0.4)); }
-  50% { filter: drop-shadow(0 0 16px rgba(246, 211, 101, 0.7)); }
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(246, 211, 101, 0.5)); }
+  50% { filter: drop-shadow(0 0 20px rgba(246, 211, 101, 0.8)); }
 }
 
 .ai-caps-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .ai-cap-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 14px;
-  padding: 20px 16px;
+  padding: 18px 14px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -793,21 +1114,15 @@ const aiCaps = computed(() => [
 
 .ai-cap-card:hover {
   background: rgba(102, 126, 234, 0.08);
-  border-color: rgba(246, 211, 101, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(246, 211, 101, 0.08);
-}
-
-.ai-cap-card:hover {
-  background: rgba(102, 126, 234, 0.06);
-  border-color: rgba(102, 126, 234, 0.2);
+  border-color: rgba(246, 211, 101, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(246, 211, 101, 0.1);
 }
 
 .ai-cap-icon {
-  width: 36px;
-  height: 36px;
+  width: 34px; height: 34px;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(246, 211, 101, 0.2), rgba(253, 160, 133, 0.15));
+  background: linear-gradient(135deg, rgba(246, 211, 101, 0.22), rgba(253, 160, 133, 0.15));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -816,17 +1131,17 @@ const aiCaps = computed(() => [
 }
 
 .ai-cap-text {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.78);
   line-height: 1.4;
 }
 
-/* 底部 */
+/* ==================== 底部 ==================== */
 .welcome-footer {
   position: relative;
   z-index: 1;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding: 20px 24px;
 }
 
@@ -842,52 +1157,54 @@ const aiCaps = computed(() => [
 
 .footer-copy {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.28);
   margin: 0;
 }
 
-.footer-links {
-  display: flex;
-  gap: 16px;
-}
+.footer-links { display: flex; gap: 16px; }
 
 .footer-link {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.32);
   cursor: pointer;
   text-decoration: none;
   transition: color 0.3s;
 }
 
-.footer-link:hover {
-  color: rgba(255, 255, 255, 0.6);
-}
+.footer-link:hover { color: rgba(255, 255, 255, 0.6); }
 
-/* ========== 响应式 ========== */
-@media (max-width: 1100px) {
+/* ==================== 响应式 ==================== */
+@media (max-width: 1200px) {
   .features-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .ai-caps-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .stats-row { gap: 16px; }
+  .stat-item { padding: 16px 20px; min-width: 100px; }
 }
 
 @media (max-width: 768px) {
-  .header-inner {
-    padding: 0 20px;
-  }
+  .header-inner { padding: 0 20px; }
 
   .features-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    gap: 12px;
   }
 
   .workflow-steps {
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    gap: 20px;
   }
 
   .workflow-step {
@@ -898,66 +1215,37 @@ const aiCaps = computed(() => [
     padding: 0;
   }
 
-  .step-number {
-    margin-bottom: 0;
-    flex-shrink: 0;
-  }
+  .step-number { margin-bottom: 0; flex-shrink: 0; }
+  .step-line { display: none; }
+  .step-content { padding: 0; }
 
-  .step-line {
-    display: none;
-  }
+  .ai-caps-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-actions { flex-direction: column; align-items: center; }
+  .hero-cta { width: 100%; max-width: 280px; justify-content: center; }
+  .footer-inner { flex-direction: column; text-align: center; }
 
-  .step-content {
-    padding: 0;
-  }
-
-  .ai-caps-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .hero-actions {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .hero-cta,
-  .hero-login {
-    width: 100%;
-    max-width: 280px;
-    justify-content: center;
-  }
-
-  .footer-inner {
-    flex-direction: column;
-    text-align: center;
-  }
+  .stats-row { gap: 14px; }
+  .stat-item { flex: 1 1 40%; min-width: 130px; }
+  .stat-number { font-size: 28px; }
 }
 
 @media (max-width: 480px) {
-  .header-inner {
-    padding: 0 14px;
-  }
-
-  .brand-name {
-    font-size: 17px;
-  }
+  .header-inner { padding: 0 14px; }
+  .brand-name { font-size: 17px; }
 
   .features-grid {
     grid-template-columns: 1fr;
-    max-width: 360px;
+    max-width: 340px;
     margin: 0 auto;
   }
 
-  .ai-caps-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .section-header {
-    margin-bottom: 32px;
-  }
-
-  .hero-section {
-    padding: 40px 20px 36px;
-  }
+  .ai-caps-grid { grid-template-columns: 1fr; }
+  .section-header { margin-bottom: 32px; }
+  .hero-section { padding: 44px 20px 36px; }
+  .stats-row { gap: 10px; }
+  .stat-item { padding: 14px 16px; min-width: 110px; }
+  .stat-number { font-size: 26px; }
+  .tech-badges { gap: 8px; }
+  .tech-badge { padding: 6px 14px; }
 }
 </style>

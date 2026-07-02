@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.3.1-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk" alt="JDK">
   <img src="https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs" alt="Node">
@@ -11,7 +11,7 @@
 <p align="center">Full-featured API Mock Platform with Spring Boot + Vue 3</p>
 
 <p align="center">
-  HTTP / WebSocket Mock · Multi-project Isolation · Fine-grained RBAC · Dynamic Code Compilation · AI Chat & Generation · Swagger Import · Multi-Database · i18n · Automated Testing
+  HTTP / WebSocket Mock · Multi-project Isolation · Fine-grained RBAC · AI Generation · Swagger Import · Template Engine · Multi-Database · Import/Export · i18n · Automated Testing
 </p>
 
 ---
@@ -20,20 +20,20 @@
 
 | Module | Capabilities |
 |------|------|
-| 🧩 API Mocking | Fixed / Conditional / Weighted random / Java dynamic code handlers / Delay / WebSocket Mock |
-| 🔐 Fine-grained RBAC | Role-based access with 30 page & button-level permissions, custom roles, dynamic menus |
-| 🤖 AI Platform | Multi-model chat (SSE + Markdown + syntax highlighting) · One-click generate responses/code/emails/docs · 12+ LLM providers · Dynamic document retrieval · Call stats |
+| 🧩 API Mocking | Fixed / Conditional / Weighted random / Java dynamic code / Delay simulation / Default response / WebSocket Mock |
+| 📝 Template Engine | Faker.js-style randomized data: `{{name()}}` `{{phone()}}`, helper panel + one-click preview |
+| 🔐 Fine-grained RBAC | Role-based access with 30+ page & button-level permissions, custom roles, dynamic menus |
+| 🤖 AI Platform | Multi-model chat (SSE + Markdown + syntax highlighting) · One-click generate responses/code/emails/docs · 12+ LLM providers · RAG retrieval |
 | 📥 Swagger Import | Swagger 2.0 / OpenAPI 3.x, JSON upload or URL, recursive `$ref` resolution |
+| 📦 Project Management | Multi-project isolation · 3-tier member permissions · Import/export (JSON) · Swagger export · Conflict detection |
 | 🗄️ Multi-Database | SQLite / PostgreSQL / MySQL one-click switch, dialect abstraction auto-adaptive |
-| 🧪 Automated Testing | Python test framework, 66 cases covering AI / Features / RBAC / Security / Swagger, HTML reports |
-| 📦 Project Management | Multi-project isolation · Tiered member permissions (Creator / Admin / Member) |
 | 🧬 Code Templates | Monaco Editor · Compile validation · System + project-level · Hot reload · 6 transformer types |
-| ✉️ Email System | SMTP config · Template management (General/Verification/Alert) · Live HTML preview · Placeholder substitution |
+| 🧪 Automated Testing | Python test framework, 66 cases covering AI / Features / RBAC / Security / Swagger |
+| ✉️ Email System | SMTP config · Template management · HTML preview · Placeholder substitution |
 | 🌍 Internationalization | Chinese / English / 日本語 · Full-site real-time switching |
-| 📊 Monitoring | Request trends · Source IP multi-line · AI call volume · Creation trends · IOPS · JVM/CPU/Memory/Disk |
-| 📖 User Guide | Interactive 6-step guide dialog, replacing Swagger as main entry |
-| 🎨 Modern UI | Dark sidebar · Canvas dynamic lines · Collapsible groups · Compact mode · Welcome page · Aviation theme |
-| 🐳 Containerized | Docker multi-stage build · Non-root read-only container · One-click build & push |
+| 📊 Monitoring | Request trends · Source IP · AI call volume · Incoming trends · IOPS · JVM/CPU/Memory/Disk |
+| 🎨 Modern UI | Dark sidebar · Canvas dynamic lines · Collapsible groups · Compact mode · Welcome page |
+| 🐳 Containerized | Docker multi-stage build · Non-root · Maven mirror · Offline badge compatibility |
 
 ---
 
@@ -55,7 +55,7 @@ Access: `http://localhost:8080` | API: `/api`
 ```bash
 # Manual build
 ./build-all-in-one.sh
-java -jar backend/target/mock-server-2.3.1.jar
+java -jar backend/target/mock-server-2.3.2.jar
 
 # Development mode
 cd backend && mvn spring-boot:run              # Terminal 1

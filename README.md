@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.3.1-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk" alt="JDK">
   <img src="https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs" alt="Node">
@@ -11,7 +11,7 @@
 <p align="center">Spring Boot + Vue 3 全功能 API 模拟平台</p>
 
 <p align="center">
-  HTTP / WebSocket Mock · 多项目隔离 · 细粒度权限 · AI 对话与生成 · Swagger 导入 · 多数据库 · 动态代码编译 · 多语言国际化 · 自动化测试
+  HTTP / WebSocket Mock · 多项目隔离 · 细粒度权限 · AI 对话与生成 · Swagger 导入 · 模板引擎 · 多数据库 · 动态代码 · 多语言 · 自动化测试
 </p>
 
 ---
@@ -20,20 +20,20 @@
 
 | 模块 | 能力 |
 |------|------|
-| 🧩 接口模拟 | 固定 / 条件匹配 / 随机权重 / Java 动态代码处理器 / 延迟模拟 / WebSocket Mock |
-| 🔐 细粒度权限 | RBAC 角色权限体系，页面+按钮级 30 项权限控制，自定义角色，动态菜单显隐 |
-| 🤖 AI 智能平台 | 多模型对话（流式 SSE + Markdown 渲染 + 语法高亮）· 一键生成响应/代码/邮件/描述 · 12+ LLM 服务商 · 调用统计 · 动态文档检索 |
-| 📥 Swagger 导入 | 支持 2.0 / OpenAPI 3.x，JSON 上传或 URL 一键导入，递归解析 `$ref` |
-| 🗄️ 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，方言抽象层自动适配，同套代码全兼容 |
-| 🧪 自动化测试 | Python 全自动测试框架，66 用例覆盖 AI / 功能 / RBAC / 安全 / Swagger，HTML 报告 |
-| 📦 项目管理 | 多项目隔离 · 成员权限分级（创建者 / 管理员 / 成员） |
+| 🧩 接口模拟 | 固定 / 条件匹配 / 加权随机 / Java 动态代码 / 延迟模拟 / 默认响应 / WebSocket Mock |
+| 📝 模板引擎 | Faker.js 风格随机数据生成 `{{name()}}` `{{phone()}}`，模板助手面板 + 一键预览 |
+| 🔐 细粒度权限 | RBAC 角色权限体系，30+ 项页面+按钮级控制，自定义角色，动态菜单显隐 |
+| 🤖 AI 智能平台 | 多模型对话（SSE 流式 + Markdown + 代码高亮）· 一键生成响应/代码/邮件/描述 · 12+ LLM · RAG 检索增强 |
+| 📥 Swagger 导入 | 2.0 / OpenAPI 3.x，JSON 上传或 URL 一键导入，递归 `$ref` 解析 |
+| 📦 项目管理 | 多项目隔离 · 成员三级权限 · 项目数据导入导出 · Swagger 导出 · 冲突检测 |
+| 🗄️ 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，方言抽象层自动适配 |
 | 🧬 代码模板 | Monaco Editor · 编译验证 · 系统级+项目级 · 热加载 · 6 种转换器 |
-| ✉️ 邮件系统 | SMTP 配置 · 模板管理（通用/验证码/告警）· HTML 预览 · 占位符替换 |
+| 🧪 自动化测试 | Python 全自动测试框架，66 用例覆盖 AI / 功能 / RBAC / 安全 / Swagger |
+| ✉️ 邮件系统 | SMTP 配置 · 模板管理 · HTML 预览 · 占位符替换 |
 | 🌍 国际化 | 中文 / English / 日本語 · 全站实时切换 |
-| 📊 监控面板 | 请求趋势 · 来源 IP 多折线 · AI 调用量 · 新增趋势 · IOPS · JVM/CPU/内存/磁盘 |
-| 📖 使用说明 | 交互式引导页，6 步上手，取代 Swagger 入口 |
-| 🎨 现代 UI | 深色侧边栏 · Canvas 动态线条 · 分组折叠 · 收缩模式 · 全屏欢迎页 · 航空主题 |
-| 🐳 容器化 | Docker 多阶段构建 · 非 root 只读容器 · 一键构建推送 |
+| 📊 监控面板 | 请求趋势 · 来源 IP · AI 调用量 · 新增趋势 · IOPS · JVM/CPU/内存/磁盘 |
+| 🎨 现代 UI | 深色侧边栏 · Canvas 动态线条 · 分组折叠 · 收缩模式 · 全屏欢迎页 |
+| 🐳 容器化 | Docker 多阶段构建 · 非 root · Maven 镜像加速 · 离线徽章兼容 |
 
 ---
 
@@ -58,7 +58,7 @@ git clone https://github.com/carolcoral/mock-server.git && cd mock-server
 
 # 手动构建
 ./build-all-in-one.sh
-java -jar backend/target/mock-server-2.3.1.jar
+java -jar backend/target/mock-server-2.3.2.jar
 
 # 开发模式
 cd backend && mvn spring-boot:run          # 终端 1

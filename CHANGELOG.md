@@ -1,5 +1,54 @@
 # 版本变更说明
 
+## v2.3.2 (2026-07-02)
+
+> Mock 模板引擎、项目数据导入导出、随机响应逻辑修复与部署优化。
+
+### 🎨 Mock 模板引擎
+- **随机数据生成**：响应体中支持 `{{name()}}` `{{email()}}` `{{phone()}}` `{{idCard()}}` `{{uuid()}}` 等模板函数，每次请求生成随机中文数据
+- **模板助手面板**：响应编辑框下方展示可用函数标签，点击自动插入光标位置
+- **模板预览**：一键预览模板渲染结果，支持 JSON 格式化显示
+- **模板函数说明弹窗**：分类展示所有可用函数及说明
+- 新增 `api:template_engine` 权限控制，可按角色分配
+
+### 📦 项目数据导入导出
+- **项目导出**：导出完整项目数据（含接口名称/路径/方法/响应报文/请求参数等）为 JSON 文件
+- **项目导入**：上传 JSON 文件还原项目，支持增量导入（追加）和覆盖导入（替换）两种模式
+- **冲突检测**：项目编码重复时提示选择导入模式
+- **Swagger 导出**：支持 Swagger 2.0 / OpenAPI 3.0 两种格式导出项目接口
+- 新增 `project:import_swagger` `project:export_swagger` `project:export_data` `project:import_data` 权限
+
+### 🐛 响应管理修复
+- **默认响应唯一性**：同接口同状态码下仅允许一个默认响应，设置新默认时自动取消旧默认
+- **随机返回修复**：开启随机返回后权重逻辑优先于默认响应，候选池扩展为所有启用响应，确保多响应场景下随机生效
+- **空项目搜索修复**：用户无任何可访问项目时 API 搜索直接返回空结果，避免 NullPointerException
+
+### ⚡ 部署优化
+- **Docker 构建加速**：基础镜像预装 Maven + Node.js + npm，跳过 `setup-env.sh` 环境安装
+- **Maven 阿里云镜像**：容器内自动配置阿里云 Maven 中央仓库，加速依赖下载
+- **JAR 启动参数**：`run.sh` 透传 admin/JWT/Swagger 系统属性，`StartupConfig` 统一读取
+- **离线环境图标**：`build-all-in-one.sh` 构建时下载 Shields.io 徽章为本地 SVG，内网环境正常显示
+
+### 📝 升级说明
+
+> ⚠️ **v2.3.1 → v2.3.2 数据库变更**：`DatabaseMigration` 启动时自动执行，仅新增 5 条权限记录，无表结构变更。若自动迁移失败，请手动执行：
+
+```sql
+-- ============================================
+-- 从 v2.3.1 升级到 v2.3.2
+-- ============================================
+-- 新增权限（仅 SQLite，PostgreSQL/MySQL 请在 t_permission 表中对应插入）
+
+INSERT OR IGNORE INTO t_permission (name, code, group_name, type, sort_order, create_time, update_time) VALUES
+('项目管理-导入Swagger', 'project:import_swagger', '业务管理', 'BUTTON', 15, datetime('now'), datetime('now')),
+('项目管理-导出Swagger', 'project:export_swagger', '业务管理', 'BUTTON', 16, datetime('now'), datetime('now')),
+('项目管理-导出项目数据', 'project:export_data', '业务管理', 'BUTTON', 17, datetime('now'), datetime('now')),
+('项目管理-导入项目数据', 'project:import_data', '业务管理', 'BUTTON', 18, datetime('now'), datetime('now')),
+('接口管理-模板引擎', 'api:template_engine', '业务管理', 'BUTTON', 25, datetime('now'), datetime('now'));
+```
+
+---
+
 ## v2.3.1 (2026-06-30)
 
 > 多数据源支持、自动化测试框架、AI 对话检索增强与 UI 优化。

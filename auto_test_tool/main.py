@@ -37,6 +37,9 @@ from tests.rbac_tests import RBACTests
 from tests.ai_tests import AITests
 from tests.security_tests import SecurityTests
 from tests.swagger_import_tests import SwaggerImportTests
+from tests.template_engine_tests import TemplateEngineTests
+from tests.project_export_import_tests import ProjectExportImportTests
+from tests.response_management_tests import ResponseManagementTests
 
 
 class AutoTestTool:
@@ -72,6 +75,9 @@ class AutoTestTool:
             "ai": AITests(self.runner, self.ai_manager) if self.ai_manager else None,
             "security": SecurityTests(self.runner),
             "swagger_import": SwaggerImportTests(self.runner),
+            "template_engine": TemplateEngineTests(self.runner),
+            "export_import": ProjectExportImportTests(self.runner),
+            "response_mgmt": ResponseManagementTests(self.runner),
         }
 
     def _print_config_summary(self):
@@ -132,6 +138,9 @@ class AutoTestTool:
         test_order = [
             ("page_access", "页面访问测试"),
             ("page_features", "页面功能测试"),
+            ("template_engine", "模板引擎测试"),
+            ("export_import", "项目导入导出测试"),
+            ("response_mgmt", "响应管理测试"),
             ("rbac", "RBAC 权限控制测试"),
             ("ai", "AI 功能测试"),
             ("security", "安全特性测试"),
@@ -241,6 +250,10 @@ class AutoTestTool:
             "rbac": self.config.test_rbac,
             "ai": self.config.test_ai_features,
             "security": self.config.test_security_features,
+            "template_engine": self.config.test_page_features,
+            "export_import": self.config.test_page_features,
+            "response_mgmt": self.config.test_page_features,
+            "swagger_import": True,
         }
         return mapping.get(module_name, True)
 
@@ -280,11 +293,15 @@ class AutoTestTool:
         for name, module in self.test_modules.items():
             if module:
                 desc = {
-                    "page_access": "页面访问测试 - 测试所有 18 个路由的可访问性",
-                    "page_features": "页面功能测试 - 测试各模块 CRUD 操作",
-                    "rbac": "RBAC 权限控制测试 - 测试角色权限边界",
+                    "page_access": "页面访问测试 - 测试所有 19 个路由的可访问性",
+                    "page_features": "页面功能测试 - 测试各模块 CRUD 操作（含模板引擎/导入导出/系统公告）",
+                    "rbac": "RBAC 权限控制测试 - 测试角色权限边界（30+ 项权限含 v2.3.2 新增）",
                     "ai": "AI 功能测试 - 测试模型、对话、生成",
                     "security": "安全特性测试 - JWT/密码/注入/CORS/Swagger",
+                    "swagger_import": "Swagger 导入测试 - 记录性测试（全部跳过）",
+                    "template_engine": "模板引擎测试 - {{name()}}/{{email()}}/{{uuid()}} 渲染与权限（v2.3.2 新功能）",
+                    "export_import": "项目导入导出测试 - JSON/Swagger 2.0/3.0 导出导入（v2.3.2 新功能）",
+                    "response_mgmt": "响应管理测试 - 默认响应唯一性/加权随机返回（v2.3.2 Bug 修复）",
                 }.get(name, "")
                 enabled = self._is_module_enabled(name)
                 status = "启用" if enabled else "禁用"
@@ -303,6 +320,7 @@ def main():
 示例:
   python main.py                        # 运行全部测试
   python main.py --test page_access     # 仅运行页面访问测试
+  python main.py --test template_engine # 仅运行模板引擎测试（v2.3.2）
   python main.py --test rbac            # 仅运行 RBAC 测试
   python main.py --skip-ai --skip-rbac  # 跳过 AI 和 RBAC 测试
   python main.py --list                 # 列出所有测试模块
@@ -317,6 +335,9 @@ def main():
     parser.add_argument("--skip-rbac", action="store_true", help="跳过 RBAC 测试")
     parser.add_argument("--skip-security", action="store_true", help="跳过安全测试")
     parser.add_argument("--skip-features", action="store_true", help="跳过页面功能测试")
+    parser.add_argument("--skip-template", action="store_true", help="跳过模板引擎测试")
+    parser.add_argument("--skip-export", action="store_true", help="跳过导入导出测试")
+    parser.add_argument("--skip-response", action="store_true", help="跳过响应管理测试")
 
     args = parser.parse_args()
 
@@ -333,6 +354,9 @@ def main():
         if args.skip_rbac: skip_list.append("rbac")
         if args.skip_security: skip_list.append("security")
         if args.skip_features: skip_list.append("page_features")
+        if args.skip_template: skip_list.append("template_engine")
+        if args.skip_export: skip_list.append("export_import")
+        if args.skip_response: skip_list.append("response_mgmt")
 
         if args.test:
             # 运行指定模块

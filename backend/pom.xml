@@ -14,7 +14,7 @@
 
     <groupId>com.carolcoral</groupId>
     <artifactId>mock-server</artifactId>
-    <version>2.3.1</version>
+    <version>2.3.2</version>
     <name>mock-server</name>
     <description>Mock Server for API Simulation</description>
 
