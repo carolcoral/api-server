@@ -606,7 +606,7 @@ export default {
     fetchFailed: '获取接口列表失败',
     // 响应管理
     responseTitle: '响应管理 - {name}',
-    responseTip: '提示：选中激活状态的响应作为接口默认返回。启用随机返回时，会从所有启用且激活的响应中按权重随机选择。',
+    responseTip: '提示：选中激活状态的响应作为接口默认返回。启用随机返回时，会从所有启用的响应中按权重随机选择。',
     apiPathInfo: '接口路径：',
     method: '方法：',
     addResponse: '添加响应',

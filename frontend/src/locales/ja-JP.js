@@ -585,7 +585,7 @@ export default {
     fetchFailed: 'APIリストの取得に失敗しました',
     // 応答管理
     responseTitle: '応答管理 - {name}',
-    responseTip: 'ヒント：アクティブな応答をAPIのデフォルト応答として選択します。ランダム返却が有効な場合、有効かつアクティブな応答から重みに基づいてランダムに選択されます。',
+    responseTip: 'ヒント：アクティブな応答をAPIのデフォルト応答として選択します。ランダム返却が有効な場合、有効なすべての応答から重みに基づいてランダムに選択されます。',
     apiPathInfo: 'APIパス：',
     method: 'メソッド：',
     addResponse: '応答を追加',

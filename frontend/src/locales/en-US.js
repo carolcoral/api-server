@@ -606,7 +606,7 @@ export default {
     fetchFailed: 'Failed to fetch API list',
     // Response Management
     responseTitle: 'Response Management - {name}',
-    responseTip: 'Tip: Select an active response as the default API response. When random response is enabled, responses are randomly selected from all enabled and active responses by weight.',
+    responseTip: 'Tip: Select an active response as the default API response. When random response is enabled, responses are randomly selected from all enabled responses by weight.',
     apiPathInfo: 'API Path: ',
     method: 'Method: ',
     addResponse: 'Add Response',

@@ -622,6 +622,11 @@ public class MockApiService {
 
             MockResponse savedResponse = mockResponseRepository.save(mockResponse);
 
+            // 如果设置为默认响应，确保同一接口、同一状态码下只有一个默认响应
+            if (savedResponse.getIsDefault() != null && savedResponse.getIsDefault()) {
+                ensureSingleDefaultResponse(savedResponse);
+            }
+
             // 更新接口响应缓存
             List<MockResponse> responses = mockResponseRepository.findByMockApiId(apiId);
             cacheUtil.cacheApiResponses(apiId, responses);
@@ -686,6 +691,11 @@ public class MockApiService {
             }
 
             MockResponse updatedResponse = mockResponseRepository.save(existingResponse);
+
+            // 如果设置为默认响应，确保同一接口、同一状态码下只有一个默认响应
+            if (updatedResponse.getIsDefault() != null && updatedResponse.getIsDefault()) {
+                ensureSingleDefaultResponse(updatedResponse);
+            }
 
             // 更新接口响应缓存
             List<MockResponse> responses = mockResponseRepository.findByMockApiId(existingResponse.getMockApi().getId());
@@ -787,6 +797,25 @@ public class MockApiService {
         } catch (Exception e) {
             log.error("设置激活响应失败: {}", e.getMessage(), e);
             return ApiResponse.error("设置激活响应失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 确保同一接口、同一状态码下只有一个默认响应
+     * 当某个响应被设置为默认响应时，取消其他相同状态码响应的默认标记
+     *
+     * @param response 当前被设置为默认的响应
+     */
+    private void ensureSingleDefaultResponse(MockResponse response) {
+        Long apiId = response.getMockApi().getId();
+        Integer statusCode = response.getStatusCode();
+        List<MockResponse> sameStatusResponses = mockResponseRepository.findByMockApiIdAndStatusCode(apiId, statusCode);
+        for (MockResponse other : sameStatusResponses) {
+            if (other.getIsDefault() != null && other.getIsDefault() && !other.getId().equals(response.getId())) {
+                other.setIsDefault(false);
+                mockResponseRepository.save(other);
+                log.info("取消其他响应的默认标记: 响应ID={}, 接口={}, 状态码={}", other.getId(), apiId, statusCode);
+            }
         }
     }
 

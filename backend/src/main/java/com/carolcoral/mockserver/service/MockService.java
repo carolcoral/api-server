@@ -175,7 +175,20 @@ public class MockService {
                 responseDTO = buildMockResponse(mockApi, matchedResponse);
             }
 
-            // 优先返回默认响应
+            // 如果启用了随机返回，从所有启用的响应中按权重随机选择
+            if (responseDTO == null && mockApi.getEnableRandom() != null && mockApi.getEnableRandom()) {
+                List<MockResponse> randomCandidates = new ArrayList<>(enabledResponses);
+                if (!randomCandidates.isEmpty()) {
+                    MockResponse randomResponse = selectRandomResponse(randomCandidates);
+                    if (randomResponse != null) {
+                        log.info("启用随机返回，从{}个候选响应中按权重随机选择: 状态码={}",
+                                randomCandidates.size(), randomResponse.getStatusCode());
+                        responseDTO = buildMockResponse(mockApi, randomResponse);
+                    }
+                }
+            }
+
+            // 优先返回默认响应（未启用随机返回时作为兜底）
             if (responseDTO == null) {
                 MockResponse defaultResponse = enabledResponses.stream()
                         .filter(r -> r.getIsDefault() != null && r.getIsDefault())
@@ -184,37 +197,6 @@ public class MockService {
                 if (defaultResponse != null) {
                     log.info("返回默认响应: 状态码={}", defaultResponse.getStatusCode());
                     responseDTO = buildMockResponse(mockApi, defaultResponse);
-                }
-            }
-
-            // 如果启用了随机返回，从启用的响应中按权重随机选择
-            if (responseDTO == null && mockApi.getEnableRandom() != null && mockApi.getEnableRandom()) {
-                // 优先使用用户显式标记为"激活"的响应作为随机候选池
-                List<MockResponse> randomCandidates = new ArrayList<>();
-                for (MockResponse response : enabledResponses) {
-                    if (response.getActive() != null && response.getActive() &&
-                        (response.getIsDefault() == null || !response.getIsDefault())) {
-                        randomCandidates.add(response);
-                    }
-                }
-
-                // 如果用户没有显式激活任何响应，则将所有启用且非默认的响应纳入随机池
-                if (randomCandidates.isEmpty()) {
-                    log.info("没有显式激活的响应，使用所有启用且非默认的响应作为随机候选池");
-                    for (MockResponse response : enabledResponses) {
-                        if (response.getIsDefault() == null || !response.getIsDefault()) {
-                            randomCandidates.add(response);
-                        }
-                    }
-                }
-
-                if (!randomCandidates.isEmpty()) {
-                    MockResponse randomResponse = selectRandomResponse(randomCandidates);
-                    if (randomResponse != null) {
-                        log.info("启用随机返回，从{}个候选响应中随机选择: 状态码={}",
-                                randomCandidates.size(), randomResponse.getStatusCode());
-                        responseDTO = buildMockResponse(mockApi, randomResponse);
-                    }
                 }
             }
 

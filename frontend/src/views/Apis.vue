@@ -325,13 +325,13 @@
               <MagicStick :width="'1em'" :height="'1em'" />
               {{ $t('ai.generateResponse') }}
             </el-button>
-            <el-button type="info" size="small" @click="templateDocDialogVisible = true" v-if="canUseTemplateEngine">
-              <el-icon><Document /></el-icon>
-              {{ $t('api.templateDoc') }}
-            </el-button>
             <el-button type="primary" size="small" @click="handleAddResponse">
               <Plus :width="'1em'" :height="'1em'" />
               {{ $t('api.addResponse') }}
+            </el-button>
+            <el-button type="info" size="small" @click="templateDocDialogVisible = true" v-if="canUseTemplateEngine">
+              <el-icon><Document /></el-icon>
+              {{ $t('api.templateDoc') }}
             </el-button>
           </el-col>
         </el-row>
