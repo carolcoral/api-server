@@ -140,6 +140,7 @@ import { Plus, Refresh, Edit, Delete } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { formatTime, loadDateFormat } from '@/utils/dateFormat'
 import { useUserStore } from '@/stores/user'
+import { getRoleTagStyle as getRoleTagStyleByRoleName } from '@/utils/roleColors'
 
 const { t } = useI18n()
 const userStore = useUserStore()
@@ -427,24 +428,10 @@ const getRoleName = (roleId, roleCode) => {
   return role ? role.name : null
 }
 
-// 根据角色名称字符串生成稳定的 HSL 颜色，保证同一角色颜色一致、不同角色颜色不同
+// 角色标签样式：背景色取自 Issue #13 指定的 20 色色板（按角色名稳定取色），字体固定黑色
 const getRoleTagStyle = (roleId, roleCode) => {
   const roleName = getRoleName(roleId, roleCode) || roleCode || ''
-  const hue = hashString(roleName) % 360
-  return {
-    color: `hsl(${hue}, 55%, 35%)`,
-    backgroundColor: `hsl(${hue}, 55%, 92%)`,
-    borderColor: `hsl(${hue}, 50%, 78%)`
-  }
-}
-
-// 简单字符串 hash：每个字符累加，保证相同输入得到相同 hash
-const hashString = (str) => {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
-  }
-  return Math.abs(hash)
+  return getRoleTagStyleByRoleName(roleName)
 }
 
 onMounted(async () => {
