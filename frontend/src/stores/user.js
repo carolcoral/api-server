@@ -53,14 +53,14 @@ export const useUserStore = defineStore('user', () => {
     try {
       const response = await loginApi({ username, password })
       if (response.code === 200) {
-        const { token: userToken, userId, username: name, role, email, language, permissions: perms } = response.data
+        const { token: userToken, userId, username: name, role, roleId, roleName, roleCode, email, language, permissions: perms } = response.data
 
         // 保存token
         token.value = userToken
         localStorage.setItem('token', userToken)
 
-        // 保存用户信息
-        userInfo.value = { id: userId, username: name, role, email, language }
+        // 保存用户信息（含角色完整信息，供右上角铭牌展示，避免再调受权限控制的 role 接口）
+        userInfo.value = { id: userId, username: name, role, roleId, roleName, roleCode, email, language }
         localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
 
         // 保存权限列表
