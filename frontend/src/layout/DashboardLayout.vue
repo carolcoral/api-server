@@ -133,6 +133,7 @@
                 <el-icon><UserFilled /></el-icon>
               </el-avatar>
               <span class="username">{{ userStore.username }}</span>
+              <span class="role-badge" :style="getRoleTagStyleByRoleName(currentRoleName)">{{ currentRoleName }}</span>
               <el-icon class="el-icon--right"><arrow-down /></el-icon>
             </span>
             <template #dropdown>
@@ -270,6 +271,7 @@
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { getRoleTagStyle as getRoleTagStyleByRoleName } from '@/utils/roleColors'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { logout } from '@/api/auth'
@@ -300,6 +302,32 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+// ========== 右上角角色铭牌 ==========
+// 角色列表（拥有 user:view 权限时获取，用于解析自定义角色名）
+const roleOptions = ref([])
+// 当前用户角色名：优先自定义角色名，兜底本地化基础角色名（离线可用）
+const currentRoleName = computed(() => {
+  const role = userStore.userInfo?.role
+  if (roleOptions.value.length && role) {
+    const matched = roleOptions.value.find(r => r.code === 'ROLE_' + role)
+    if (matched) return matched.name
+  }
+  if (role === 'ADMIN') return t('profile.admin')
+  return t('profile.normalUser') || role || ''
+})
+// 获取角色列表用于铭牌展示（无权限则静默跳过，铭牌走本地化兜底）
+const fetchRolesForBadge = async () => {
+  if (!userStore.hasPermission('user:view')) return
+  try {
+    const response = await request.get('/users/roles')
+    if (response.code === 200) {
+      roleOptions.value = response.data || []
+    }
+  } catch (error) {
+    // 静默失败，铭牌使用本地化兜底
+  }
+}
 
 // 侧边栏展开/收缩状态（默认展开）
 const collapsed = ref(false)
@@ -799,6 +827,7 @@ onMounted(() => {
   fetchFooterConfig()
   checkAndSyncSiteUrl()
   syncAiTimeout()  // 同步 AI 超时配置，确保所有 AI 生成功能使用正确的超时时间
+  fetchRolesForBadge()  // 获取角色列表用于右上角铭牌展示
   window.addEventListener('footer-config-updated', handleFooterConfigUpdated)
   // 延迟初始化 canvas，等 DOM 渲染完成
   setTimeout(() => initSidebarCanvas(), 100)
@@ -1161,6 +1190,24 @@ onBeforeUnmount(() => {
   margin-right: 4px;
   font-size: 14px;
   color: #606266;
+}
+
+/* 右上角角色铭牌：背景色取自 Issue #13 色板，字体固定黑色 */
+.role-badge {
+  display: inline-block;
+  margin-left: 4px;
+  margin-right: 4px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 }
 
 .main-content {
