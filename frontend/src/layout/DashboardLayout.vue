@@ -306,9 +306,12 @@ const userStore = useUserStore()
 // ========== 右上角角色铭牌 ==========
 // 角色列表（拥有 user:view 权限时获取，用于解析自定义角色名）
 const roleOptions = ref([])
-// 当前用户角色名：优先自定义角色名，兜底本地化基础角色名（离线可用）
+// 当前用户角色名：优先登录响应携带的 roleName（含自定义角色，普通用户亦可获取），
+// 次选角色列表匹配，兜底本地化基础角色名（离线可用）
 const currentRoleName = computed(() => {
   const role = userStore.userInfo?.role
+  const roleName = userStore.userInfo?.roleName
+  if (roleName) return roleName
   if (roleOptions.value.length && role) {
     const matched = roleOptions.value.find(r => r.code === 'ROLE_' + role)
     if (matched) return matched.name
