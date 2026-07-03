@@ -33,6 +33,15 @@ public class LoginResponse {
     @Schema(description = "用户角色", example = "ADMIN")
     private String role;
 
+    @Schema(description = "角色ID", example = "1")
+    private Long roleId;
+
+    @Schema(description = "角色名称（展示用）", example = "普通用户")
+    private String roleName;
+
+    @Schema(description = "角色编码", example = "ROLE_USER")
+    private String roleCode;
+
     @Schema(description = "用户语言", example = "zh-CN")
     private String language;
 
@@ -51,13 +60,16 @@ public class LoginResponse {
     /**
      * 全参构造器
      */
-    public LoginResponse(String token, String tokenType, Long userId, String username, String email, String role, String language, Long expiresIn, java.util.List<String> permissions) {
+    public LoginResponse(String token, String tokenType, Long userId, String username, String email, String role, Long roleId, String roleName, String roleCode, String language, Long expiresIn, java.util.List<String> permissions) {
         this.token = token;
         this.tokenType = tokenType;
         this.userId = userId;
         this.username = username;
         this.email = email;
         this.role = role;
+        this.roleId = roleId;
+        this.roleName = roleName;
+        this.roleCode = roleCode;
         this.language = language;
         this.expiresIn = expiresIn;
         this.permissions = permissions;
@@ -80,6 +92,9 @@ public class LoginResponse {
         private String username;
         private String email;
         private String role;
+        private Long roleId;
+        private String roleName;
+        private String roleCode;
         private String language;
         private Long expiresIn;
         private java.util.List<String> permissions;
@@ -114,6 +129,21 @@ public class LoginResponse {
             return this;
         }
 
+        public LoginResponseBuilder roleId(Long roleId) {
+            this.roleId = roleId;
+            return this;
+        }
+
+        public LoginResponseBuilder roleName(String roleName) {
+            this.roleName = roleName;
+            return this;
+        }
+
+        public LoginResponseBuilder roleCode(String roleCode) {
+            this.roleCode = roleCode;
+            return this;
+        }
+
         public LoginResponseBuilder language(String language) {
             this.language = language;
             return this;
@@ -130,7 +160,7 @@ public class LoginResponse {
         }
 
         public LoginResponse build() {
-            return new LoginResponse(token, tokenType, userId, username, email, role, language, expiresIn, permissions);
+            return new LoginResponse(token, tokenType, userId, username, email, role, roleId, roleName, roleCode, language, expiresIn, permissions);
         }
     }
 
@@ -181,6 +211,30 @@ public class LoginResponse {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Long getRoleId() {
+        return roleId;
+    }
+
+    public void setRoleId(Long roleId) {
+        this.roleId = roleId;
+    }
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
+    }
+
+    public String getRoleCode() {
+        return roleCode;
+    }
+
+    public void setRoleCode(String roleCode) {
+        this.roleCode = roleCode;
     }
 
     public String getLanguage() {

@@ -7,14 +7,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { login as loginApi } from '@/api/auth'
-
-// SHA256 哈希工具函数
-async function sha256(message) {
-  const msgBuffer = new TextEncoder().encode(message)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
+import { generateAvatarDataUri } from '@/utils/avatar'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -22,23 +15,13 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || '{}'))
   const permissions = ref(JSON.parse(localStorage.getItem('permissions') || '[]'))
 
-  // 头像 URL（异步生成 SHA256 哈希后更新）
+  // 头像 URL（本地生成 SVG，离线可用，无外部网络依赖）
   const userAvatar = ref('/default-avatar.png')
 
-  const updateAvatarUrl = async () => {
+  const updateAvatarUrl = () => {
     // 没有用户信息时使用默认头像
-    if (!userInfo.value.email && !userInfo.value.username) {
-      userAvatar.value = '/default-avatar.png'
-      return
-    }
-    try {
-      const email = userInfo.value.email || `${userInfo.value.username || 'user'}@cravatar.cn`
-      const hash = await sha256(email.toLowerCase().trim())
-      userAvatar.value = `https://cn.cravatar.com/avatar/${hash}?s=200&r=g`
-    } catch (error) {
-      console.warn('生成头像URL失败:', error)
-      userAvatar.value = '/default-avatar.png'
-    }
+    const name = userInfo.value.username || userInfo.value.email || ''
+    userAvatar.value = name ? generateAvatarDataUri(name) : '/default-avatar.png'
   }
 
   // 监听用户信息变更，自动更新头像
@@ -70,14 +53,14 @@ export const useUserStore = defineStore('user', () => {
     try {
       const response = await loginApi({ username, password })
       if (response.code === 200) {
-        const { token: userToken, userId, username: name, role, email, language, permissions: perms } = response.data
+        const { token: userToken, userId, username: name, role, roleId, roleName, roleCode, email, language, permissions: perms } = response.data
 
         // 保存token
         token.value = userToken
         localStorage.setItem('token', userToken)
 
-        // 保存用户信息
-        userInfo.value = { id: userId, username: name, role, email, language }
+        // 保存用户信息（含角色完整信息，供右上角铭牌展示，避免再调受权限控制的 role 接口）
+        userInfo.value = { id: userId, username: name, role, roleId, roleName, roleCode, email, language }
         localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
 
         // 保存权限列表

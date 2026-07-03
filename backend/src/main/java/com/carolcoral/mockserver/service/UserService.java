@@ -100,12 +100,22 @@ public class UserService {
             // 生成JWT令牌
             String token = jwtTokenUtil.generateToken(user, user.getId(), user.getRole().name());
 
-            // 获取用户权限列表
+            // 获取用户权限列表及角色完整信息
             List<String> permList = new ArrayList<>();
-            if (user.getRoleId() != null) {
+            Long roleId = user.getRoleId();
+            String roleName = null;
+            String roleCode = null;
+            if (roleId != null) {
                 Set<String> permCodes = permissionService.getUserPermissionCodes(
-                        java.util.Collections.singletonList(user.getRoleId()));
+                        java.util.Collections.singletonList(roleId));
                 permList = new ArrayList<>(permCodes);
+                // 查询角色完整信息（名称、编码），供前端展示铭牌使用，避免前端再调受权限控制的 role 接口
+                Optional<Role> roleOpt = roleRepository.findById(roleId);
+                if (roleOpt.isPresent()) {
+                    Role userRole = roleOpt.get();
+                    roleName = userRole.getName();
+                    roleCode = userRole.getCode();
+                }
             }
 
             LoginResponse loginResponse = LoginResponse.builder()
@@ -115,6 +125,9 @@ public class UserService {
                     .username(user.getUsername())
                     .email(user.getEmail())
                     .role(user.getRole().name())
+                    .roleId(roleId)
+                    .roleName(roleName)
+                    .roleCode(roleCode)
                     .language(user.getLanguage())
                     .permissions(permList)
                     .expiresIn(jwtTokenUtil.getExpiration())
