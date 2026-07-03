@@ -133,7 +133,25 @@
                 <el-icon><UserFilled /></el-icon>
               </el-avatar>
               <span class="username">{{ userStore.username }}</span>
-              <span class="role-badge" :style="getRoleTagStyleByRoleName(currentRoleName)">{{ currentRoleName }}</span>
+              <span
+                class="role-badge"
+                :class="isAdminRole ? 'role-badge--admin' : 'role-badge--user'"
+              >
+                <svg
+                  v-if="isAdminRole"
+                  class="role-badge__crown"
+                  viewBox="0 0 24 24"
+                  width="12"
+                  height="12"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 8l4.5 3L12 4l4.5 7L21 8l-2 11H5L3 8zm2 12h14v2H5v-2z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span class="role-badge__text">{{ currentRoleName }}</span>
+              </span>
               <el-icon class="el-icon--right"><arrow-down /></el-icon>
             </span>
             <template #dropdown>
@@ -271,7 +289,6 @@
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getRoleTagStyle as getRoleTagStyleByRoleName } from '@/utils/roleColors'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { logout } from '@/api/auth'
@@ -306,6 +323,8 @@ const userStore = useUserStore()
 // ========== 右上角角色铭牌 ==========
 // 角色列表（拥有 user:view 权限时获取，用于解析自定义角色名）
 const roleOptions = ref([])
+// 是否管理员角色：决定铭牌科幻风格（管理员金紫突出，普通用户青蓝）
+const isAdminRole = computed(() => userStore.userInfo?.role === 'ADMIN')
 // 当前用户角色名：优先登录响应携带的 roleName（含自定义角色，普通用户亦可获取），
 // 次选角色列表匹配，兜底本地化基础角色名（离线可用）
 const currentRoleName = computed(() => {
@@ -1196,21 +1215,100 @@ onBeforeUnmount(() => {
 }
 
 /* 右上角角色铭牌：背景色取自 Issue #13 色板，字体固定黑色 */
+/* 角色铭牌：流光科幻风格（管理员金紫突出 / 普通用户青蓝），纯 CSS 零外部资源 */
 .role-badge {
-  display: inline-block;
-  margin-left: 4px;
-  margin-right: 4px;
-  padding: 2px 10px;
-  border-radius: 10px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 2px 12px;
+  border-radius: 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 18px;
-  border: 1px solid transparent;
+  letter-spacing: 0.3px;
   white-space: nowrap;
-  max-width: 120px;
+  max-width: 150px;
+  overflow: hidden;
+  vertical-align: middle;
+  color: #fff;
+  isolation: isolate;
+}
+
+.role-badge__text {
+  position: relative;
+  z-index: 2;
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: middle;
+}
+
+.role-badge__crown {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  color: #fffbe6;
+  filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.95));
+}
+
+/* 流光扫光特效：倾斜高光带循环掠过 */
+.role-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  transform: translateX(-150%);
+  animation: role-light-sweep 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes role-light-sweep {
+  0% { transform: translateX(-150%); }
+  60%, 100% { transform: translateX(150%); }
+}
+
+/* 管理员：金紫渐变流动 + 双层光晕呼吸 + 文字辉光，最为突出 */
+.role-badge--admin {
+  background: linear-gradient(135deg, #b8860b 0%, #ffd700 35%, #c084fc 70%, #7c3aed 100%);
+  background-size: 200% 200%;
+  animation: role-admin-flow 6s ease infinite, role-glow-breathe 2.4s ease-in-out infinite;
+  text-shadow: 0 0 4px rgba(255, 215, 0, 0.9), 0 0 8px rgba(192, 132, 252, 0.6);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.7), 0 0 16px rgba(124, 58, 237, 0.5);
+  border: 1px solid rgba(255, 215, 0, 0.85);
+}
+
+@keyframes role-admin-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes role-glow-breathe {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.6), 0 0 12px rgba(124, 58, 237, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.95), 0 0 22px rgba(124, 58, 237, 0.75); }
+}
+
+/* 普通用户：青蓝渐变流动 + 柔光 */
+.role-badge--user {
+  background: linear-gradient(135deg, #0ea5e9 0%, #22d3ee 50%, #38bdf8 100%);
+  background-size: 180% 180%;
+  animation: role-user-flow 7s ease infinite;
+  text-shadow: 0 0 3px rgba(34, 211, 238, 0.7);
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+  border: 1px solid rgba(34, 211, 238, 0.7);
+}
+
+@keyframes role-user-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* 无障碍：尊重用户减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .role-badge::before { animation: none; }
+
+  .role-badge--admin,
+  .role-badge--user { animation: none; }
 }
 
 .main-content {
