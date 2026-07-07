@@ -6,15 +6,10 @@
 
 <template>
   <div class="welcome-page">
-    <!-- Canvas 粒子背景 -->
-    <canvas ref="particleCanvas" class="particle-canvas"></canvas>
-
     <!-- 背景装饰 -->
     <div class="bg-decor">
       <div class="bg-orb orb-1"></div>
       <div class="bg-orb orb-2"></div>
-      <div class="bg-orb orb-3"></div>
-      <div class="bg-orb orb-4"></div>
       <div class="bg-grid"></div>
     </div>
 
@@ -35,7 +30,7 @@
               <circle cx="12" cy="12" r="10"/>
               <polyline points="12 6 12 12 16 14"/>
             </svg>
-            <span>{{ $t('welcome.changelog') }}</span>
+            <span>{{ $t('welcome.ms_changelog') }}</span>
           </a>
           <el-select v-model="currentLocale" size="small" @change="switchLocale" class="locale-select" popper-class="dark-locale-popper">
             <el-option label="中文" value="zh-CN" />
@@ -54,12 +49,12 @@
           <span class="badge-dot"></span>
           {{ welcomeBadge }}
         </div>
-        <h1 class="hero-title">{{ $t('welcome.title') }}</h1>
-        <p class="hero-subtitle">{{ $t('welcome.subtitle') }}</p>
-        <p class="hero-desc">{{ $t('welcome.description') }}</p>
+        <h1 class="hero-title">{{ $t('welcome.ms_title') }}</h1>
+        <p class="hero-subtitle">{{ $t('welcome.ms_subtitle') }}</p>
+        <p class="hero-desc">{{ $t('welcome.ms_description') }}</p>
         <div class="hero-actions">
           <el-button type="primary" size="large" round class="hero-cta" @click="goLogin">
-            {{ $t('welcome.cta') }}
+            {{ $t('welcome.ms_cta') }}
             <el-icon class="cta-icon"><ArrowRight /></el-icon>
           </el-button>
         </div>
@@ -78,11 +73,11 @@
         </div>
       </section>
 
-      <!-- 特性卡片 10 个 -->
+      <!-- 特性卡片 9 个 -->
       <section class="features-section">
         <div class="section-header">
-          <h2 class="section-title">{{ $t('welcome.featuresTitle') }}</h2>
-          <p class="section-subtitle">{{ $t('welcome.featuresSubtitle') }}</p>
+          <h2 class="section-title">{{ $t('welcome.ms_featuresTitle') }}</h2>
+          <p class="section-subtitle">{{ $t('welcome.ms_featuresSubtitle') }}</p>
         </div>
         <div class="features-grid">
           <div class="feature-card" v-for="(feature, idx) in features" :key="idx"
@@ -92,23 +87,9 @@
                 <component :is="feature.icon" />
               </el-icon>
             </div>
-            <h3 class="feature-title">{{ feature.title }}</h3>
-            <p class="feature-desc">{{ feature.desc }}</p>
+            <h3 class="feature-title">{{ $t(feature.titleKey) }}</h3>
+            <p class="feature-desc">{{ $t(feature.descKey, feature.descParams || {}) }}</p>
             <div class="feature-glow" :style="{ background: feature.bg }"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 技术栈 -->
-      <section class="tech-stack-section">
-        <div class="section-header">
-          <h2 class="section-title">{{ $t('welcome.techStackTitle') }}</h2>
-        </div>
-        <div class="tech-badges">
-          <div class="tech-badge" v-for="(tech, idx) in techStack" :key="idx"
-               :style="{ '--idx': idx }">
-            <span class="tech-name">{{ tech.name }}</span>
-            <span class="tech-ver">{{ tech.ver }}</span>
           </div>
         </div>
       </section>
@@ -116,7 +97,7 @@
       <!-- 快速上手流程 -->
       <section class="workflow-section">
         <div class="section-header">
-          <h2 class="section-title">{{ $t('welcome.workflowTitle') }}</h2>
+          <h2 class="section-title">{{ $t('welcome.ms_workflowTitle') }}</h2>
         </div>
         <div class="workflow-steps">
           <div class="workflow-step" v-for="(step, idx) in workflowSteps" :key="idx">
@@ -144,9 +125,9 @@
               <path d="M18 16l.75 2.25L21 19l-2.25.75L18 22l-.75-2.25L15 19l2.25-.75z"/>
               <path d="M6 18l.5 1.5L8 20l-1.5.5L6 22l-.5-1.5L4 20l1.5-.5z"/>
             </svg>
-            {{ $t('welcome.aiTitle') }}
+            {{ $t('welcome.ms_aiTitle') }}
           </h2>
-          <p class="section-subtitle ai-subtitle">{{ $t('welcome.aiDesc') }}</p>
+          <p class="section-subtitle ai-subtitle">{{ $t('welcome.ms_aiDesc') }}</p>
         </div>
         <div class="ai-caps-grid">
           <div class="ai-cap-card" v-for="(cap, idx) in aiCaps" :key="idx" :style="{ '--idx': idx }">
@@ -164,9 +145,9 @@
     <!-- 底部 -->
     <footer class="welcome-footer">
       <div class="footer-inner">
-        <p class="footer-copy">{{ $t('welcome.footer') }}</p>
+        <p class="footer-copy">{{ $t('welcome.ms_footer') }}</p>
         <div class="footer-links">
-          <a class="footer-link" @click="goChangelog">{{ $t('welcome.changelog') }}</a>
+          <a class="footer-link" @click="goChangelog">{{ $t('welcome.ms_changelog') }}</a>
         </div>
       </div>
     </footer>
@@ -174,7 +155,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import request from '@/utils/request'
@@ -199,12 +180,10 @@ const router = useRouter()
 
 const currentLocale = ref(locale.value)
 const appVersion = ref('')
-const particleCanvas = ref(null)
 const statsRef = ref(null)
 const statRefs = ref([])
 const animatedCounts = ref([0, 0, 0, 0])
 
-let animationId = null
 let statsObserved = false
 
 const switchLocale = (val) => {
@@ -228,16 +207,16 @@ const fetchVersion = async () => {
 
 const welcomeBadge = computed(() => {
   const ver = appVersion.value ? 'v' + appVersion.value : ''
-  const desc = t('welcome.badge')
+  const desc = t('welcome.ms_badge')
   return ver ? ver + ' · ' + desc : desc
 })
 
 // ========== 核心数据 ==========
 const stats = computed(() => [
-  { value: 9, suffix: '', label: t('welcome.statsItem1') },
-  { value: 30, suffix: '+', label: t('welcome.statsItem2') },
-  { value: 3, suffix: '', label: t('welcome.statsItem3') },
-  { value: 12, suffix: '+', label: t('welcome.statsItem4') },
+  { value: 9, suffix: '', label: t('welcome.ms_statsItem1') },
+  { value: 30, suffix: '+', label: t('welcome.ms_statsItem2') },
+  { value: 3, suffix: '', label: t('welcome.ms_statsItem3') },
+  { value: 12, suffix: '+', label: t('welcome.ms_statsItem4') },
 ])
 
 const animateStats = () => {
@@ -259,160 +238,65 @@ const animateStats = () => {
 }
 
 // ========== 特性卡片 ==========
-const features = computed(() => [
+const features = [
   {
-    icon: Connection, title: t('welcome.feature1Title'), desc: t('welcome.feature1Desc'),
+    icon: Connection, titleKey: 'welcome.ms_feature1Title', descKey: 'welcome.ms_feature1Desc',
     bg: 'linear-gradient(135deg, #667eea, #764ba2)'
   },
   {
-    icon: EditPen, title: t('welcome.feature2Title'), desc: t('welcome.feature2Desc'),
+    icon: EditPen, titleKey: 'welcome.ms_feature2Title', descKey: 'welcome.ms_feature2Desc',
     bg: 'linear-gradient(135deg, #f093fb, #f5576c)'
   },
   {
-    icon: MagicStick, title: t('welcome.feature3Title'), desc: t('welcome.feature3Desc'),
+    icon: MagicStick, titleKey: 'welcome.ms_feature3Title', descKey: 'welcome.ms_feature3Desc',
+    descParams: { open: '{{', close: '}}' },
     bg: 'linear-gradient(135deg, #f6d365, #fda085)'
   },
   {
-    icon: Upload, title: t('welcome.feature4Title'), desc: t('welcome.feature4Desc'),
+    icon: Upload, titleKey: 'welcome.ms_feature4Title', descKey: 'welcome.ms_feature4Desc',
     bg: 'linear-gradient(135deg, #4facfe, #00f2fe)'
   },
   {
-    icon: DocumentCopy, title: t('welcome.feature5Title'), desc: t('welcome.feature5Desc'),
+    icon: DocumentCopy, titleKey: 'welcome.ms_feature5Title', descKey: 'welcome.ms_feature5Desc',
     bg: 'linear-gradient(135deg, #43e97b, #38f9d7)'
   },
   {
-    icon: Files, title: t('welcome.feature6Title'), desc: t('welcome.feature6Desc'),
+    icon: Files, titleKey: 'welcome.ms_feature6Title', descKey: 'welcome.ms_feature6Desc',
     bg: 'linear-gradient(135deg, #a18cd1, #fbc2eb)'
   },
   {
-    icon: UserFilled, title: t('welcome.feature7Title'), desc: t('welcome.feature7Desc'),
+    icon: UserFilled, titleKey: 'welcome.ms_feature7Title', descKey: 'welcome.ms_feature7Desc',
     bg: 'linear-gradient(135deg, #ff9a9e, #fecfef)'
   },
   {
-    icon: TrendCharts, title: t('welcome.feature8Title'), desc: t('welcome.feature8Desc'),
+    icon: TrendCharts, titleKey: 'welcome.ms_feature8Title', descKey: 'welcome.ms_feature8Desc',
     bg: 'linear-gradient(135deg, #89f7fe, #66a6ff)'
   },
   {
-    icon: DataAnalysis, title: t('welcome.feature9Title'), desc: t('welcome.feature9Desc'),
+    icon: DataAnalysis, titleKey: 'welcome.ms_feature9Title', descKey: 'welcome.ms_feature9Desc',
     bg: 'linear-gradient(135deg, #fa709a, #fee140)'
   },
-  {
-    icon: ChatDotSquare, title: t('welcome.feature10Title'), desc: t('welcome.feature10Desc'),
-    bg: 'linear-gradient(135deg, #a8edea, #fed6e3)'
-  },
-])
-
-// ========== 技术栈 ==========
-const techStack = [
-  { name: 'Vue 3', ver: 'Composition API' },
-  { name: 'Spring Boot', ver: '3.2.x' },
-  { name: 'JDK', ver: '21' },
-  { name: 'MySQL', ver: '8.0+' },
-  { name: 'PostgreSQL', ver: '15+' },
-  { name: 'SQLite', ver: '3.x' },
-  { name: 'Docker', ver: '' },
-  { name: 'Element Plus', ver: '' },
-  { name: 'Monaco Editor', ver: '' },
-  { name: 'OpenAI', ver: 'Protocol' },
 ]
+
 
 // ========== 快速上手 ==========
 const workflowSteps = computed(() => [
-  { title: t('welcome.workflow1Title'), desc: t('welcome.workflow1Desc') },
-  { title: t('welcome.workflow2Title'), desc: t('welcome.workflow2Desc') },
-  { title: t('welcome.workflow3Title'), desc: t('welcome.workflow3Desc') },
-  { title: t('welcome.workflow4Title'), desc: t('welcome.workflow4Desc') },
+  { title: t('welcome.ms_workflow1Title'), desc: t('welcome.ms_workflow1Desc') },
+  { title: t('welcome.ms_workflow2Title'), desc: t('welcome.ms_workflow2Desc') },
+  { title: t('welcome.ms_workflow3Title'), desc: t('welcome.ms_workflow3Desc') },
+  { title: t('welcome.ms_workflow4Title'), desc: t('welcome.ms_workflow4Desc') },
 ])
 
 // ========== AI 能力 ==========
 const aiCaps = computed(() => [
-  t('welcome.aiCap1'), t('welcome.aiCap2'), t('welcome.aiCap3'), t('welcome.aiCap4'),
-  t('welcome.aiCap5'), t('welcome.aiCap6'), t('welcome.aiCap7'), t('welcome.aiCap8'),
+  t('welcome.ms_aiCap1'), t('welcome.ms_aiCap2'), t('welcome.ms_aiCap3'), t('welcome.ms_aiCap4'),
+  t('welcome.ms_aiCap5'), t('welcome.ms_aiCap6'), t('welcome.ms_aiCap7'), t('welcome.ms_aiCap8'),
 ])
-
-// ========== Canvas 粒子系统 ==========
-class Particle {
-  constructor(w, h) {
-    this.x = Math.random() * w
-    this.y = Math.random() * h
-    this.vx = (Math.random() - 0.5) * 0.6
-    this.vy = (Math.random() - 0.5) * 0.6
-    this.size = Math.random() * 2 + 0.8
-    this.opacity = Math.random() * 0.5 + 0.15
-  }
-
-  update(w, h) {
-    this.x += this.vx
-    this.y += this.vy
-    if (this.x < 0 || this.x > w) this.vx *= -1
-    if (this.y < 0 || this.y > h) this.vy *= -1
-  }
-}
-
-const initParticles = () => {
-  const canvas = particleCanvas.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
-  let particles = []
-  const PARTICLE_COUNT = 70
-  const CONNECT_DIST = 130
-
-  const resize = () => {
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-  }
-  resize()
-  window.addEventListener('resize', resize)
-
-  // Initialize particles
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    particles.push(new Particle(canvas.width, canvas.height))
-  }
-
-  const animate = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i]
-      p.update(canvas.width, canvas.height)
-
-      // Draw particle
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(102, 126, 234, ${p.opacity})`
-      ctx.fill()
-
-      // Connect nearby particles
-      for (let j = i + 1; j < particles.length; j++) {
-        const p2 = particles[j]
-        const dx = p.x - p2.x
-        const dy = p.y - p2.y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-
-        if (dist < CONNECT_DIST) {
-          const alpha = (1 - dist / CONNECT_DIST) * 0.12
-          ctx.beginPath()
-          ctx.moveTo(p.x, p.y)
-          ctx.lineTo(p2.x, p2.y)
-          ctx.strokeStyle = `rgba(120, 150, 255, ${alpha})`
-          ctx.lineWidth = 0.5
-          ctx.stroke()
-        }
-      }
-    }
-
-    animationId = requestAnimationFrame(animate)
-  }
-
-  animate()
-}
 
 // ========== 生命周期 ==========
 onMounted(async () => {
   await fetchVersion()
   await nextTick()
-  initParticles()
 
   // IntersectionObserver for stats counter
   if (statsRef.value) {
@@ -432,11 +316,7 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => {
-  if (animationId) {
-    cancelAnimationFrame(animationId)
-  }
-})
+
 </script>
 
 <style scoped>
@@ -452,14 +332,6 @@ onUnmounted(() => {
   position: relative;
 }
 
-/* ==================== Canvas 粒子特效 ==================== */
-.particle-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
 /* ==================== 背景装饰 ==================== */
 .bg-decor {
   position: fixed;
@@ -472,36 +344,23 @@ onUnmounted(() => {
 .bg-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(60px);
   opacity: 0.08;
+  will-change: transform;
 }
 
 .orb-1 {
-  width: 600px; height: 600px;
+  width: 500px; height: 500px;
   background: radial-gradient(circle, #667eea, transparent 70%);
-  top: -200px; right: -150px;
-  animation: orbFloat1 14s ease-in-out infinite;
+  top: -150px; right: -100px;
+  animation: orbFloat 20s ease-in-out infinite;
 }
 
 .orb-2 {
-  width: 500px; height: 500px;
-  background: radial-gradient(circle, #764ba2, transparent 70%);
-  bottom: 15%; left: -180px;
-  animation: orbFloat2 18s ease-in-out infinite;
-}
-
-.orb-3 {
   width: 400px; height: 400px;
-  background: radial-gradient(circle, #4facfe, transparent 70%);
-  top: 45%; right: -100px;
-  animation: orbFloat3 12s ease-in-out infinite;
-}
-
-.orb-4 {
-  width: 350px; height: 350px;
-  background: radial-gradient(circle, #f6d365, transparent 70%);
-  bottom: 30%; right: 30%;
-  animation: orbFloat4 16s ease-in-out infinite;
+  background: radial-gradient(circle, #764ba2, transparent 70%);
+  bottom: 10%; left: -120px;
+  animation: orbFloat 24s ease-in-out infinite reverse;
 }
 
 .bg-grid {
@@ -513,28 +372,9 @@ onUnmounted(() => {
   background-size: 64px 64px;
 }
 
-@keyframes orbFloat1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(-40px, 50px) scale(1.06); }
-  50% { transform: translate(20px, -30px) scale(0.94); }
-  75% { transform: translate(-20px, -20px) scale(1.03); }
-}
-
-@keyframes orbFloat2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(50px, -40px) scale(1.07); }
-  66% { transform: translate(-30px, 30px) scale(0.93); }
-}
-
-@keyframes orbFloat3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-35px, -45px) scale(1.05); }
-}
-
-@keyframes orbFloat4 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -40px) scale(1.04); }
-  66% { transform: translate(-40px, 20px) scale(0.96); }
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -20px); }
 }
 
 /* ==================== 导航栏 ==================== */
@@ -542,8 +382,8 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
   background: rgba(10, 10, 26, 0.72);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -577,7 +417,7 @@ onUnmounted(() => {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: brandShift 5s ease infinite;
+  animation: brandShift 10s ease infinite;
 }
 
 @keyframes brandShift {
@@ -685,7 +525,7 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #a78bfa;
   box-shadow: 0 0 8px #a78bfa;
-  animation: pulse 2s ease-in-out infinite;
+  animation: pulse 3s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -699,11 +539,11 @@ onUnmounted(() => {
   line-height: 1.12;
   margin: 0 0 16px;
   background: linear-gradient(135deg, #fff 0%, #c4b5fd 30%, #818cf8 60%, #fff 85%);
-  background-size: 300% 200%;
+  background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: heroShift 6s ease infinite;
+  animation: heroShift 12s ease infinite;
 }
 
 @keyframes heroShift {
@@ -845,8 +685,8 @@ onUnmounted(() => {
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
 }
 
 .feature-card {
@@ -956,7 +796,9 @@ onUnmounted(() => {
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: default;
   opacity: 0;
   animation: fadeInUp 0.4s ease forwards;
@@ -1105,7 +947,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: default;
   opacity: 0;
   animation: fadeInUp 0.5s ease forwards;

@@ -6,13 +6,14 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import Welcome from '@/views/Welcome.vue'
 
 // 路由配置
 const routes = [
   {
     path: '/',
     name: 'Welcome',
-    component: () => import('@/views/Welcome.vue'),
+    component: Welcome,
     meta: { requiresAuth: false }
   },
   {

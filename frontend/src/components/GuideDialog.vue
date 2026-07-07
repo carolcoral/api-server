@@ -394,8 +394,8 @@
                   </svg>
                 </div>
                 <div class="illus-body">
-                  <h4>{{ t('guide.step6Heading') }}</h4>
-                  <p>{{ t('guide.step6Desc') }}</p>
+                  <h4>{{ $t('guide.step6Heading') }}</h4>
+                  <p>{{ $t('guide.step6Desc') }}</p>
                 </div>
               </div>
               <div class="info-cards">
@@ -406,8 +406,8 @@
                     </svg>
                   </div>
                   <div class="info-card-text">
-                    <strong>{{ t('guide.step6UrlTitle') }}</strong>
-                    <p>{{ t('guide.step6UrlDesc') }}</p>
+                    <strong>{{ $t('guide.step6UrlTitle') }}</strong>
+                    <p>{{ $t('guide.step6UrlDesc', { open: '{', close: '}' }) }}</p>
                   </div>
                 </div>
                 <div class="info-card">
@@ -417,8 +417,8 @@
                     </svg>
                   </div>
                   <div class="info-card-text">
-                    <strong>{{ t('guide.step6StatsTitle') }}</strong>
-                    <p>{{ t('guide.step6StatsDesc') }}</p>
+                    <strong>{{ $t('guide.step6StatsTitle') }}</strong>
+                    <p>{{ $t('guide.step6StatsDesc') }}</p>
                   </div>
                 </div>
                 <div class="info-card">
@@ -428,19 +428,19 @@
                     </svg>
                   </div>
                   <div class="info-card-text">
-                    <strong>{{ t('guide.step6SecurityTitle') }}</strong>
-                    <p>{{ t('guide.step6SecurityDesc') }}</p>
+                    <strong>{{ $t('guide.step6SecurityTitle') }}</strong>
+                    <p>{{ $t('guide.step6SecurityDesc') }}</p>
                   </div>
                 </div>
               </div>
               <div class="quick-start-box">
-                <h4>{{ t('guide.step6ChecklistHeading') }}</h4>
+                <h4>{{ $t('guide.step6ChecklistHeading') }}</h4>
                 <div class="checklist">
-                  <div class="checklist-item"><span class="check-icon">✓</span> {{ t('guide.step6CheckItem1') }}</div>
-                  <div class="checklist-item"><span class="check-icon">✓</span> {{ t('guide.step6CheckItem2') }}</div>
-                  <div class="checklist-item"><span class="check-icon">✓</span> {{ t('guide.step6CheckItem3') }}</div>
-                  <div class="checklist-item"><span class="check-icon">✓</span> {{ t('guide.step6CheckItem4') }}</div>
-                  <div class="checklist-item"><span class="check-icon">✓</span> {{ t('guide.step6CheckItem5') }}</div>
+                  <div class="checklist-item"><span class="check-icon">✓</span> {{ $t('guide.step6CheckItem1') }}</div>
+                  <div class="checklist-item"><span class="check-icon">✓</span> {{ $t('guide.step6CheckItem2') }}</div>
+                  <div class="checklist-item"><span class="check-icon">✓</span> {{ $t('guide.step6CheckItem3') }}</div>
+                  <div class="checklist-item"><span class="check-icon">✓</span> {{ $t('guide.step6CheckItem4') }}</div>
+                  <div class="checklist-item"><span class="check-icon">✓</span> {{ $t('guide.step6CheckItem5') }}</div>
                 </div>
               </div>
             </div>

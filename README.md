@@ -8,32 +8,31 @@
 </p>
 
 <h1 align="center">Mock Server</h1>
-<p align="center">Spring Boot + Vue 3 全功能 API 模拟平台</p>
+<p align="center">Spring Boot + Vue 3 · 智能 API 模拟平台</p>
 
 <p align="center">
-  HTTP / WebSocket Mock · 多项目隔离 · 细粒度权限 · AI 对话与生成 · Swagger 导入 · 模板引擎 · 多数据库 · 动态代码 · 多语言 · 自动化测试
+  接口模拟 · 模板引擎 · AI 对话与生成 · Swagger 导入导出 · RBAC 权限 · 动态代码 · 多数据库 · 多语言
 </p>
 
 ---
 
 ## ✨ 核心特性
 
-| 模块 | 能力 |
-|------|------|
-| 🧩 接口模拟 | 固定 / 条件匹配 / 加权随机 / Java 动态代码 / 延迟模拟 / 默认响应 / WebSocket Mock |
-| 📝 模板引擎 | Faker.js 风格随机数据生成 `{{name()}}` `{{phone()}}`，模板助手面板 + 一键预览 |
-| 🔐 细粒度权限 | RBAC 角色权限体系，30+ 项页面+按钮级控制，自定义角色，动态菜单显隐 |
-| 🤖 AI 智能平台 | 多模型对话（SSE 流式 + Markdown + 代码高亮）· 一键生成响应/代码/邮件/描述 · 12+ LLM · RAG 检索增强 |
-| 📥 Swagger 导入 | 2.0 / OpenAPI 3.x，JSON 上传或 URL 一键导入，递归 `$ref` 解析 |
-| 📦 项目管理 | 多项目隔离 · 成员三级权限 · 项目数据导入导出 · Swagger 导出 · 冲突检测 |
-| 🗄️ 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，方言抽象层自动适配 |
-| 🧬 代码模板 | Monaco Editor · 编译验证 · 系统级+项目级 · 热加载 · 6 种转换器 |
-| 🧪 自动化测试 | Python 全自动测试框架，66 用例覆盖 AI / 功能 / RBAC / 安全 / Swagger |
-| ✉️ 邮件系统 | SMTP 配置 · 模板管理 · HTML 预览 · 占位符替换 |
-| 🌍 国际化 | 中文 / English / 日本語 · 全站实时切换 |
-| 📊 监控面板 | 请求趋势 · 来源 IP · AI 调用量 · 新增趋势 · IOPS · JVM/CPU/内存/磁盘 |
-| 🎨 现代 UI | 深色侧边栏 · Canvas 动态线条 · 分组折叠 · 收缩模式 · 全屏欢迎页 |
-| 🐳 容器化 | Docker 多阶段构建 · 非 root · Maven 镜像加速 · 离线徽章兼容 |
+|   | 模块 | 说明 |
+|---|------|------|
+| 🧩 | 接口模拟 | 固定 / 条件匹配 / 加权随机 / Java 动态代码 / 延迟模拟 / 默认响应 / WebSocket Mock |
+| 📝 | 模板引擎 | Faker.js 风格随机数据生成，模板助手面板一键预览渲染结果 |
+| 🤖 | AI 智能平台 | SSE 流式对话 · Markdown + 代码高亮 · 12+ LLM · 一键生成响应/代码/邮件/描述 |
+| 📥 | Swagger 生态 | 2.0 / OpenAPI 3.x 导入导出，递归 `$ref` 解析 |
+| 📦 | 项目管理 | 多项目隔离 · 成员权限 · JSON/Swagger 导入导出 · 冲突检测 |
+| 🧬 | 动态代码 | Monaco Editor 编译验证 · 6 种转换器 · 热加载即时生效 |
+| 🔐 | 权限管理 | RBAC 角色权限体系 · 30+ 项页面/按钮级控制 · 自定义角色 |
+| 🗄️ | 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，方言自动适配 |
+| 📊 | 数据统计 | 请求趋势 · 来源IP · AI调用量 · IOPS · JVM/CPU/内存/磁盘 · 年/月/日/时粒度 |
+| ✉️ | 邮件系统 | SMTP 配置 · 模板管理 · HTML 预览 · 占位符替换 |
+| 🌍 | 国际化 | 中文 / English / 日本語 · 全站实时切换 |
+| 🧪 | 自动化测试 | Python 全自动测试框架，66 用例覆盖 AI / 功能 / RBAC / 安全 / Swagger |
+| 🐳 | 容器化 | Docker 多阶段构建 · 非 root · 镜像加速 · 离线兼容 |
 
 ---
 
@@ -109,13 +108,13 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 
 ## 🤖 AI 能力
 
-| 能力 | 说明 |
-|------|------|
-| 💬 智能对话 | 多轮上下文记忆 · SSE 流式响应 · Markdown + GitHub 风格代码高亮 · 对话历史持久化 · 智能建议引导 |
-| 🔍 动态检索 | 根据提问实时检索项目文档注入上下文，命中引用文档，未命中回退通用知识 |
-| 🎨 内容生成 | 一键生成响应数据 · Java 代码模板 · HTML 邮件模板 · 接口描述文档 |
-| 🔌 多模型支持 | OpenAI · Azure · Gemini · Claude · DeepSeek · 通义千问 · 智谱GLM · Moonshot · 百川 · MiniMax · 小米MiMo · 火山引擎豆包 + 自定义兼容 |
-| 📊 调用统计 | 多用户 AI 调用趋势折线图 · 年/月/日粒度 · 成功率监控 |
+|   | 能力 | 说明 |
+|---|------|------|
+| 💬 | 智能对话 | SSE 流式响应 · 多轮上下文记忆 · Markdown + GitHub 风格代码高亮 · 历史持久化 |
+| 🔍 | 知识检索 | RAG 增强，实时检索项目文档注入上下文，未命中回退通用知识 |
+| 🎨 | 内容生成 | 一键生成响应数据 · Java 代码模板 · HTML 邮件 · 接口描述 |
+| 🔌 | 多模型 | 12+ LLM 预设 + 自定义兼容（OpenAI / Gemini / Claude / DeepSeek / 通义千问 等） |
+| 📊 | 调用统计 | 多用户趋势折线图 · 年/月/日粒度 · 成功率追踪 |
 
 ## 🗄️ 多数据库
 
