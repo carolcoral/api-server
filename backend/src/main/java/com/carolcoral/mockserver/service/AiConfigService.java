@@ -29,6 +29,7 @@ import java.util.*;
  */
 @Service
 public class AiConfigService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AiConfigService.class);
 
     @Autowired
     private AiConfigRepository aiConfigRepository;
@@ -93,9 +94,13 @@ public class AiConfigService {
             if (Boolean.TRUE.equals(config.getIsDefault())) {
                 existing.setIsDefault(true);
             }
-            return aiConfigRepository.save(existing);
+            AiConfig saved = aiConfigRepository.save(existing);
+            ensureDefaultConfig();
+            return saved;
         }
-        return aiConfigRepository.save(config);
+        AiConfig saved = aiConfigRepository.save(config);
+        ensureDefaultConfig();
+        return saved;
     }
 
     /**
@@ -112,7 +117,9 @@ public class AiConfigService {
         if (!enabled && Boolean.TRUE.equals(config.getIsDefault())) {
             config.setIsDefault(false);
         }
-        return aiConfigRepository.save(config);
+        AiConfig saved = aiConfigRepository.save(config);
+        ensureDefaultConfig();
+        return saved;
     }
 
     /**
@@ -148,6 +155,35 @@ public class AiConfigService {
         AiConfig config = aiConfigRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("AI配置不存在: " + id));
         aiConfigRepository.delete(config);
+        ensureDefaultConfig();
+    }
+
+    /**
+     * 确保至少存在一个默认配置：
+     * - 如果只有一个启用配置，自动设为默认
+     * - 如果多个启用配置且没有默认配置，自动将第一个设为默认
+     */
+    private void ensureDefaultConfig() {
+        List<AiConfig> enabledConfigs = aiConfigRepository.findAllByEnabledTrue();
+        if (enabledConfigs.isEmpty()) {
+            return;
+        }
+        boolean hasDefault = enabledConfigs.stream()
+                .anyMatch(c -> Boolean.TRUE.equals(c.getIsDefault()));
+        if (hasDefault) {
+            return;
+        }
+        AiConfig first = enabledConfigs.get(0);
+        // 取消其他配置的默认标记（理论上没有，但防御性处理）
+        for (AiConfig c : aiConfigRepository.findAll()) {
+            if (Boolean.TRUE.equals(c.getIsDefault()) && !c.getId().equals(first.getId())) {
+                c.setIsDefault(false);
+                aiConfigRepository.save(c);
+            }
+        }
+        first.setIsDefault(true);
+        aiConfigRepository.save(first);
+        log.info("自动设置默认 AI 配置: id={}, providerName={}", first.getId(), first.getProviderName());
     }
 
     /**
