@@ -11,6 +11,7 @@ import com.carolcoral.mockserver.entity.Permission;
 import com.carolcoral.mockserver.entity.RolePermission;
 import com.carolcoral.mockserver.repository.PermissionRepository;
 import com.carolcoral.mockserver.repository.RolePermissionRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,11 +24,14 @@ public class PermissionService {
 
     private final PermissionRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public PermissionService(PermissionRepository permissionRepository,
-                             RolePermissionRepository rolePermissionRepository) {
+                             RolePermissionRepository rolePermissionRepository,
+                             JdbcTemplate jdbcTemplate) {
         this.permissionRepository = permissionRepository;
         this.rolePermissionRepository = rolePermissionRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -68,17 +72,20 @@ public class PermissionService {
     }
 
     /**
-     * 为角色分配权限
+     * 为角色分配权限（使用原生 SQL 避免 SQLite JPA 方言的 INSERT OR IGNORE 不支持问题）
      */
     @Transactional
     public ApiResponse<Void> assignPermissions(Long roleId, List<Long> permissionIds) {
         try {
-            // 先清除旧权限
+            // 先删除旧权限
             rolePermissionRepository.deleteByRoleId(roleId);
-            // 添加新权限
+            rolePermissionRepository.flush();
+            // 用 INSERT OR IGNORE 批量插入，避免唯一约束冲突
             if (permissionIds != null && !permissionIds.isEmpty()) {
                 for (Long permId : permissionIds) {
-                    rolePermissionRepository.save(new RolePermission(roleId, permId));
+                    jdbcTemplate.update(
+                        "INSERT OR IGNORE INTO t_role_permission (role_id, permission_id) VALUES (?, ?)",
+                        roleId, permId);
                 }
             }
             log.info("角色权限分配成功: roleId={}, permCount={}", roleId, permissionIds != null ? permissionIds.size() : 0);

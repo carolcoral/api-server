@@ -101,6 +101,15 @@ public class DatabaseMigration implements CommandLineRunner {
 
         // 添加role_id字段到t_user表
         safeAlter("ALTER TABLE t_user ADD COLUMN role_id BIGINT", "role_id");
+
+        // 添加is_default字段到t_ai_config表
+        safeAlter("ALTER TABLE t_ai_config ADD COLUMN is_default BOOLEAN DEFAULT 0", "is_default");
+
+        // 添加models字段到t_ai_config表
+        safeAlter("ALTER TABLE t_ai_config ADD COLUMN models VARCHAR(1000)", "models");
+
+        // 添加timeout字段到t_ai_config表
+        safeAlter("ALTER TABLE t_ai_config ADD COLUMN timeout INTEGER DEFAULT 120", "timeout");
     }
 
     /**
@@ -130,7 +139,10 @@ public class DatabaseMigration implements CommandLineRunner {
             "default_model VARCHAR(100)," +
             "max_tokens INTEGER DEFAULT 4096," +
             "temperature REAL DEFAULT 0.7," +
+            "timeout INTEGER DEFAULT 120," +
             "enabled BOOLEAN NOT NULL DEFAULT " + dialect.booleanLiteral(false) + "," +
+            "is_default BOOLEAN NOT NULL DEFAULT " + dialect.booleanLiteral(false) + "," +
+            "models VARCHAR(1000)," +
             "create_time " + dialect.dateTimeType() + " NOT NULL," +
             "update_time " + dialect.dateTimeType() + " NOT NULL)", "t_ai_config");
 

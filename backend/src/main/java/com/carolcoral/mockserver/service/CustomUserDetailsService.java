@@ -6,7 +6,9 @@
 
 package com.carolcoral.mockserver.service;
 
+import com.carolcoral.mockserver.entity.Role;
 import com.carolcoral.mockserver.entity.User;
+import com.carolcoral.mockserver.repository.RoleRepository;
 import com.carolcoral.mockserver.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -30,11 +32,14 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PermissionService permissionService;
+    private final RoleRepository roleRepository;
 
     public CustomUserDetailsService(UserRepository userRepository,
-                                     PermissionService permissionService) {
+                                     PermissionService permissionService,
+                                     RoleRepository roleRepository) {
         this.userRepository = userRepository;
         this.permissionService = permissionService;
+        this.roleRepository = roleRepository;
     }
 
     @Override
@@ -68,22 +73,56 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     /**
-     * 加载用户权限并设置到 User 对象上
+     * 加载用户权限并设置到 User 对象上，同时根据 roleId 同步 role 枚举
      */
     public void loadPermissions(User user) {
         try {
-            if (user.getRoleId() != null) {
+            Long roleId = user.getRoleId();
+            // 如果 role_id 为空但 role 字段明确，按 role 字段补全 role_id 以加载对应权限
+            if (roleId == null && user.getRole() != null) {
+                if (user.getRole() == User.UserRole.ADMIN) {
+                    roleId = 1L;
+                } else if (user.getRole() == User.UserRole.USER) {
+                    roleId = 2L;
+                }
+            }
+
+            if (roleId != null) {
+                // 根据 roleId 同步 role 枚举，避免 t_user.role 与 t_role 数据不一致导致权限判断失败
+                roleRepository.findById(roleId).ifPresent(role -> syncUserRole(user, role));
+
                 java.util.Set<String> permCodes = permissionService.getUserPermissionCodes(
-                        Collections.singletonList(user.getRoleId()));
+                        Collections.singletonList(roleId));
                 user.setPermissions(permCodes);
-                log.debug("用户 {} 权限加载完成: roleId={}, permissions={}",
-                        user.getUsername(), user.getRoleId(), permCodes);
+                log.debug("用户 {} 权限加载完成: roleId={}, role={}, permissions={}",
+                        user.getUsername(), roleId, user.getRole(), permCodes);
             } else {
                 user.setPermissions(Collections.emptySet());
             }
         } catch (Exception e) {
             log.warn("加载用户权限失败: username={}, error={}", user.getUsername(), e.getMessage());
             user.setPermissions(Collections.emptySet());
+        }
+    }
+
+    /**
+     * 根据 Role 编码同步 User 的 role 枚举
+     */
+    private void syncUserRole(User user, Role role) {
+        String code = role.getCode();
+        if (code == null || code.isEmpty()) {
+            return;
+        }
+        String roleName = code.startsWith("ROLE_") ? code.substring(5) : code;
+        try {
+            User.UserRole newRole = User.UserRole.valueOf(roleName);
+            if (user.getRole() != newRole) {
+                log.info("同步用户角色枚举: username={}, roleId={}, {} -> {}",
+                        user.getUsername(), user.getRoleId(), user.getRole(), newRole);
+                user.setRole(newRole);
+            }
+        } catch (IllegalArgumentException e) {
+            log.warn("无法同步用户角色枚举: username={}, roleCode={}", user.getUsername(), code);
         }
     }
 }

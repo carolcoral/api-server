@@ -17,7 +17,58 @@
           </svg>
         </div>
         <h2>{{ $t('nav.aiChat') }}</h2>
-        <el-tag v-if="modelName" size="small" type="info" effect="plain">{{ modelName }}</el-tag>
+      </div>
+      <div class="chat-header-center">
+        <!-- AI 设置/模型切换下拉 -->
+        <template v-if="enabledConfigs.length > 0">
+          <div class="ai-selector-wrapper">
+            <el-select
+              v-model="selectedConfigId"
+              :placeholder="$t('ai.switchAi')"
+              size="small"
+              class="ai-config-select"
+              @change="onConfigChange"
+            >
+              <template #prefix>
+                <el-icon class="select-prefix-icon"><Setting /></el-icon>
+              </template>
+              <el-option
+                v-for="cfg in enabledConfigs"
+                :key="cfg.id"
+                :label="cfg.providerName"
+                :value="cfg.id"
+              >
+                <div class="ai-config-option">
+                  <span class="ai-config-name">{{ cfg.providerName }}</span>
+                  <el-tag v-if="cfg.isDefault" size="small" type="primary" effect="light" class="ai-config-default-tag">
+                    {{ $t('ai.defaultConfig') }}
+                  </el-tag>
+                </div>
+              </el-option>
+            </el-select>
+          </div>
+          <div class="ai-model-selector-wrapper">
+            <el-select
+              v-if="currentModels.length > 0"
+              v-model="selectedModel"
+              :placeholder="$t('ai.selectModel')"
+              size="small"
+              class="ai-model-select"
+              @change="onModelChange"
+            >
+              <template #prefix>
+                <el-icon class="select-prefix-icon"><Box /></el-icon>
+              </template>
+              <el-option
+                v-for="m in currentModels"
+                :key="m"
+                :label="m"
+                :value="m"
+              />
+            </el-select>
+          </div>
+        </template>
+        <el-tag v-else size="small" type="warning" effect="plain">{{ $t('ai.noProvider') }}</el-tag>
       </div>
       <div class="chat-header-right">
         <el-button size="small" text @click="clearMemory" :disabled="messages.length === 0" type="warning">
@@ -139,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -149,7 +200,7 @@ import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark-dimmed.css'
 import mermaid from 'mermaid'
 import {
-  Delete, CopyDocument, Position, ChatDotRound
+  Delete, CopyDocument, Position, ChatDotRound, Setting, Box
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -186,6 +237,20 @@ const textareaRef = ref(null)
 const modelName = ref('')
 
 const suggestions = ref([])
+
+// AI 设置/模型选择
+const enabledConfigs = ref([])
+const selectedConfigId = ref(null)
+const selectedModel = ref('')
+
+const currentConfig = ref(null)
+
+const currentModels = computed(() => {
+  if (!currentConfig.value) return []
+  const modelsStr = currentConfig.value.models
+  if (!modelsStr) return []
+  return modelsStr.split(',').map(m => m.trim()).filter(m => m)
+})
 
 const getStorageKey = () => {
   const uid = userStore.userId || userStore.username || 'unknown'
@@ -451,6 +516,40 @@ const fetchModelName = async () => {
   }
 }
 
+const fetchEnabledConfigs = async () => {
+  try {
+    const response = await request.get('/ai-config/enabled-list')
+    if (response.code === 200 && response.data) {
+      enabledConfigs.value = response.data || []
+      // 自动选择默认配置
+      const defaultCfg = enabledConfigs.value.find(c => c.isDefault) || enabledConfigs.value[0]
+      if (defaultCfg && !selectedConfigId.value) {
+        selectedConfigId.value = defaultCfg.id
+        currentConfig.value = defaultCfg
+        modelName.value = defaultCfg.defaultModel || ''
+        selectedModel.value = defaultCfg.defaultModel || ''
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+const onConfigChange = (configId) => {
+  const cfg = enabledConfigs.value.find(c => c.id === configId)
+  if (cfg) {
+    currentConfig.value = cfg
+    modelName.value = cfg.defaultModel || ''
+    selectedModel.value = cfg.defaultModel || ''
+  }
+}
+
+const onModelChange = (model) => {
+  if (model) {
+    modelName.value = model
+  }
+}
+
 // ============ 发送消息 ============
 const sendMessage = async (text) => {
   const content = typeof text === 'string' ? text.trim() : inputText.value.trim()
@@ -479,13 +578,22 @@ const sendMessage = async (text) => {
     const token = userStore.token
     const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
 
+    // 构建请求体，包含 configId 和 model
+    const requestBody = { messages: reqMessages }
+    if (selectedConfigId.value) {
+      requestBody.configId = selectedConfigId.value
+    }
+    if (selectedModel.value) {
+      requestBody.model = selectedModel.value
+    }
+
     const response = await fetch(`${baseURL}/ai/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : ''
       },
-      body: JSON.stringify({ messages: reqMessages })
+      body: JSON.stringify(requestBody)
     })
 
     if (!response.ok) {
@@ -618,6 +726,7 @@ watch(() => messages.value, () => {
 }, { deep: true })
 
 onMounted(async () => {
+  await fetchEnabledConfigs()
   fetchModelName()
   fetchSuggestions()
   loadHistory()
@@ -658,12 +767,24 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   color: #303133;
+  flex-shrink: 0;
+}
+
+.chat-header-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-start;
+  padding-left: 12px;
+  min-width: 0;
 }
 
 .chat-header-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .header-icon {
@@ -682,6 +803,77 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 17px;
   font-weight: 600;
+}
+
+.ai-selector-wrapper,
+.ai-model-selector-wrapper {
+  position: relative;
+}
+
+.ai-config-select,
+.ai-model-select {
+  width: 170px;
+}
+
+.ai-model-select {
+  margin-left: 0;
+}
+
+.ai-config-select :deep(.el-input__wrapper),
+.ai-model-select :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #e4e7ed inset;
+  background: #f5f7fa;
+  transition: all 0.2s ease;
+}
+
+.ai-config-select :deep(.el-input__wrapper.is-focus),
+.ai-model-select :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #409eff inset !important;
+  background: #fff;
+}
+
+.ai-config-select:hover :deep(.el-input__wrapper),
+.ai-model-select:hover :deep(.el-input__wrapper) {
+  background: #fff;
+  box-shadow: 0 0 0 1px #d0d7de inset;
+}
+
+.ai-config-select :deep(.el-input__inner),
+.ai-model-select :deep(.el-input__inner) {
+  font-weight: 500;
+  color: #303133;
+}
+
+.ai-config-select :deep(.el-input__prefix-inner),
+.ai-model-select :deep(.el-input__prefix-inner) {
+  color: #909399;
+}
+
+.select-prefix-icon {
+  margin-right: 2px;
+}
+
+.ai-config-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.ai-config-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.ai-config-default-tag {
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
 }
 
 /* 消息区域 */
@@ -748,7 +940,7 @@ onBeforeUnmount(() => {
   padding: 8px 16px;
   background: #f5f7fa;
   border: 1px solid #e4e7ed;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 13px;
   color: #606266;
   cursor: pointer;
@@ -934,7 +1126,7 @@ onBeforeUnmount(() => {
 .message-content :deep(.code-copy-btn) {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
   padding: 3px 8px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;

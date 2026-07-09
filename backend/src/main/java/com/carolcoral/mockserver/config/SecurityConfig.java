@@ -155,9 +155,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/email-config/**").authenticated()
                         // 邮件模板管理接口 - 需要认证（细粒度权限由 @PreAuthorize 控制）
                         .requestMatchers("/api/email-templates/**").authenticated()
-                        // AI配置读取接口 - 所有认证用户可访问（AI Chat 页面需要）
+                        // AI配置读取接口 - 所有认证用户可访问（AI Chat 页面下拉选择/模型切换需要）
                         .requestMatchers(
                                 "/api/ai-config/enabled",
+                                "/api/ai-config/enabled-list",
                                 "/api/ai-config/preset-providers"
                         ).authenticated()
                         // AI配置管理接口 - 需要认证（细粒度权限由 @PreAuthorize 控制）
@@ -253,10 +254,15 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
         return (request, response, accessDeniedException) -> {
-            log.warn("访问被拒绝(accessDeniedHandler): {} {}, 用户: {}, 角色: {}, 异常: {}",
+            org.springframework.security.core.Authentication auth =
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            String authorities = auth != null && auth.getAuthorities() != null
+                    ? auth.getAuthorities().toString() : "无";
+            log.warn("访问被拒绝(accessDeniedHandler): {} {}, 用户: {}, 角色: {}, authorities: {}, 异常: {}",
                     request.getMethod(), request.getRequestURI(),
                     request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "未知",
                     request.isUserInRole("ADMIN") ? "ADMIN" : "非ADMIN",
+                    authorities,
                     accessDeniedException.getMessage());
 
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);

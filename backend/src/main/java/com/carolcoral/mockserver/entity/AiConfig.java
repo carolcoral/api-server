@@ -87,6 +87,14 @@ public class AiConfig {
     @Column(nullable = false)
     private Boolean enabled = false;
 
+    @Schema(description = "是否默认 AI 设置", example = "false")
+    @Column(nullable = false)
+    private Boolean isDefault = false;
+
+    @Schema(description = "支持的模型列表（逗号分隔），如 gpt-4o,gpt-4o-mini,o3-mini", example = "gpt-4o,gpt-4o-mini")
+    @Column(length = 1000)
+    private String models;
+
     @Schema(description = "创建时间")
     @Column(nullable = false, updatable = false)
     private LocalDateTime createTime;
@@ -140,6 +148,12 @@ public class AiConfig {
 
     public Boolean getEnabled() { return enabled; }
     public void setEnabled(Boolean enabled) { this.enabled = enabled; }
+
+    public Boolean getIsDefault() { return isDefault; }
+    public void setIsDefault(Boolean isDefault) { this.isDefault = isDefault; }
+
+    public String getModels() { return models; }
+    public void setModels(String models) { this.models = models; }
 
     public LocalDateTime getCreateTime() { return createTime; }
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }

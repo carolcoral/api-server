@@ -28,219 +28,325 @@
     </div>
 
     <div class="content-wrapper" v-loading="loading">
-      <!-- 当前启用的服务商 - 状态卡片 -->
-      <div class="status-card" :class="{ active: !!enabledProvider }">
-        <div class="status-icon">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" v-if="enabledProvider">
-            <circle cx="12" cy="12" r="10" stroke="#67C23A" stroke-width="2" fill="none"/>
-            <path d="M7 12l3.5 3.5L17 9" stroke="#67C23A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" v-else>
-            <circle cx="12" cy="12" r="10" stroke="#909399" stroke-width="2" fill="none"/>
-            <line x1="12" y1="8" x2="12" y2="13" stroke="#909399" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="12" cy="17" r="1" fill="#909399"/>
-          </svg>
-        </div>
-        <div class="status-info">
-          <span class="status-label">{{ $t('ai.currentProvider') }}</span>
-          <span class="status-value" v-if="enabledProvider">
-            <strong>{{ enabledProvider.providerName }}</strong>
-            <el-tag size="small" type="success" effect="plain" round style="margin-left: 8px">
-              {{ enabledProvider.defaultModel }}
-            </el-tag>
-          </span>
-          <span class="status-value muted" v-else>{{ $t('ai.noProvider') }}</span>
-        </div>
-      </div>
-
-      <!-- 服务商选择卡片 -->
+      <!-- 已启用的 AI 设置列表 -->
       <div class="config-card">
-        <div class="card-header">
-          <h3>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" class="card-icon">
-              <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8" fill="none"/>
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-            {{ $t('ai.providers') }}
-          </h3>
-        </div>
-        <div class="card-body">
-          <div class="provider-select-row">
-            <span class="select-label">{{ $t('ai.selectProvider') }}</span>
-            <el-select
-              v-model="activeProvider"
-              :placeholder="$t('ai.selectHint')"
-              style="width: 340px"
-              @change="selectProvider"
-              size="large"
-            >
-              <el-option
-                v-for="p in providerList"
-                :key="p.key"
-                :label="p.name"
-                :value="p.key"
-              >
-                <span>{{ p.name }}</span>
-                <el-tag
-                  v-if="p.key === 'custom'"
-                  size="small"
-                  type="warning"
-                  effect="plain"
-                  style="margin-left: 8px"
-                >{{ $t('ai.customTag') }}</el-tag>
-                <el-tag
-                  v-else-if="isPreset(p.key)"
-                  size="small"
-                  type="primary"
-                  effect="plain"
-                  style="margin-left: 8px"
-                >{{ $t('ai.preset') }}</el-tag>
-              </el-option>
-            </el-select>
-          </div>
-
-          <!-- 选中服务商的详情 -->
-          <div v-if="selectedProviderInfo" class="provider-info-bar">
-            <div class="info-item">
-              <span class="info-label">{{ $t('ai.providerName') }}</span>
-              <span class="info-value">{{ selectedProviderInfo.name }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('ai.defaultModel') }}</span>
-              <span class="info-value">{{ selectedProviderInfo.defaultModel || '—' }}</span>
-            </div>
-            <div class="info-item full">
-              <span class="info-label">{{ $t('ai.apiUrl') }}</span>
-              <code>{{ selectedProviderInfo.apiUrl || '—' }}</code>
-            </div>
-            <div v-if="selectedProviderInfo.website" class="info-item full">
-              <span class="info-label">{{ $t('ai.website') }}</span>
-              <el-link type="primary" :href="selectedProviderInfo.website" target="_blank" :underline="false">
-                {{ selectedProviderInfo.website }}
-                <el-icon style="margin-left: 4px"><Link /></el-icon>
-              </el-link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 配置表单卡片 -->
-      <div class="config-card" v-if="activeProvider">
         <div class="card-header">
           <h3>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" class="card-icon">
               <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8" fill="none"/>
             </svg>
-            {{ $t('ai.configTitle', { name: activeProviderName }) }}
+            {{ $t('ai.aiSettings') }}
           </h3>
+          <el-button type="primary" size="small" @click="showAddDialog">
+            <el-icon style="margin-right: 4px"><Plus /></el-icon>
+            {{ $t('ai.addConfig') }}
+          </el-button>
         </div>
         <div class="card-body">
-          <el-form :model="form" label-width="130px" class="config-form" label-position="right">
-            <el-form-item :label="$t('ai.providerName')" required>
-              <el-input v-model="form.providerName" :placeholder="$t('ai.providerNamePlaceholder')" size="large" />
-            </el-form-item>
+          <!-- 无配置时 -->
+          <div v-if="savedConfigs.length === 0" class="empty-state">
+            <p>{{ $t('ai.noProvider') }}</p>
+          </div>
 
-            <el-form-item :label="$t('ai.apiUrl')" required>
-              <el-input v-model="form.apiUrl" :placeholder="$t('ai.apiUrlPlaceholder')" size="large" />
-              <div class="form-hint">{{ $t('ai.apiUrlHint') }}</div>
-            </el-form-item>
-
-            <el-form-item :label="$t('ai.apiKey')" required>
-              <el-input
-                v-model="form.apiKey"
-                type="password"
-                show-password
-                :placeholder="$t('ai.apiKeyPlaceholder')"
-                size="large"
-              />
-            </el-form-item>
-
-            <el-form-item :label="$t('ai.defaultModel')">
-              <el-input v-model="form.defaultModel" :placeholder="$t('ai.modelPlaceholder')" size="large" />
-            </el-form-item>
-
-            <el-form-item :label="$t('ai.timeout')" class="timeout-form-item">
-              <el-input-number v-model="form.timeout" :min="30" :max="600" :step="30" size="large" />
-              <span class="timeout-unit">秒</span>
-              <span class="timeout-hint">{{ $t('ai.timeoutHint') }}</span>
-            </el-form-item>
-
-            <el-row :gutter="24">
-              <el-col :span="12">
-                <el-form-item :label="$t('ai.maxTokens')">
-                  <el-input-number v-model="form.maxTokens" :min="1" :max="131072" :step="256" size="large" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item :label="$t('ai.temperature')">
-                  <el-slider v-model="form.temperature" :min="0" :max="2" :step="0.1" show-input />
-                </el-form-item>
-              </el-col>
-            </el-row>
-
-            <el-divider style="margin: 16px 0 20px" />
-
-            <el-form-item>
-              <div class="form-actions">
-                <el-button type="primary" @click="saveConfig" :loading="saving" size="large">
-                  <el-icon style="margin-right: 4px"><Check /></el-icon>
-                  {{ $t('common.save') }}
-                </el-button>
-                <el-button
-                  @click="testConnectivity"
-                  :loading="testing"
-                  size="large"
-                  plain
-                >
-                  <el-icon style="margin-right: 4px"><Link /></el-icon>
-                  {{ $t('ai.testConnectivity') }}
-                </el-button>
-                <el-button
-                  v-if="savedConfigId && !form.enabled"
-                  type="success"
-                  @click="toggleEnabled"
-                  :loading="toggling"
-                  size="large"
-                  plain
-                >
-                  {{ $t('ai.enable') }}
-                </el-button>
-                <el-button
-                  v-if="savedConfigId && form.enabled"
-                  type="warning"
-                  @click="toggleEnabled"
-                  :loading="toggling"
-                  size="large"
-                  plain
-                >
-                  {{ $t('ai.disable') }}
-                </el-button>
+          <!-- 配置列表 -->
+          <div v-else class="config-list">
+            <div
+              v-for="config in savedConfigs"
+              :key="config.id"
+              class="config-item"
+              :class="{ 'is-enabled': config.enabled, 'is-default': config.isDefault }"
+            >
+              <div class="config-item-header">
+                <div class="config-item-title">
+                  <span class="config-provider-name">{{ config.providerName }}</span>
+                  <el-tag v-if="config.enabled" size="small" type="success" effect="plain" round>
+                    {{ $t('ai.enabled') }}
+                  </el-tag>
+                  <el-tag v-else size="small" type="info" effect="plain" round>
+                    {{ $t('ai.disabled') }}
+                  </el-tag>
+                  <el-tag v-if="config.isDefault" size="small" type="warning" effect="plain" round>
+                    {{ $t('ai.defaultConfig') }}
+                  </el-tag>
+                </div>
+                <div class="config-item-actions">
+                  <el-button
+                    v-if="config.enabled && !config.isDefault"
+                    size="small"
+                    type="warning"
+                    plain
+                    @click="setDefault(config.id)"
+                    :loading="settingDefault === config.id"
+                  >
+                    {{ $t('ai.setDefault') }}
+                  </el-button>
+                  <el-button
+                    size="small"
+                    @click="editConfig(config)"
+                  >
+                    <el-icon><Edit /></el-icon>
+                  </el-button>
+                  <el-button
+                    v-if="!config.enabled"
+                    size="small"
+                    type="success"
+                    plain
+                    @click="toggleEnabled(config)"
+                    :loading="togglingId === config.id"
+                  >
+                    {{ $t('ai.enable') }}
+                  </el-button>
+                  <el-button
+                    v-if="config.enabled"
+                    size="small"
+                    type="warning"
+                    plain
+                    @click="toggleEnabled(config)"
+                    :loading="togglingId === config.id"
+                  >
+                    {{ $t('ai.disable') }}
+                  </el-button>
+                  <el-popconfirm
+                    :title="$t('ai.deleteConfigConfirm')"
+                    @confirm="deleteConfig(config.id)"
+                  >
+                    <template #reference>
+                      <el-button size="small" type="danger" plain>
+                        <el-icon><Delete /></el-icon>
+                      </el-button>
+                    </template>
+                  </el-popconfirm>
+                </div>
               </div>
-            </el-form-item>
-          </el-form>
+              <div class="config-item-details">
+                <div class="detail-row">
+                  <span class="detail-label">{{ $t('ai.defaultModel') }}</span>
+                  <el-tag size="small" type="primary" effect="plain">{{ config.defaultModel || '—' }}</el-tag>
+                </div>
+                <div class="detail-row" v-if="config.models">
+                  <span class="detail-label">{{ $t('ai.models') }}</span>
+                  <span class="detail-value">
+                    <el-tag
+                      v-for="(m, idx) in parseModels(config.models)"
+                      :key="idx"
+                      size="small"
+                      effect="plain"
+                      style="margin-right: 4px"
+                    >{{ m }}</el-tag>
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">{{ $t('ai.apiUrl') }}</span>
+                  <code>{{ config.apiUrl || '—' }}</code>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 空状态 -->
-      <div class="empty-card" v-if="!activeProvider">
-        <svg viewBox="0 0 120 120" width="100" height="100" fill="none">
-          <rect x="20" y="30" width="80" height="60" rx="10" stroke="#dcdfe6" stroke-width="2" fill="none"/>
-          <circle cx="45" cy="60" r="8" stroke="#dcdfe6" stroke-width="2" fill="none"/>
-          <path d="M60 60h25M60 68h18" stroke="#dcdfe6" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="45" cy="80" r="4" fill="#e6e8eb"/>
-          <rect x="55" y="77" width="30" height="6" rx="3" fill="#e6e8eb"/>
-        </svg>
-        <p>{{ $t('ai.selectHint') }}</p>
-      </div>
+      <!-- 编辑/新增对话框 -->
+      <el-dialog
+        v-model="dialogVisible"
+        :title="editingConfig?.id ? $t('ai.configTitle', { name: editingConfig?.providerName || '' }) : $t('ai.addConfig')"
+        width="680px"
+        destroy-on-close
+        :close-on-click-modal="false"
+        class="ai-config-dialog"
+        align-center
+      >
+        <div class="dialog-body">
+          <el-form :model="form" label-width="120px" class="config-form" label-position="right">
+            <!-- 基础信息 -->
+            <div class="dialog-section">
+              <div class="section-title">
+                <span class="section-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                </span>
+                <span>{{ $t('ai.basicInfo') }}</span>
+              </div>
+              <el-form-item :label="$t('ai.selectProvider')" required>
+                <el-select
+                  v-model="form.provider"
+                  :placeholder="$t('ai.selectHint')"
+                  style="width: 100%"
+                  @change="selectProvider"
+                  :disabled="!!editingConfig?.id"
+                >
+                  <el-option
+                    v-for="p in providerList"
+                    :key="p.key"
+                    :label="p.name"
+                    :value="p.key"
+                  >
+                    <span>{{ p.name }}</span>
+                    <el-tag
+                      v-if="p.key === 'custom'"
+                      size="small"
+                      type="warning"
+                      effect="plain"
+                      style="margin-left: 8px"
+                    >{{ $t('ai.customTag') }}</el-tag>
+                    <el-tag
+                      v-else-if="isPreset(p.key)"
+                      size="small"
+                      type="primary"
+                      effect="plain"
+                      style="margin-left: 8px"
+                    >{{ $t('ai.preset') }}</el-tag>
+                  </el-option>
+                </el-select>
+              </el-form-item>
+
+              <el-form-item :label="$t('ai.providerName')" required>
+                <el-input v-model="form.providerName" :placeholder="$t('ai.providerNamePlaceholder')" />
+              </el-form-item>
+            </div>
+
+            <!-- API 配置 -->
+            <div class="dialog-section">
+              <div class="section-title">
+                <span class="section-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                </span>
+                <span>{{ $t('ai.apiConfig') }}</span>
+              </div>
+              <el-form-item :label="$t('ai.apiUrl')" required>
+                <el-input v-model="form.apiUrl" :placeholder="$t('ai.apiUrlPlaceholder')" />
+                <div class="form-hint">{{ $t('ai.apiUrlHint') }}</div>
+              </el-form-item>
+
+              <el-form-item :label="$t('ai.apiKey')" required>
+                <el-input
+                  v-model="form.apiKey"
+                  type="password"
+                  show-password
+                  :placeholder="$t('ai.apiKeyPlaceholder')"
+                />
+              </el-form-item>
+            </div>
+
+            <!-- 模型配置 -->
+            <div class="dialog-section">
+              <div class="section-title">
+                <span class="section-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                  </svg>
+                </span>
+                <span>{{ $t('ai.modelConfig') }}</span>
+              </div>
+              <el-form-item :label="$t('ai.defaultModel')">
+                <el-select
+                  v-model="form.defaultModel"
+                  filterable
+                  allow-create
+                  default-first-option
+                  clearable
+                  :reserve-keyword="false"
+                  :placeholder="$t('ai.modelPlaceholder')"
+                  style="width: 100%"
+                  @change="onDefaultModelChange"
+                >
+                  <el-option
+                    v-for="model in form.models"
+                    :key="model"
+                    :label="model"
+                    :value="model"
+                  />
+                </el-select>
+              </el-form-item>
+
+              <!-- 支持多模型 -->
+              <el-form-item :label="$t('ai.models')">
+                <el-select
+                  v-model="form.models"
+                  multiple
+                  filterable
+                  allow-create
+                  default-first-option
+                  collapse-tags
+                  collapse-tags-tooltip
+                  :max-collapse-tags="5"
+                  clearable
+                  :reserve-keyword="false"
+                  :placeholder="$t('ai.modelsPlaceholder')"
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="model in currentModelOptions"
+                    :key="model"
+                    :label="model"
+                    :value="model"
+                  />
+                </el-select>
+                <div class="form-hint">{{ $t('ai.modelsHint') }}</div>
+              </el-form-item>
+            </div>
+
+            <!-- 高级参数 -->
+            <div class="dialog-section">
+              <div class="section-title">
+                <span class="section-icon">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                </span>
+                <span>{{ $t('ai.advancedSettings') }}</span>
+              </div>
+              <el-form-item :label="$t('ai.timeout')">
+                <el-input-number v-model="form.timeout" :min="30" :max="600" :step="30" />
+                <span class="timeout-unit">秒</span>
+                <div class="form-hint">{{ $t('ai.timeoutHint') }}</div>
+              </el-form-item>
+
+              <el-form-item :label="$t('ai.maxTokens')">
+                <el-input-number v-model="form.maxTokens" :min="1" :max="131072" :step="256" />
+              </el-form-item>
+
+              <el-form-item :label="$t('ai.temperature')">
+                <el-slider v-model="form.temperature" :min="0" :max="2" :step="0.1" show-input />
+              </el-form-item>
+            </div>
+          </el-form>
+        </div>
+
+        <template #footer>
+          <div class="dialog-footer">
+            <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+            <el-button
+              @click="testConnectivity"
+              :loading="testing"
+              plain
+            >
+              <el-icon style="margin-right: 4px"><Link /></el-icon>
+              {{ $t('ai.testConnectivity') }}
+            </el-button>
+            <el-button type="primary" @click="saveConfig" :loading="saving">
+              <el-icon style="margin-right: 4px"><Check /></el-icon>
+              {{ $t('common.save') }}
+            </el-button>
+          </div>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Link, Check } from '@element-plus/icons-vue'
+import { Link, Check, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import request from '@/utils/request'
 
@@ -248,14 +354,45 @@ const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)
-const toggling = ref(false)
 const testing = ref(false)
-const activeProvider = ref('')
-const savedConfigId = ref(null)
+const dialogVisible = ref(false)
+const togglingId = ref(null)
+const settingDefault = ref(null)
 
-// 预设服务商列表（从后端获取）
 const providerList = ref([])
 const savedConfigs = ref([])
+const editingConfig = ref(null)
+
+// 预设服务商的常用模型选项
+const providerModelsMap = {
+  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+  azure: ['gpt-4o', 'gpt-4', 'gpt-3.5-turbo'],
+  google: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-pro'],
+  anthropic: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-sonnet'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
+  qwen: ['qwen-plus', 'qwen-turbo', 'qwen-max', 'qwen-coder-plus'],
+  zhipu: ['glm-4-plus', 'glm-4', 'glm-3-turbo'],
+  moonshot: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+  baichuan: ['Baichuan4', 'Baichuan3-Turbo', 'Baichuan2-53B'],
+  minimax: ['abab6.5s-chat', 'abab6.5-chat', 'abab6-chat'],
+  xiaomi: ['mimo-pro', 'mimo-vision'],
+  bytedance: ['doubao-pro-256k', 'doubao-pro-4k', 'doubao-lite-4k', 'doubao-vision-pro'],
+  custom: []
+}
+
+const currentModelOptions = computed(() => {
+  if (!form.value.provider) return []
+  const presets = new Set(providerModelsMap[form.value.provider] || [])
+  form.value.models.forEach(m => m && presets.add(m))
+  return Array.from(presets)
+})
+
+// 默认模型变更：自定义输入时自动加入支持模型列表
+function onDefaultModelChange(val) {
+  if (typeof val === 'string' && val && !form.value.models.includes(val)) {
+    form.value.models.push(val)
+  }
+}
 
 const form = ref({
   provider: '',
@@ -263,24 +400,16 @@ const form = ref({
   apiUrl: '',
   apiKey: '',
   defaultModel: '',
+  models: [],
   maxTokens: 4096,
   temperature: 0.7,
-  timeout: 120,
-  enabled: false
+  timeout: 120
 })
 
-const activeProviderName = computed(() => {
-  const p = providerList.value.find(item => item.key === activeProvider.value)
-  return p ? p.name : activeProvider.value
-})
-
-const selectedProviderInfo = computed(() => {
-  return providerList.value.find(item => item.key === activeProvider.value) || null
-})
-
-const enabledProvider = computed(() => {
-  return savedConfigs.value.find(c => c.enabled)
-})
+function parseModels(modelsStr) {
+  if (!modelsStr) return []
+  return modelsStr.split(',').map(m => m.trim()).filter(m => m)
+}
 
 function isPreset(key) {
   return key !== 'custom'
@@ -311,8 +440,7 @@ async function loadConfigs() {
     const res = await request.get('/ai-config')
     if (res.code === 200) {
       savedConfigs.value = res.data || []
-      // 将已启用配置的超时同步到 localStorage，供 request.js 动态读取
-      const enabled = savedConfigs.value.find(c => c.enabled)
+      const enabled = savedConfigs.value.find(c => c.enabled && c.isDefault) || savedConfigs.value.find(c => c.enabled)
       if (enabled && enabled.timeout) {
         localStorage.setItem('aiTimeout', enabled.timeout * 1000)
       }
@@ -322,58 +450,71 @@ async function loadConfigs() {
   }
 }
 
+// 新增配置
+function showAddDialog() {
+  editingConfig.value = null
+  form.value = {
+    provider: '',
+    providerName: '',
+    apiUrl: '',
+    apiKey: '',
+    defaultModel: '',
+    models: [],
+    maxTokens: 4096,
+    temperature: 0.7,
+    timeout: 120
+  }
+  dialogVisible.value = true
+}
+
+// 编辑配置
+function editConfig(config) {
+  editingConfig.value = config
+  form.value = {
+    provider: config.provider,
+    providerName: config.providerName,
+    apiUrl: config.apiUrl,
+    apiKey: config.apiKey,
+    defaultModel: config.defaultModel || '',
+    models: config.models ? config.models.split(',').map(m => m.trim()).filter(m => m) : [],
+    maxTokens: config.maxTokens || 4096,
+    temperature: config.temperature || 0.7,
+    timeout: config.timeout || 120
+  }
+  dialogVisible.value = true
+}
+
 // 选择服务商
 function selectProvider(key) {
-  activeProvider.value = key
   const preset = providerList.value.find(p => p.key === key)
-  const saved = savedConfigs.value.find(c => c.provider === key)
-
-  if (saved) {
-    savedConfigId.value = saved.id
-    form.value = {
-      provider: saved.provider,
-      providerName: saved.providerName,
-      apiUrl: saved.apiUrl,
-      apiKey: saved.apiKey,
-      defaultModel: saved.defaultModel || '',
-      maxTokens: saved.maxTokens || 4096,
-      temperature: saved.temperature || 0.7,
-      timeout: saved.timeout || 120,
-      enabled: saved.enabled
-    }
-  } else {
-    savedConfigId.value = null
-    form.value = {
-      provider: key,
-      providerName: preset ? preset.name : '',
-      apiUrl: preset ? preset.apiUrl : '',
-      apiKey: '',
-      defaultModel: preset ? preset.defaultModel : '',
-      maxTokens: 4096,
-      temperature: 0.7,
-      timeout: 120,
-      enabled: false
-    }
+  if (preset) {
+    form.value.providerName = preset.name
+    form.value.apiUrl = preset.apiUrl
+    form.value.defaultModel = preset.defaultModel
+    // 默认模型只填充到默认模型字段，支持模型由用户自行选择/输入
   }
 }
 
 // 保存配置
 async function saveConfig() {
-  if (!form.value.apiUrl || !form.value.apiKey) {
+  if (!form.value.provider || !form.value.apiUrl || !form.value.apiKey) {
     ElMessage.warning(t('ai.validation'))
     return
   }
 
   saving.value = true
   try {
-    const res = await request.post('/ai-config', form.value)
+    const payload = {
+      ...form.value,
+      models: form.value.models.join(','),
+      enabled: editingConfig.value?.enabled || false
+    }
+    const res = await request.post('/ai-config', payload)
     if (res.code === 200) {
-      savedConfigId.value = res.data.id
-      form.value.enabled = res.data.enabled
-      // 实时同步 AI 超时到 localStorage，request.js 会动态读取
       const timeout = form.value.timeout || 120
       localStorage.setItem('aiTimeout', timeout * 1000)
       ElMessage.success(t('common.success'))
+      dialogVisible.value = false
       await loadConfigs()
     }
   } catch (e) {
@@ -384,19 +525,47 @@ async function saveConfig() {
 }
 
 // 切换启用
-async function toggleEnabled() {
-  toggling.value = true
+async function toggleEnabled(config) {
+  togglingId.value = config.id
   try {
-    const res = await request.put(`/ai-config/${savedConfigId.value}/toggle`)
+    const res = await request.put(`/ai-config/${config.id}/toggle`)
     if (res.code === 200) {
-      form.value.enabled = res.data.enabled
-      ElMessage.success(form.value.enabled ? t('ai.enabled') : t('ai.disabled'))
+      ElMessage.success(res.data.enabled ? t('ai.enabled') : t('ai.disabled'))
       await loadConfigs()
     }
   } catch (e) {
     ElMessage.error(t('common.error'))
   } finally {
-    toggling.value = false
+    togglingId.value = null
+  }
+}
+
+// 设置默认
+async function setDefault(id) {
+  settingDefault.value = id
+  try {
+    const res = await request.put(`/ai-config/${id}/set-default`)
+    if (res.code === 200) {
+      ElMessage.success(t('ai.defaultSet'))
+      await loadConfigs()
+    }
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || t('common.error'))
+  } finally {
+    settingDefault.value = null
+  }
+}
+
+// 删除配置
+async function deleteConfig(id) {
+  try {
+    const res = await request.delete(`/ai-config/${id}`)
+    if (res.code === 200) {
+      ElMessage.success(t('common.success'))
+      await loadConfigs()
+    }
+  } catch (e) {
+    ElMessage.error(t('common.error'))
   }
 }
 
@@ -447,7 +616,7 @@ onMounted(async () => {
 <style scoped>
 .provider-settings {
   padding: 0;
-  max-width: 880px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -527,50 +696,6 @@ onMounted(async () => {
   gap: 16px;
 }
 
-/* ========== 状态卡片 ========== */
-.status-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 24px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #ebeef5;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.status-card.active {
-  border-color: #b7eb8f;
-  box-shadow: 0 1px 8px rgba(103, 194, 58, 0.08);
-}
-
-.status-icon {
-  flex-shrink: 0;
-}
-
-.status-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.status-label {
-  font-size: 13px;
-  color: #909399;
-  font-weight: 500;
-}
-
-.status-value {
-  font-size: 14px;
-  color: #303133;
-}
-
-.status-value.muted {
-  color: #c0c4cc;
-}
-
 /* ========== 配置卡片 ========== */
 .config-card {
   background: #fff;
@@ -581,9 +706,12 @@ onMounted(async () => {
 }
 
 .card-header {
-  padding: 18px 24px;
+  padding: 16px 24px;
   background: #fafbfc;
   border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .card-header h3 {
@@ -602,58 +730,99 @@ onMounted(async () => {
 }
 
 .card-body {
-  padding: 24px;
+  padding: 16px 24px;
 }
 
-/* ========== 服务商选择行 ========== */
-.provider-select-row {
+.empty-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #c0c4cc;
+}
+
+/* ========== 配置列表 ========== */
+.config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.config-item {
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+  padding: 16px 20px;
+  transition: all 0.2s ease;
+}
+
+.config-item.is-enabled {
+  border-color: #b7eb8f;
+  background: #fcfff5;
+}
+
+.config-item.is-default {
+  border-color: #e6a23c;
+  background: #fef9f0;
+}
+
+.config-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.config-item-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.select-label {
-  font-size: 14px;
-  color: #606266;
-  white-space: nowrap;
-  font-weight: 500;
+.config-item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* ========== 服务商信息条 ========== */
-.provider-info-bar {
+.config-provider-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.config-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.config-item-details {
+  margin-top: 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 0;
-  background: #f5f7fa;
-  border-radius: 8px;
-  padding: 16px 20px;
+  gap: 12px 24px;
+  padding-top: 12px;
+  border-top: 1px dashed #e4e7ed;
 }
 
-.info-item {
-  width: 50%;
-  padding: 8px 0;
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.info-item.full {
-  width: 100%;
-}
-
-.info-label {
+.detail-label {
   font-size: 12px;
   color: #909399;
-  margin-right: 8px;
+  white-space: nowrap;
 }
 
-.info-value {
+.detail-value {
   font-size: 13px;
-  color: #303133;
-  font-weight: 500;
+  color: #606266;
 }
 
-.provider-info-bar code {
+.detail-row code {
   font-size: 12px;
-  background: #fff;
+  background: #f5f7fa;
   padding: 2px 8px;
   border-radius: 4px;
   color: #606266;
@@ -674,49 +843,111 @@ onMounted(async () => {
 .form-hint {
   font-size: 12px;
   color: #909399;
-  margin-top: 4px;
+  margin-top: 6px;
   line-height: 1.5;
 }
 
-.form-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-/* ========== 超时字段 ========== */
 .timeout-unit {
-  margin-left: 10px;
+  margin-left: 8px;
   color: #606266;
   font-size: 13px;
 }
 
-.timeout-hint {
-  margin-left: 12px;
-  color: #909399;
-  font-size: 12px;
-}
 
-.timeout-form-item :deep(.el-input-number) {
-  width: 150px;
-}
 
-/* ========== 空状态卡片 ========== */
-.empty-card {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #ebeef5;
-  padding: 60px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.empty-card p {
+/* ========== 对话框美化 ========== */
+.ai-config-dialog :deep(.el-dialog__header) {
   margin: 0;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: linear-gradient(135deg, #fafbff 0%, #f5f7ff 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.ai-config-dialog :deep(.el-dialog__title) {
+  font-weight: 700;
+  font-size: 17px;
+  color: #303133;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-config-dialog :deep(.el-dialog__body) {
+  padding: 0;
+}
+
+.ai-config-dialog :deep(.el-dialog__footer) {
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafbfc;
+}
+
+.dialog-body {
+  padding: 24px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.dialog-section {
+  background: #fafbfc;
+  border-radius: 10px;
+  padding: 18px 20px 6px;
+  margin-bottom: 16px;
+  border: 1px solid #eef0f5;
+}
+
+.dialog-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
-  color: #c0c4cc;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e4e7ed;
+}
+
+.section-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.section-icon svg {
+  stroke-width: 2.2;
+}
+
+.config-form :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.config-form :deep(.el-input__wrapper),
+.config-form :deep(.el-textarea__inner),
+.config-form :deep(.el-select) {
+  border-radius: 8px;
+}
+
+.config-form :deep(.el-slider) {
+  padding-left: 6px;
+  margin-right: 12px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* ========== 分割线覆盖 ========== */

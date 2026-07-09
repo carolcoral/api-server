@@ -41,10 +41,18 @@ public class AiConfigService {
     }
 
     /**
-     * 获取启用的 AI 配置
+     * 获取启用的 AI 配置（优先返回默认配置，否则返回第一个启用的）
      */
     public AiConfig getEnabledConfig() {
-        return aiConfigRepository.findFirstByEnabledTrue().orElse(null);
+        return aiConfigRepository.findFirstByIsDefaultTrueAndEnabledTrue()
+                .orElseGet(() -> aiConfigRepository.findFirstByEnabledTrue().orElse(null));
+    }
+
+    /**
+     * 获取所有启用的 AI 配置列表
+     */
+    public List<AiConfig> getEnabledConfigs() {
+        return aiConfigRepository.findAllByEnabledTrue();
     }
 
     /**
@@ -80,32 +88,66 @@ public class AiConfigService {
             existing.setTemperature(config.getTemperature());
             existing.setTimeout(config.getTimeout());
             existing.setEnabled(config.getEnabled());
+            existing.setModels(config.getModels());
+            // 只有通过 setDefault 接口设置，保存时不自动设置
+            if (Boolean.TRUE.equals(config.getIsDefault())) {
+                existing.setIsDefault(true);
+            }
             return aiConfigRepository.save(existing);
         }
         return aiConfigRepository.save(config);
     }
 
     /**
-     * 切换启用状态（同时只允许一个服务商启用）
+     * 切换启用状态（支持同时启用多个服务商）
+     * 如果禁用的是默认配置，则清除其默认标记
      */
     @Transactional
     public AiConfig toggleEnabled(Long id, boolean enabled) {
         AiConfig config = aiConfigRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("AI配置不存在: " + id));
 
-        if (enabled) {
-            // 先禁用所有其他配置
-            List<AiConfig> all = aiConfigRepository.findAll();
-            for (AiConfig c : all) {
-                if (!c.getId().equals(id) && Boolean.TRUE.equals(c.getEnabled())) {
-                    c.setEnabled(false);
-                    aiConfigRepository.save(c);
-                }
+        config.setEnabled(enabled);
+        // 如果禁用的是默认配置，清除默认标记
+        if (!enabled && Boolean.TRUE.equals(config.getIsDefault())) {
+            config.setIsDefault(false);
+        }
+        return aiConfigRepository.save(config);
+    }
+
+    /**
+     * 设置默认 AI 配置（仅一个，其他全部取消默认标记）
+     */
+    @Transactional
+    public AiConfig setDefault(Long id) {
+        AiConfig config = aiConfigRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("AI配置不存在: " + id));
+
+        if (!Boolean.TRUE.equals(config.getEnabled())) {
+            throw new RuntimeException("只能将已启用的 AI 设置设为默认");
+        }
+
+        // 取消所有其他配置的默认标记
+        List<AiConfig> all = aiConfigRepository.findAll();
+        for (AiConfig c : all) {
+            if (!c.getId().equals(id) && Boolean.TRUE.equals(c.getIsDefault())) {
+                c.setIsDefault(false);
+                aiConfigRepository.save(c);
             }
         }
 
-        config.setEnabled(enabled);
+        config.setIsDefault(true);
         return aiConfigRepository.save(config);
+    }
+
+    /**
+     * 删除 AI 配置
+     */
+    @Transactional
+    public void deleteConfig(Long id) {
+        AiConfig config = aiConfigRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("AI配置不存在: " + id));
+        aiConfigRepository.delete(config);
     }
 
     /**

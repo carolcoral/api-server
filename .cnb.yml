@@ -20,6 +20,8 @@ $:
       volumes:
         # CodeBuddy AI 助手数据（skills、plugins、对话历史、记忆等）
         - /root/.codebuddy
+        # CodeBuddy 项目级数据（team 协作配置等）
+        - /workspace/.codebuddy
         # VS Code Server 数据（extensions、settings、state 等）
         - /root/.vscode-server
         # Shell 历史记录

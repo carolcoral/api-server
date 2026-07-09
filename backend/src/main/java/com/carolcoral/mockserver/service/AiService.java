@@ -966,19 +966,27 @@ public class AiService {
      * @return AI 回复的文本内容
      */
     public String chat(List<Map<String, String>> messages) throws Exception {
-        AiConfig config = aiConfigService.getEnabledConfig();
+        return chat(messages, null, null);
+    }
+
+    /**
+     * 通用 AI 对话（支持指定 configId 和 model）
+     */
+    public String chat(List<Map<String, String>> messages, Long configId, String model) throws Exception {
+        AiConfig config = resolveConfig(configId);
         if (config == null) {
             throw new RuntimeException("未配置 AI 服务或未启用，请先在 AI 设置中配置并启用");
         }
 
         // 注入系统提示词（含项目文档知识），确保 AI 回答基于真实项目内容
+        // 系统提示词不随 model 变化而变化，保证回答内容一致性
         List<Map<String, String>> enrichedMessages = enrichWithSystemPrompt(messages);
 
         String apiUrl = config.getApiUrl();
         String chatUrl = buildChatUrl(apiUrl);
-        String model = getEffectiveModel(config);
+        String effectiveModel = (model != null && !model.isBlank()) ? model : getEffectiveModel(config);
 
-        Map<String, Object> requestBody = buildChatRequestBody(config, model, enrichedMessages, false);
+        Map<String, Object> requestBody = buildChatRequestBody(config, effectiveModel, enrichedMessages, false);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -987,7 +995,7 @@ public class AiService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
         RestTemplate restTemplate = getRestTemplate();
 
-        log.info("AI Chat 请求: url={}, model={}, messagesCount={}", chatUrl, model, messages.size());
+        log.info("AI Chat 请求: url={}, model={}, messagesCount={}", chatUrl, effectiveModel, messages.size());
         try {
             long startTime = System.currentTimeMillis();
             ResponseEntity<String> response = restTemplate.exchange(chatUrl, HttpMethod.POST, entity, String.class);
@@ -1022,7 +1030,14 @@ public class AiService {
      * @return 逐行 SSE 数据的 BufferedReader，调用方负责关闭
      */
     public java.io.BufferedReader callAiApiStream(String prompt, String systemPrompt) throws Exception {
-        AiConfig config = aiConfigService.getEnabledConfig();
+        return callAiApiStream(prompt, systemPrompt, null);
+    }
+
+    /**
+     * 通用流式 AI 调用（支持指定 configId 切换模型）
+     */
+    public java.io.BufferedReader callAiApiStream(String prompt, String systemPrompt, Long configId) throws Exception {
+        AiConfig config = resolveConfig(configId);
         if (config == null) {
             throw new RuntimeException("未配置 AI 服务或未启用，请先在 AI 设置中配置并启用");
         }
@@ -1045,8 +1060,15 @@ public class AiService {
      * 执行流式请求（公共逻辑）
      */
     private java.io.BufferedReader doStreamRequest(AiConfig config, List<Map<String, String>> messages) throws Exception {
+        return doStreamRequest(config, messages, null);
+    }
+
+    /**
+     * 执行流式请求（支持 model 覆盖）
+     */
+    private java.io.BufferedReader doStreamRequest(AiConfig config, List<Map<String, String>> messages, String modelOverride) throws Exception {
         String chatUrl = buildChatUrl(config.getApiUrl());
-        String model = getEffectiveModel(config);
+        String model = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride : getEffectiveModel(config);
         Map<String, Object> requestBody = buildChatRequestBody(config, model, messages, true);
 
         java.net.URL url = new java.net.URL(chatUrl);
@@ -1093,16 +1115,43 @@ public class AiService {
      * @return 逐行 SSE 数据的 BufferedReader，调用方负责关闭
      */
     public java.io.BufferedReader chatStream(List<Map<String, String>> messages) throws Exception {
-        AiConfig config = aiConfigService.getEnabledConfig();
+        return chatStream(messages, null, null);
+    }
+
+    /**
+     * 流式 AI 对话（支持指定 configId 和 model）
+     *
+     * @param messages 对话消息列表
+     * @param configId 指定 AI 配置 ID（为 null 则使用默认配置）
+     * @param model 指定模型名称（为 null 则使用配置的默认模型）
+     * @return 逐行 SSE 数据的 BufferedReader，调用方负责关闭
+     */
+    public java.io.BufferedReader chatStream(List<Map<String, String>> messages, Long configId, String model) throws Exception {
+        AiConfig config = resolveConfig(configId);
         if (config == null) {
             throw new RuntimeException("未配置 AI 服务或未启用，请先在 AI 设置中配置并启用");
         }
 
         // 注入系统提示词（含项目文档知识），确保 AI 回答基于真实项目内容
+        // 系统提示词不随 model 变化而变化，保证回答内容一致性
         List<Map<String, String>> enrichedMessages = enrichWithSystemPrompt(messages);
 
-        log.info("AI Chat Stream 请求: model={}, messagesCount={}", getEffectiveModel(config), enrichedMessages.size());
-        return doStreamRequest(config, enrichedMessages);
+        String effectiveModel = (model != null && !model.isBlank()) ? model : getEffectiveModel(config);
+        log.info("AI Chat Stream 请求: configId={}, model={}, messagesCount={}", configId, effectiveModel, enrichedMessages.size());
+        return doStreamRequest(config, enrichedMessages, effectiveModel);
+    }
+
+    /**
+     * 根据 configId 解析 AI 配置，为 null 时返回默认配置
+     */
+    private AiConfig resolveConfig(Long configId) {
+        if (configId != null) {
+            AiConfig config = aiConfigService.getById(configId);
+            if (config != null && Boolean.TRUE.equals(config.getEnabled())) {
+                return config;
+            }
+        }
+        return aiConfigService.getEnabledConfig();
     }
 
     /**

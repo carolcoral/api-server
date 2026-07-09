@@ -34,6 +34,9 @@ public interface AiConfigRepository extends JpaRepository<AiConfig, Long> {
     @Operation(summary = "查找所有启用的配置")
     List<AiConfig> findAllByEnabledTrue();
 
+    @Operation(summary = "查找默认的AI配置")
+    Optional<AiConfig> findFirstByIsDefaultTrueAndEnabledTrue();
+
     @Operation(summary = "检查服务商是否已配置")
     boolean existsByProvider(String provider);
 }

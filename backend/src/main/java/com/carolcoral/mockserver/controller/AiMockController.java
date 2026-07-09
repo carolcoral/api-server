@@ -312,8 +312,17 @@ public class AiMockController {
             return ApiResponse.error("请提供对话消息列表 (messages)");
         }
 
+        // 支持指定 AI 配置和模型
+        Long configId = null;
+        if (params.get("configId") != null) {
+            if (params.get("configId") instanceof Number) {
+                configId = ((Number) params.get("configId")).longValue();
+            }
+        }
+        String model = (String) params.get("model");
+
         try {
-            String reply = aiService.chat(messages);
+            String reply = aiService.chat(messages, configId, model);
             Map<String, String> result = new LinkedHashMap<>();
             result.put("reply", reply);
             logAiCall("chat", true, null);
@@ -332,6 +341,7 @@ public class AiMockController {
     /**
      * AI 流式对话接口（SSE）
      * 实时逐 token 推送 AI 回复，避免长时间等待和超时
+     * 支持指定 configId 和 model 进行切换
      */
     @Hidden
     @Operation(summary = "AI 流式对话（SSE）", description = "流式 AI 对话，通过 SSE 实时推送每个 token")
@@ -341,6 +351,15 @@ public class AiMockController {
                             HttpServletResponse response) {
         @SuppressWarnings("unchecked")
         List<Map<String, String>> messages = (List<Map<String, String>>) params.get("messages");
+
+        // 支持指定 AI 配置和模型
+        Long configId = null;
+        if (params.get("configId") != null) {
+            if (params.get("configId") instanceof Number) {
+                configId = ((Number) params.get("configId")).longValue();
+            }
+        }
+        String model = (String) params.get("model");
 
         // 设置 SSE 响应头
         response.setContentType("text/event-stream");
@@ -353,7 +372,7 @@ public class AiMockController {
         BufferedReader reader = null;
         try {
             writer = response.getWriter();
-            reader = aiService.chatStream(messages);
+            reader = aiService.chatStream(messages, configId, model);
 
             String line;
             while ((line = reader.readLine()) != null) {
