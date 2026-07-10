@@ -769,13 +769,21 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .statistics-page {
-    padding: 10px;
+    padding: 8px;
   }
   .chart-container {
-    height: 280px;
+    height: 240px;
   }
   .iops-value {
-    font-size: 24px;
+    font-size: 20px;
+  }
+  .iops-label {
+    font-size: 11px;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 }
 </style>

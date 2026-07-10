@@ -55,6 +55,7 @@ export default {
     statistics: 'Statistics',
     aiSettings: 'AI Settings',
     aiChat: 'AI Chat',
+    debugPanel: 'Mock Debug Panel',
     permissionManagement: 'Permissions'
   },
 
@@ -1194,5 +1195,30 @@ export default {
     step6CheckItem3: 'Import or create Mock APIs',
     step6CheckItem4: 'Configure responses and parameter matching',
     step6CheckItem5: 'Copy the API path and start using'
+  },
+
+  // Mock Debug Panel
+  debug: {
+    title: 'Mock Debug Panel',
+    totalRequests: 'Total Requests',
+    avgDelay: 'Avg Delay',
+    errorRate: 'Error Rate',
+    maxDelay: 'Max Delay',
+    delayDistribution: 'Response Delay Distribution',
+    percentileStats: 'Percentile Stats',
+    requestLogs: 'Request Logs',
+    autoRefresh: 'Auto Refresh',
+    method: 'Method',
+    path: 'Path',
+    statusCode: 'Status',
+    responseTime: 'Response Time',
+    requestIp: 'Request IP',
+    requestTime: 'Request Time',
+    project: 'Project',
+    apiName: 'API Name',
+    requestCount: 'Requests',
+    filterPath: 'Search Path',
+    filterMethod: 'Filter Method',
+    filterStatus: 'Filter Status'
   }
 }

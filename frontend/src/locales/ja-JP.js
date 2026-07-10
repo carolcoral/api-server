@@ -55,6 +55,7 @@ export default {
     statistics: '統計データ',
     aiSettings: 'AI 設定',
     aiChat: 'AI 会話',
+    debugPanel: 'Mock デバッグパネル',
     permissionManagement: '権限管理'
   },
 
@@ -1163,5 +1164,30 @@ export default {
     step6CheckItem3: 'Mock APIをインポートまたは作成',
     step6CheckItem4: 'レスポンスとパラメータマッチングを設定',
     step6CheckItem5: 'APIパスをコピーして使用開始'
+  },
+
+  // Mock デバッグパネル
+  debug: {
+    title: 'Mock デバッグパネル',
+    totalRequests: 'リクエスト総数',
+    avgDelay: '平均遅延',
+    errorRate: 'エラー率',
+    maxDelay: '最大遅延',
+    delayDistribution: '応答遅延分布',
+    percentileStats: 'パーセンタイル統計',
+    requestLogs: 'リクエストログ',
+    autoRefresh: '自動更新',
+    method: 'メソッド',
+    path: 'パス',
+    statusCode: 'ステータス',
+    responseTime: '応答時間',
+    requestIp: 'リクエストIP',
+    requestTime: 'リクエスト時刻',
+    project: 'プロジェクト',
+    apiName: 'API名',
+    requestCount: 'リクエスト数',
+    filterPath: 'パス検索',
+    filterMethod: 'メソッド絞込',
+    filterStatus: 'ステータス絞込'
   }
 }

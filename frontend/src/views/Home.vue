@@ -598,29 +598,40 @@ const fetchAnnouncement = async () => {
 
 @media (max-width: 768px) {
   .home {
-    padding: 10px;
+    padding: 8px;
   }
 
   .stat-card {
-    height: 100px;
-    margin-top: 10px;
-    margin-bottom: 15px;
+    height: 90px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    padding: 0 12px;
   }
 
   .stat-icon {
-    width: 50px;
-    height: 50px;
-    font-size: 20px;
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+    margin-right: 12px;
   }
 
   .stat-content p {
-    font-size: 20px;
+    font-size: 18px;
   }
-}
 
-@media (max-width: 768px) {
-  .home {
-    padding: 10px;
+  .stat-content h3 {
+    font-size: 12px;
+  }
+
+  .card-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .readme-content {
+    max-height: 30vh;
+    padding: 6px;
   }
 }
 

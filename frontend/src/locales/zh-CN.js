@@ -55,6 +55,7 @@ export default {
     statistics: '数据统计',
     aiSettings: 'AI 设置',
     aiChat: 'AI 对话',
+    debugPanel: 'Mock 调试面板',
     permissionManagement: '权限管理'
   },
 
@@ -1225,5 +1226,30 @@ export default {
     step6CheckItem3: '导入或创建 Mock API',
     step6CheckItem4: '配置响应和参数匹配',
     step6CheckItem5: '复制调用路径开始使用'
+  },
+
+  // Mock 调试面板
+  debug: {
+    title: 'Mock 调试面板',
+    totalRequests: '请求总数',
+    avgDelay: '平均延迟',
+    errorRate: '错误率',
+    maxDelay: '最大延迟',
+    delayDistribution: '响应延迟分布',
+    percentileStats: '延迟百分位统计',
+    requestLogs: '请求日志',
+    autoRefresh: '自动刷新',
+    method: '方法',
+    path: '路径',
+    statusCode: '状态码',
+    responseTime: '响应时间',
+    requestIp: '请求IP',
+    requestTime: '请求时间',
+    project: '所属项目',
+    apiName: '接口名称',
+    requestCount: '请求数',
+    filterPath: '路径搜索',
+    filterMethod: '方法筛选',
+    filterStatus: '状态码筛选'
   }
 }

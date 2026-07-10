@@ -7,7 +7,10 @@
 <template>
   <div class="dashboard-layout">
     <!-- 侧边栏 -->
-    <el-aside :width="collapsed ? '64px' : '220px'" class="sidebar" :class="{ collapsed }">
+    <!-- 移动端遮罩层 -->
+    <div class="mobile-overlay" :class="{ hidden: !mobileMenuOpen }" @click="mobileMenuOpen = false"></div>
+
+    <el-aside :width="collapsed ? '64px' : '220px'" class="sidebar" :class="{ collapsed, 'mobile-open': mobileMenuOpen }">
       <!-- 动态线条背景 -->
       <canvas ref="sidebarCanvas" class="sidebar-canvas"></canvas>
       <div class="logo">
@@ -60,11 +63,21 @@
           <span>{{ $t('nav.aiChat') }}</span>
         </el-menu-item>
 
-        <!-- 数据统计 - 一级菜单（根据权限显示） -->
-        <el-menu-item index="/statistics" v-if="userStore.hasPermission('statistics:view')">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>{{ $t('nav.statistics') }}</span>
-        </el-menu-item>
+        <!-- 数据统计 - 可折叠分组（根据权限显示） -->
+        <el-sub-menu index="sub-statistics" v-if="userStore.hasAnyPermission(['statistics:view', 'statistics:view'])">
+          <template #title>
+            <el-icon><DataAnalysis /></el-icon>
+            <span>{{ $t('nav.statistics') }}</span>
+          </template>
+          <el-menu-item index="/statistics" v-if="userStore.hasPermission('statistics:view')">
+            <el-icon><TrendCharts /></el-icon>
+            <span>{{ $t('nav.statistics') }}</span>
+          </el-menu-item>
+          <el-menu-item index="/debug-panel" v-if="userStore.hasPermission('statistics:view')">
+            <el-icon><Monitor /></el-icon>
+            <span>{{ $t('nav.debugPanel') }}</span>
+          </el-menu-item>
+        </el-sub-menu>
 
         <!-- 权限管理 - 根据权限显示 -->
         <el-sub-menu index="sub-permission" v-if="userStore.hasAnyPermission(['user:view', 'role:view', 'permission:view'])">
@@ -124,6 +137,12 @@
       <!-- 头部 -->
       <el-header class="header">
         <div class="header-left">
+          <div class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">
+            <el-icon :size="20">
+              <Expand v-if="!mobileMenuOpen" />
+              <Fold v-if="mobileMenuOpen" />
+            </el-icon>
+          </div>
           <h3>{{ route.meta.title || 'Mock Server' }}</h3>
         </div>
         <div class="header-right">
@@ -312,7 +331,8 @@ import {
   ChatDotSquare,
   Lock,
   Avatar,
-  Key
+  Key,
+  TrendCharts
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -354,6 +374,14 @@ const fetchRolesForBadge = async () => {
 // 侧边栏展开/收缩状态（默认展开）
 const collapsed = ref(false)
 
+// 移动端菜单开关
+const mobileMenuOpen = ref(false)
+
+// 监听路由变化关闭移动端菜单
+watch(() => route.path, () => {
+  mobileMenuOpen.value = false
+})
+
 // 当前激活的菜单
 const activeMenu = computed(() => route.path)
 
@@ -363,6 +391,9 @@ const defaultOpeneds = computed(() => {
   const opened = []
   if (['/projects', '/apis', '/code-templates'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-business')
+  }
+  if (['/statistics', '/debug-panel'].some(p => path === p || path.startsWith(p + '/'))) {
+    opened.push('sub-statistics')
   }
   if (['/users', '/roles', '/permissions'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-permission')
@@ -1377,11 +1408,50 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 180px !important;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: 220px !important;
+    transform: translateX(-100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+
+  .mobile-overlay.hidden {
+    display: none;
   }
 
   .main-content {
     padding: 10px;
+  }
+
+  .header {
+    padding: 0 10px !important;
+  }
+
+  .header-left h3 {
+    font-size: 15px;
+  }
+
+  .username {
+    display: none;
+  }
+
+  .role-badge {
+    display: none;
   }
 
   .footer-content {
@@ -1390,6 +1460,52 @@ onBeforeUnmount(() => {
 
   .footer-links {
     gap: 16px;
+  }
+
+  /* 移动端汉堡菜单按钮 */
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    color: #606266;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+  }
+
+  .mobile-menu-btn:hover {
+    background-color: #f5f7fa;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-btn {
+    display: none;
+  }
+
+  .mobile-overlay {
+    display: none !important;
+  }
+}
+
+/* 平板适配 (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar {
+    width: 180px !important;
+  }
+
+  .main-content {
+    padding: 14px;
+  }
+
+  .username {
+    font-size: 12px;
+  }
+
+  .header-left h3 {
+    font-size: 16px;
   }
 }
 </style>

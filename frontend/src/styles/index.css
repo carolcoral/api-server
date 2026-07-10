@@ -38,6 +38,45 @@ body {
   .el-table .cell {
     padding: 4px;
   }
+
+  /* 移动端表格横向滚动 */
+  .el-table__body-wrapper {
+    overflow-x: auto;
+  }
+
+  /* 移动端卡片间距 */
+  .el-card {
+    margin-bottom: 8px;
+  }
+
+  /* 移动端表单控件全宽 */
+  .el-form-item__content {
+    flex-wrap: wrap;
+  }
+
+  /* 移动端对话框全屏 */
+  .el-dialog {
+    width: 95% !important;
+    margin-top: 2vh !important;
+  }
+
+  /* 移动端分页器紧凑 */
+  .el-pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .el-pagination .el-pagination__sizes,
+  .el-pagination .el-pagination__jump {
+    margin-top: 4px;
+  }
+}
+
+/* 平板适配 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .el-dialog {
+    width: 80% !important;
+  }
 }
 
 /* 暗色主题语言选择器下拉弹窗 */

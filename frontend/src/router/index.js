@@ -89,6 +89,12 @@ const routes = [
         meta: { requiresAuth: true, requiredPermission: 'statistics:view' }
       },
       {
+        path: '/debug-panel',
+        name: 'DebugPanel',
+        component: () => import('@/views/DebugPanel.vue'),
+        meta: { requiresAuth: true, requiredPermission: 'statistics:view' }
+      },
+      {
         path: '/profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),
