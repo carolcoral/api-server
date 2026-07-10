@@ -64,7 +64,7 @@
         </el-menu-item>
 
         <!-- 数据统计 - 可折叠分组（根据权限显示） -->
-        <el-sub-menu index="sub-statistics" v-if="userStore.hasAnyPermission(['statistics:view', 'statistics:view'])">
+        <el-sub-menu index="sub-statistics" v-if="userStore.hasAnyPermission(['statistics:view', 'debug-panel:view'])">
           <template #title>
             <el-icon><DataAnalysis /></el-icon>
             <span>{{ $t('nav.statistics') }}</span>
@@ -73,7 +73,7 @@
             <el-icon><TrendCharts /></el-icon>
             <span>{{ $t('nav.statistics') }}</span>
           </el-menu-item>
-          <el-menu-item index="/debug-panel" v-if="userStore.hasPermission('statistics:view')">
+          <el-menu-item index="/debug-panel" v-if="userStore.hasPermission('debug-panel:view')">
             <el-icon><Monitor /></el-icon>
             <span>{{ $t('nav.debugPanel') }}</span>
           </el-menu-item>

@@ -348,6 +348,7 @@ public class DatabaseMigration implements CommandLineRunner {
             {"AI对话-页面访问", "ai-chat:view", "AI对话", "PAGE", "40"},
             // 数据统计
             {"数据统计-页面访问", "statistics:view", "数据统计", "PAGE", "50"},
+            {"调试面板-页面访问", "debug-panel:view", "数据统计", "PAGE", "51"},
             // 权限管理
             {"权限管理-页面访问", "permission:view", "权限管理", "PAGE", "60"},
             {"角色管理-页面访问", "role:view", "权限管理", "PAGE", "61"},
@@ -389,6 +390,25 @@ public class DatabaseMigration implements CommandLineRunner {
             }
         } catch (Exception e) {
             log.warn("修正用户管理权限 group_name 失败: {}", e.getMessage());
+        }
+
+        // 将 debug-panel:view 权限同步赋予已有 statistics:view 权限的角色
+        try {
+            int affected = jdbcTemplate.update(
+                "INSERT INTO t_role_permission (role_id, permission_id) " +
+                "SELECT DISTINCT rp.role_id, (SELECT id FROM t_permission WHERE code = 'debug-panel:view') " +
+                "FROM t_role_permission rp " +
+                "INNER JOIN t_permission p ON rp.permission_id = p.id " +
+                "WHERE p.code = 'statistics:view' " +
+                "AND (SELECT id FROM t_permission WHERE code = 'debug-panel:view') IS NOT NULL " +
+                "AND NOT EXISTS (SELECT 1 FROM t_role_permission rp2 " +
+                    "WHERE rp2.role_id = rp.role_id AND rp2.permission_id = (SELECT id FROM t_permission WHERE code = 'debug-panel:view'))"
+            );
+            if (affected > 0) {
+                log.info("已同步 debug-panel:view 权限到 {} 个拥有 statistics:view 的角色", affected);
+            }
+        } catch (Exception e) {
+            log.warn("同步 debug-panel:view 权限失败（可能已存在）: {}", e.getMessage());
         }
     }
 }

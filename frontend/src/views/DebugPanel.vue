@@ -35,9 +35,9 @@
     </el-row>
 
     <!-- 延迟分布与百分位 -->
-    <el-row :gutter="16" class="chart-row">
+    <el-row :gutter="16" class="chart-row" align="stretch">
       <el-col :xs="24" :lg="14">
-        <el-card shadow="hover">
+        <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
               <span>{{ $t('debug.delayDistribution') }}</span>
@@ -54,11 +54,12 @@
         </el-card>
       </el-col>
       <el-col :xs="24" :lg="10">
-        <el-card shadow="hover">
+        <el-card shadow="hover" class="chart-card percentile-card">
           <template #header>
             <span>{{ $t('debug.percentileStats') }}</span>
           </template>
-          <div class="percentile-grid">
+          <div class="percentile-content">
+            <div class="percentile-grid">
             <div class="percentile-item">
               <div class="percentile-label">P50</div>
               <div class="percentile-value">{{ delayStats.p50 }}<span class="unit">ms</span></div>
@@ -79,6 +80,7 @@
           <div class="percentile-avg">
             <span class="avg-label">{{ $t('debug.avgDelay') }}</span>
             <span class="avg-value">{{ delayStats.avgDelay }}<span class="unit">ms</span></span>
+          </div>
           </div>
         </el-card>
       </el-col>
@@ -490,12 +492,37 @@ onBeforeUnmount(() => {
   margin-bottom: 16px;
 }
 
+.chart-row > :deep(.el-col) {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .chart-container {
   width: 100%;
-  height: 280px;
+  flex: 1;
+  min-height: 280px;
 }
 
 /* 百分位统计 */
+.percentile-card .percentile-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
 .percentile-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -626,7 +653,8 @@ onBeforeUnmount(() => {
   }
 
   .chart-container {
-    height: 220px;
+    min-height: 220px;
+    height: auto;
   }
 
   .filter-bar {

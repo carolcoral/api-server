@@ -131,6 +131,7 @@ public class SecurityConfig {
                                 "/users",
                                 "/settings",
                                 "/statistics",
+                                "/debug-panel",
                                 "/guide",
                                 "/profile",
                                 "/code-templates",

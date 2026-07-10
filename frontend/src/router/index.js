@@ -92,7 +92,7 @@ const routes = [
         path: '/debug-panel',
         name: 'DebugPanel',
         component: () => import('@/views/DebugPanel.vue'),
-        meta: { requiresAuth: true, requiredPermission: 'statistics:view' }
+        meta: { requiresAuth: true, requiredPermission: 'debug-panel:view' }
       },
       {
         path: '/profile',
@@ -162,6 +162,7 @@ router.beforeEach((to, from, next) => {
     if (userStore.hasPermission('api:view')) return '/apis'
     if (userStore.hasPermission('code-template:view')) return '/code-templates'
     if (userStore.hasPermission('statistics:view')) return '/statistics'
+    if (userStore.hasPermission('debug-panel:view')) return '/debug-panel'
     if (userStore.hasPermission('user:view')) return '/users'
     if (userStore.hasPermission('role:view')) return '/roles'
     if (userStore.hasPermission('permission:view')) return '/permissions'

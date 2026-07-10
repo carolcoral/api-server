@@ -34,10 +34,10 @@ import java.util.Map;
  *
  * @author carolcoral
  */
-@Tag(name = "请求日志", description = "Mock 请求日志查询与调试面板相关接口，需 statistics:view 权限")
+@Tag(name = "请求日志", description = "Mock 请求日志查询与调试面板相关接口，需 statistics:view 或 debug-panel:view 权限")
 @RestController
 @RequestMapping("/api/request-logs")
-@PreAuthorize("hasRole('ADMIN') or hasAuthority('statistics:view')")
+@PreAuthorize("hasRole('ADMIN') or hasAnyAuthority('statistics:view', 'debug-panel:view')")
 public class RequestLogController {
     private static final Logger log = LoggerFactory.getLogger(RequestLogController.class);
 
