@@ -56,7 +56,8 @@ export default {
     aiSettings: 'AI 設定',
     aiChat: 'AI 会話',
     debugPanel: 'Mock デバッグパネル',
-    permissionManagement: '権限管理'
+    permissionManagement: '権限管理',
+    recordReplay: '録画と再生'
   },
 
   // ユーザー関連
@@ -633,7 +634,18 @@ export default {
     paramPathValueHint: '• "通称"または"*"に設定：任意のパラメータ値と一致<br/>• 具体的な値に設定：リクエストパラメータ値が等しい場合のみ一致',
     paramMatchHint: 'リクエストパラメータ値がこの値と一致する場合、対応する応答を返します',
     paramRequiredHint: 'チェックされていてリクエストにパラメータがない場合、マッチングに失敗します',
-    randomNotEnabled: 'このAPIではランダム返却が有効になっていません。複数のアクティブな応答は許可されません。先に"ランダム返却を有効"をオンにしてください。'
+    randomNotEnabled: 'このAPIではランダム返却が有効になっていません。複数のアクティブな応答は許可されません。先に"ランダム返却を有効"をオンにしてください。',
+    // テンプレートエンジン
+    showTemplateHelper: 'テンプレートヘルパー',
+    hideTemplateHelper: 'ヘルパーを隠す',
+    previewTemplate: 'プレビュー',
+    templateHelperTitle: 'タグをクリックしてプレースホルダーを応答ボディに挿入（サポートされている関数）',
+    noTemplatePlaceholder: '応答ボディにテンプレートプレースホルダー {{...}} が見つかりません',
+    enterResponseBodyFirst: '応答ボディの内容を先に入力してください',
+    previewResult: 'プレビュー結果',
+    previewFailed: 'プレビューに失敗しました',
+    templateDoc: 'テンプレートガイド',
+    templateDocTitle: 'テンプレート関数ガイド'
   },
 
   // ユーザー管理
@@ -1277,5 +1289,40 @@ export default {
     diskUsed: 'ディスク使用',
     yes: 'はい',
     no: 'いいえ'
+  },
+
+  // 録画と再生
+  recordReplay: {
+    title: '録画と再生',
+    description: '実際のリクエストを録画し、Mock設定を自動生成、バッチ再生対応',
+    project: 'プロジェクト',
+    selectProject: 'プロジェクトを選択',
+    path: 'パス',
+    pathPlaceholder: 'パスで検索',
+    method: 'メソッド',
+    selectMethod: 'メソッドを選択',
+    statusCode: 'ステータス',
+    responseTime: '応答時間',
+    requestTime: 'リクエスト時間',
+    viewDetail: '詳細',
+    replay: '再生',
+    batchReplay: 'バッチ再生',
+    batchReplayHint: '対象プロジェクトを選択してから選択レコードをバッチ再生',
+    totalRecords: '合計 {count} 件のレコード',
+    selectTargetProject: '対象プロジェクトを選択',
+    selectTargetFirst: '先に対象プロジェクトを選択してください',
+    recordDetail: '録画詳細',
+    requestHeaders: 'リクエストヘッダー',
+    requestBody: 'リクエストボディ',
+    responseBody: 'レスポンスボディ',
+    confirmReplaySingle: '{method} {path} を対象プロジェクトに再生しますか？同じパスのAPIが存在する場合はレスポンスを追加、それ以外は新規APIを作成します。',
+    confirmBatchReplay: '{count} 件の録画レコードを対象プロジェクトにバッチ再生しますか？',
+    replaySuccess: '{action} が成功しました',
+    replayFailed: '再生に失敗しました',
+    batchReplayResult: '再生完了：成功 {success} 件、スキップ {skip} 件',
+    created: 'APIを作成',
+    appended: 'レスポンスを追加',
+    fetchFailed: '録画レコードの取得に失敗しました',
+    fetchDetailFailed: '録画詳細の取得に失敗しました'
   }
 }

@@ -130,10 +130,19 @@ public class CacheUtil {
     @Operation(summary = "缓存接口")
     public void cacheApi(MockApi api) {
         if (api != null && api.getPath() != null) {
+            // 缓存不带项目ID的键（用于全局匹配）
             String cacheKey = buildApiCacheKey(api.getPath(), api.getMethod());
             apiPathCache.put(cacheKey, api);
             putCache(API_CACHE, api.getId(), api);
             log.debug("缓存接口: {}", cacheKey);
+
+            // 同时缓存带项目ID的键（用于精确匹配，确保更新后请求处理器能命中最新数据）
+            if (api.getProject() != null) {
+                String projectKey = buildApiCacheKey(api.getProject().getId(), api.getPath(), api.getMethod());
+                apiPathCache.put(projectKey, api);
+                putCache(API_CACHE, projectKey, api);
+                log.debug("缓存接口（含项目ID）: {}", projectKey);
+            }
         }
     }
 
@@ -290,8 +299,14 @@ public class CacheUtil {
         Optional<MockApi> apiOpt = mockApiRepository.findById(apiId);
         if (apiOpt.isPresent()) {
             MockApi api = apiOpt.get();
+            // 清除不带项目ID的键
             String cacheKey = buildApiCacheKey(api.getPath(), api.getMethod());
             apiPathCache.remove(cacheKey);
+            // 清除带项目ID的键
+            if (api.getProject() != null) {
+                String projectKey = buildApiCacheKey(api.getProject().getId(), api.getPath(), api.getMethod());
+                apiPathCache.remove(projectKey);
+            }
             evictCache(API_CACHE, apiId);
             evictApiResponsesCache(apiId);
             log.debug("清除接口缓存: {}", cacheKey);

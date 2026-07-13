@@ -56,7 +56,8 @@ export default {
     aiSettings: 'AI Settings',
     aiChat: 'AI Chat',
     debugPanel: 'Mock Debug Panel',
-    permissionManagement: 'Permissions'
+    permissionManagement: 'Permissions',
+    recordReplay: 'Record & Replay'
   },
 
   // User
@@ -661,6 +662,7 @@ export default {
     previewTemplate: 'Preview',
     templateHelperTitle: 'Click a tag to insert placeholder into response body (supported functions)',
     noTemplatePlaceholder: 'No template placeholder {{...}} found in response body',
+    enterResponseBodyFirst: 'Please enter response body content first',
     previewResult: 'Preview Result',
     previewFailed: 'Preview failed',
     templateDoc: 'Template Guide',
@@ -1308,5 +1310,40 @@ export default {
     diskUsed: 'Disk Used',
     yes: 'Yes',
     no: 'No'
+  },
+
+  // Record & Replay
+  recordReplay: {
+    title: 'Record & Replay',
+    description: 'Record real requests and auto-generate Mock configurations with batch replay support',
+    project: 'Project',
+    selectProject: 'Select project',
+    path: 'Path',
+    pathPlaceholder: 'Enter path to search',
+    method: 'Method',
+    selectMethod: 'Select method',
+    statusCode: 'Status',
+    responseTime: 'Response Time',
+    requestTime: 'Request Time',
+    viewDetail: 'Detail',
+    replay: 'Replay',
+    batchReplay: 'Batch Replay',
+    batchReplayHint: 'Select target project then batch replay selected records',
+    totalRecords: '{count} records total',
+    selectTargetProject: 'Select target project',
+    selectTargetFirst: 'Please select a target project first',
+    recordDetail: 'Record Detail',
+    requestHeaders: 'Request Headers',
+    requestBody: 'Request Body',
+    responseBody: 'Response Body',
+    confirmReplaySingle: 'Confirm replay {method} {path} to target project? If an API with the same path exists, a new response will be appended; otherwise a new API will be created.',
+    confirmBatchReplay: 'Confirm batch replay of {count} records to target project?',
+    replaySuccess: '{action} succeeded',
+    replayFailed: 'Replay failed',
+    batchReplayResult: 'Replay completed: {success} succeeded, {skip} skipped',
+    created: 'API created',
+    appended: 'Response appended',
+    fetchFailed: 'Failed to fetch records',
+    fetchDetailFailed: 'Failed to fetch record detail'
   }
 }

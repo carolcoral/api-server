@@ -110,6 +110,13 @@ public class DatabaseMigration implements CommandLineRunner {
 
         // 添加timeout字段到t_ai_config表
         safeAlter("ALTER TABLE t_ai_config ADD COLUMN timeout INTEGER DEFAULT 120", "timeout");
+
+        // 请求录制与回放 - t_request_log 新增字段
+        safeAlter("ALTER TABLE t_request_log ADD COLUMN request_headers TEXT", "request_headers");
+        safeAlter("ALTER TABLE t_request_log ADD COLUMN query_params TEXT", "query_params");
+        safeAlter("ALTER TABLE t_request_log ADD COLUMN request_body TEXT", "request_body");
+        safeAlter("ALTER TABLE t_request_log ADD COLUMN response_body TEXT", "response_body");
+        safeAlter("ALTER TABLE t_request_log ADD COLUMN response_content_type VARCHAR(100)", "response_content_type");
     }
 
     /**
@@ -384,6 +391,9 @@ public class DatabaseMigration implements CommandLineRunner {
             {"运维与监控-页面访问", "ops:view", "系统管理", "PAGE", "101"},
             {"运维与监控-备份导出", "ops:backup", "系统管理", "BUTTON", "102"},
             {"运维与监控-数据恢复", "ops:restore", "系统管理", "BUTTON", "103"},
+            // 请求录制与回放
+            {"录制回放-页面访问", "record-replay:view", "数据统计", "PAGE", "52"},
+            {"录制回放-执行回放", "record-replay:replay", "数据统计", "BUTTON", "53"},
         };
 
         String valuesClause = "VALUES (?, ?, ?, ?, ?, " + now + ", " + now + ")";
@@ -424,6 +434,11 @@ public class DatabaseMigration implements CommandLineRunner {
         // 将运维与监控权限同步赋予已有 settings:view 权限的角色
         syncPermissionsToRoles("settings:view", new String[]{
             "ops:view", "ops:backup", "ops:restore"
+        });
+
+        // 将录制回放权限同步赋予已有 debug-panel:view 权限的角色
+        syncPermissionsToRoles("debug-panel:view", new String[]{
+            "record-replay:view", "record-replay:replay"
         });
     }
 

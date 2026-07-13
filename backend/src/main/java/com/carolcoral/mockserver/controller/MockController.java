@@ -188,8 +188,26 @@ public class MockController {
         }
         mockRequest.setPathParams(pathParams);
 
-        // TODO: 获取请求体（需要读取request的inputStream）
-        // 这里简化处理，实际需要配置HttpServletRequest的包装类来多次读取body
+        // 获取请求体
+        try {
+            java.io.BufferedReader reader = request.getReader();
+            StringBuilder bodyBuilder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                bodyBuilder.append(line);
+            }
+            String bodyStr = bodyBuilder.toString();
+            if (!bodyStr.isEmpty()) {
+                // 尝试解析为JSON对象
+                try {
+                    mockRequest.setBody(new com.fasterxml.jackson.databind.ObjectMapper().readValue(bodyStr, Object.class));
+                } catch (Exception e) {
+                    mockRequest.setBody(bodyStr);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("无法读取请求体: {}", e.getMessage());
+        }
 
         return mockRequest;
     }

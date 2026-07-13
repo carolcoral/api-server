@@ -140,7 +140,8 @@ public class SecurityConfig {
                                 "/ai-chat",
                                 "/roles",
                                 "/permissions",
-                                "/ops-monitor"
+                                "/ops-monitor",
+                                "/record-replay"
                         ).permitAll()
                         // Actuator 端点 — 需要登录认证
                         .requestMatchers("/actuator/**").authenticated()

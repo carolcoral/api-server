@@ -40,12 +40,12 @@ public class RequestLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Schema(description = "请求的接口ID", example = "1")
-    @Column(nullable = false, name = "mock_api_id")
+    @Schema(description = "请求的接口ID（404时为空）", example = "1")
+    @Column(name = "mock_api_id")
     private Long mockApiId;
 
     @Schema(description = "所属项目ID", example = "1")
-    @Column(nullable = false, name = "project_id")
+    @Column(name = "project_id")
     private Long projectId;
 
     @Schema(description = "请求方法", example = "GET")
@@ -75,6 +75,26 @@ public class RequestLog {
     @Schema(description = "用户ID（如果已登录）", example = "1")
     @Column(name = "user_id")
     private Long userId;
+
+    @Schema(description = "请求头（JSON格式）")
+    @Column(name = "request_headers", columnDefinition = "TEXT")
+    private String requestHeaders;
+
+    @Schema(description = "请求查询参数（JSON格式）")
+    @Column(name = "query_params", columnDefinition = "TEXT")
+    private String queryParams;
+
+    @Schema(description = "请求体")
+    @Column(name = "request_body", columnDefinition = "TEXT")
+    private String requestBody;
+
+    @Schema(description = "响应体")
+    @Column(name = "response_body", columnDefinition = "TEXT")
+    private String responseBody;
+
+    @Schema(description = "响应Content-Type")
+    @Column(name = "response_content_type", length = 100)
+    private String responseContentType;
 
     @ManyToOne
     @JoinColumn(name = "mock_api_id", insertable = false, updatable = false)
@@ -173,6 +193,46 @@ public class RequestLog {
         this.userId = userId;
     }
 
+    public String getRequestHeaders() {
+        return requestHeaders;
+    }
+
+    public void setRequestHeaders(String requestHeaders) {
+        this.requestHeaders = requestHeaders;
+    }
+
+    public String getQueryParams() {
+        return queryParams;
+    }
+
+    public void setQueryParams(String queryParams) {
+        this.queryParams = queryParams;
+    }
+
+    public String getRequestBody() {
+        return requestBody;
+    }
+
+    public void setRequestBody(String requestBody) {
+        this.requestBody = requestBody;
+    }
+
+    public String getResponseBody() {
+        return responseBody;
+    }
+
+    public void setResponseBody(String responseBody) {
+        this.responseBody = responseBody;
+    }
+
+    public String getResponseContentType() {
+        return responseContentType;
+    }
+
+    public void setResponseContentType(String responseContentType) {
+        this.responseContentType = responseContentType;
+    }
+
     public MockApi getMockApi() {
         return mockApi;
     }
@@ -198,6 +258,11 @@ public class RequestLog {
         private Long responseTime;
         private String requestIp;
         private Long userId;
+        private String requestHeaders;
+        private String queryParams;
+        private String requestBody;
+        private String responseBody;
+        private String responseContentType;
 
         public RequestLogBuilder mockApiId(Long mockApiId) {
             this.mockApiId = mockApiId;
@@ -244,6 +309,31 @@ public class RequestLog {
             return this;
         }
 
+        public RequestLogBuilder requestHeaders(String requestHeaders) {
+            this.requestHeaders = requestHeaders;
+            return this;
+        }
+
+        public RequestLogBuilder queryParams(String queryParams) {
+            this.queryParams = queryParams;
+            return this;
+        }
+
+        public RequestLogBuilder requestBody(String requestBody) {
+            this.requestBody = requestBody;
+            return this;
+        }
+
+        public RequestLogBuilder responseBody(String responseBody) {
+            this.responseBody = responseBody;
+            return this;
+        }
+
+        public RequestLogBuilder responseContentType(String responseContentType) {
+            this.responseContentType = responseContentType;
+            return this;
+        }
+
         public RequestLog build() {
             RequestLog log = new RequestLog();
             log.setMockApiId(mockApiId);
@@ -255,6 +345,11 @@ public class RequestLog {
             log.setResponseTime(responseTime);
             log.setRequestIp(requestIp);
             log.setUserId(userId);
+            log.setRequestHeaders(requestHeaders);
+            log.setQueryParams(queryParams);
+            log.setRequestBody(requestBody);
+            log.setResponseBody(responseBody);
+            log.setResponseContentType(responseContentType);
             return log;
         }
     }

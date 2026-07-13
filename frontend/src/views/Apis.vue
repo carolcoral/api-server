@@ -689,7 +689,7 @@
 
     <!-- 模板预览弹窗 -->
     <el-dialog v-model="templatePreviewDialogVisible" :title="$t('api.previewResult')" width="700px">
-      <pre style="margin: 0; background: #f5f7fa; padding: 16px; border-radius: 4px; overflow-x: auto; font-family: monospace; font-size: 13px; line-height: 1.6;">{{ templatePreviewFormattedResult }}</pre>
+      <pre style="margin: 0; background: #f5f7fa; padding: 16px; border-radius: 4px; overflow-x: auto; font-family: monospace; font-size: 13px; line-height: 1.6;" v-text="templatePreviewFormattedResult"></pre>
     </el-dialog>
   </div>
 </template>
@@ -864,8 +864,8 @@ const insertTemplate = (func) => {
 // 预览模板
 const handleTemplatePreview = async () => {
   if (!canUseTemplateEngine.value) return
-  if (!responseForm.responseBody || !responseForm.responseBody.includes('{{')) {
-    ElMessage.warning(t('api.noTemplatePlaceholder'))
+  if (!responseForm.responseBody || !responseForm.responseBody.trim()) {
+    ElMessage.warning(t('api.enterResponseBodyFirst'))
     return
   }
   templatePreviewLoading.value = true

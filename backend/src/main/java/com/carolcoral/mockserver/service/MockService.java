@@ -114,7 +114,9 @@ public class MockService {
     public MockResponseDTO handleMockRequest(@Parameter(description = "Mock请求") MockRequest mockRequest, HttpServletRequest request) {
         long startTime = System.currentTimeMillis();
         MockApi matchedApi = null;
+        Project matchedProject = null;
         Integer statusCode = 200;
+        MockResponseDTO lastResponse = null;
         try {
             log.info("处理Mock请求: {} {} 项目: {}", mockRequest.getMethod(), mockRequest.getPath(), mockRequest.getProjectCode());
 
@@ -126,6 +128,7 @@ public class MockService {
             }
 
             Project project = projectOpt.get();
+            matchedProject = project;
             if (!project.getEnabled()) {
                 statusCode = 503;
                 return createErrorResponse(503, "项目已禁用");
@@ -135,7 +138,8 @@ public class MockService {
             Optional<MockApi> apiOpt = findMockApi(project.getId(), mockRequest.getPath(), mockRequest.getMethod());
             if (!apiOpt.isPresent()) {
                 statusCode = 404;
-                return createErrorResponse(404, "接口不存在: " + mockRequest.getPath());
+                lastResponse = createErrorResponse(404, "接口不存在: " + mockRequest.getPath());
+                return lastResponse;
             }
 
             MockApi mockApi = apiOpt.get();
@@ -268,6 +272,7 @@ public class MockService {
             }
 
             statusCode = responseDTO.getStatusCode();
+            lastResponse = responseDTO;
             return responseDTO;
 
         } catch (Exception e) {
@@ -275,16 +280,16 @@ public class MockService {
             statusCode = 500;
             return createErrorResponse(500, "服务器内部错误");
         } finally {
-            // 异步记录请求日志
-            if (request != null && matchedApi != null) {
+            // 异步记录请求日志（含完整请求/响应详情，用于录制回放）
+            // 只要项目存在就记录，404 接口也可被录制后回放创建
+            if (request != null && matchedProject != null) {
                 long responseTime = System.currentTimeMillis() - startTime;
                 Long userId = null;
-                // TODO: 从请求中获取用户ID
-                requestLogService.logRequestAsync(matchedApi, request, statusCode, responseTime, userId);
+                requestLogService.logRequestWithDetailsAsync(matchedProject, matchedApi, request, lastResponse, statusCode, responseTime, userId);
 
                 // 记录 Prometheus 指标
                 try {
-                    String projectCode = matchedApi.getProject() != null ? matchedApi.getProject().getCode() : "unknown";
+                    String projectCode = matchedProject.getCode();
                     mockMetricsService.recordRequest(
                             request.getMethod(), statusCode, responseTime, projectCode);
                 } catch (Exception e) {
@@ -328,12 +333,15 @@ public class MockService {
      * <p>
      * 在系统配置中缓存时间被设置为 0 时调用，确保所有已缓存的响应被立即清除，
      * 后续请求将重新执行自定义代码计算最新响应。
+     * 同时清除动态编译缓存，确保编译后的代码实例也被重建。
      * </p>
      */
     public void clearCustomResponseCache() {
         int size = customResponseCache.size();
         customResponseCache.clear();
-        log.info("已清除全部自定义响应缓存，共 {} 条", size);
+        // 同时清除动态编译缓存（源码/实例/字节码三级缓存）
+        com.carolcoral.mockserver.plugin.DynamicCompiler.clearAllCaches();
+        log.info("已清除全部自定义响应缓存（共 {} 条）及动态编译缓存", size);
     }
 
     /**

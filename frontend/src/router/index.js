@@ -147,6 +147,12 @@ const routes = [
         name: 'OpsMonitor',
         component: () => import('@/views/OpsMonitor.vue'),
         meta: { requiresAuth: true, requiredPermission: 'ops:view' }
+      },
+      {
+        path: '/record-replay',
+        name: 'RecordReplay',
+        component: () => import('@/views/RecordReplay.vue'),
+        meta: { requiresAuth: true, requiredPermission: 'record-replay:view' }
       }
     ]
   }
@@ -175,6 +181,7 @@ router.beforeEach((to, from, next) => {
     if (userStore.hasPermission('email-template:view')) return '/email-templates'
     if (userStore.hasPermission('ai-settings:view')) return '/ai-settings'
     if (userStore.hasPermission('ops:view')) return '/ops-monitor'
+    if (userStore.hasPermission('record-replay:view')) return '/record-replay'
     if (userStore.hasPermission('settings:view')) return '/settings'
     if (userStore.hasPermission('ai-chat:view')) return '/ai-chat'
     // 终极兜底：个人信息页无需权限

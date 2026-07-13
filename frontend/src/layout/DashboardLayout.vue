@@ -64,7 +64,7 @@
         </el-menu-item>
 
         <!-- 数据统计 - 可折叠分组（根据权限显示） -->
-        <el-sub-menu index="sub-statistics" v-if="userStore.hasAnyPermission(['statistics:view', 'debug-panel:view'])">
+        <el-sub-menu index="sub-statistics" v-if="userStore.hasAnyPermission(['statistics:view', 'debug-panel:view', 'record-replay:view'])">
           <template #title>
             <el-icon><DataAnalysis /></el-icon>
             <span>{{ $t('nav.statistics') }}</span>
@@ -76,6 +76,10 @@
           <el-menu-item index="/debug-panel" v-if="userStore.hasPermission('debug-panel:view')">
             <el-icon><Monitor /></el-icon>
             <span>{{ $t('nav.debugPanel') }}</span>
+          </el-menu-item>
+          <el-menu-item index="/record-replay" v-if="userStore.hasPermission('record-replay:view')">
+            <el-icon><VideoCamera /></el-icon>
+            <span>{{ $t('nav.recordReplay') }}</span>
           </el-menu-item>
         </el-sub-menu>
 
@@ -336,7 +340,8 @@ import {
   Lock,
   Avatar,
   Key,
-  TrendCharts
+  TrendCharts,
+  VideoCamera
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -396,7 +401,7 @@ const defaultOpeneds = computed(() => {
   if (['/projects', '/apis', '/code-templates'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-business')
   }
-  if (['/statistics', '/debug-panel'].some(p => path === p || path.startsWith(p + '/'))) {
+  if (['/statistics', '/debug-panel', '/record-replay'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-statistics')
   }
   if (['/users', '/roles', '/permissions'].some(p => path === p || path.startsWith(p + '/'))) {

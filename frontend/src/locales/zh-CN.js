@@ -56,7 +56,8 @@ export default {
     aiSettings: 'AI 设置',
     aiChat: 'AI 对话',
     debugPanel: 'Mock 调试面板',
-    permissionManagement: '权限管理'
+    permissionManagement: '权限管理',
+    recordReplay: '录制与回放'
   },
 
   // 用户相关
@@ -661,6 +662,7 @@ export default {
     previewTemplate: '预览模板',
     templateHelperTitle: '点击标签将占位符插入到响应体输入框（支持的模板函数）',
     noTemplatePlaceholder: '响应体中未检测到模板占位符 {{...}}',
+    enterResponseBodyFirst: '请先输入响应体内容',
     previewResult: '模板预览结果',
     previewFailed: '模板预览失败',
     templateDoc: '模板说明',
@@ -1339,5 +1341,40 @@ export default {
     diskUsed: '磁盘已用',
     yes: '是',
     no: '否'
+  },
+
+  // 请求录制与回放
+  recordReplay: {
+    title: '录制与回放',
+    description: '录制真实请求并自动生成 Mock 配置，支持批量回放',
+    project: '所属项目',
+    selectProject: '选择项目',
+    path: '请求路径',
+    pathPlaceholder: '输入路径搜索',
+    method: '请求方法',
+    selectMethod: '选择方法',
+    statusCode: '状态码',
+    responseTime: '响应时间',
+    requestTime: '请求时间',
+    viewDetail: '查看详情',
+    replay: '回放',
+    batchReplay: '批量回放',
+    batchReplayHint: '选择目标项目后批量回放选中记录',
+    totalRecords: '共 {count} 条录制记录',
+    selectTargetProject: '选择目标项目',
+    selectTargetFirst: '请先选择目标项目',
+    recordDetail: '录制详情',
+    requestHeaders: '请求头',
+    requestBody: '请求体',
+    responseBody: '响应体',
+    confirmReplaySingle: '确认将 {method} {path} 回放到目标项目？已存在同路径接口则追加响应，否则创建新接口。',
+    confirmBatchReplay: '确认批量回放 {count} 条录制记录到目标项目？',
+    replaySuccess: '{action}成功',
+    replayFailed: '回放失败',
+    batchReplayResult: '回放完成：成功 {success} 条，跳过 {skip} 条',
+    created: '创建接口',
+    appended: '追加响应',
+    fetchFailed: '获取录制记录失败',
+    fetchDetailFailed: '获取录制详情失败'
   }
 }

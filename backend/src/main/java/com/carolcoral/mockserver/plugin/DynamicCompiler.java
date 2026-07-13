@@ -857,6 +857,22 @@ public class DynamicCompiler {
     }
 
     /**
+     * 清除所有动态编译缓存
+     * <p>
+     * 清空三级缓存（源码缓存、实例缓存、类字节码缓存），
+     * 通常在系统配置中将自定义响应缓存时间设为 0 时调用，
+     * 确保所有后续请求都重新编译并执行最新代码。
+     * </p>
+     */
+    public static void clearAllCaches() {
+        int size = sourceCodeCache.size();
+        sourceCodeCache.clear();
+        instanceCache.clear();
+        classCache.clear();
+        log.info("已清除全部动态编译缓存，共 {} 条", size);
+    }
+
+    /**
      * 检查指定接口是否有已缓存的源码
      * <p>
      * 用于判断是否需要重新编译：如果源码未缓存（或源码已变更），
