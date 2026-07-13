@@ -113,6 +113,18 @@
 - [x] **外部资源离线化** — 用户头像本地 SVG，登录背景内置，无外部依赖
 - [x] **移动端适配** — 侧边栏、页面布局全面响应式优化
 
+## 📋 下阶段计划功能
+### 功能增强
+- [ ] **gRPC Mock 支持** — 扩展 Mock 能力到 gRPC 协议
+- [ ] **GraphQL Mock 支持** — 支持 GraphQL schema 定义与 Mock
+- [ ] **请求录制与回放** — 录制真实请求并自动生成 Mock 配置
+### 协作与集成
+- [ ] **Postman Collection 导入** — 支持 Postman 导出的 Collection 文件
+- [ ] **CI/CD 集成插件** — Jenkins/GitHub Actions 插件，流水线中自动部署 Mock 服务
+### 性能与可靠性
+- [ ] **请求限流** — 基于项目和 API 维度的 QPS 限流
+
+
 ---
 
 ## 💡 建议与反馈

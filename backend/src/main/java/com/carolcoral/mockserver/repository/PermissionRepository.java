@@ -17,6 +17,6 @@ import java.util.Optional;
 public interface PermissionRepository extends JpaRepository<Permission, Long> {
     Optional<Permission> findByCode(String code);
     List<Permission> findByGroupNameOrderBySortOrderAsc(String groupName);
-    List<Permission> findAllByOrderBySortOrderAsc();
+    List<Permission> findAllByOrderByIdDesc();
     boolean existsByCode(String code);
 }

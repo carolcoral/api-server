@@ -39,7 +39,7 @@ public class PermissionService {
      */
     public ApiResponse<List<Map<String, Object>>> getAllPermissionsGrouped() {
         try {
-            List<Permission> all = permissionRepository.findAllByOrderBySortOrderAsc();
+            List<Permission> all = permissionRepository.findAllByOrderByIdDesc();
             Map<String, List<Permission>> grouped = all.stream()
                     .collect(Collectors.groupingBy(Permission::getGroupName, LinkedHashMap::new, Collectors.toList()));
 
@@ -164,6 +164,15 @@ public class PermissionService {
             log.error("删除权限失败: {}", e.getMessage(), e);
             return ApiResponse.error("删除权限失败");
         }
+    }
+
+    /**
+     * 获取所有权限编码
+     */
+    public Set<String> getAllPermissionCodes() {
+        return permissionRepository.findAll().stream()
+                .map(Permission::getCode)
+                .collect(Collectors.toSet());
     }
 
     /**

@@ -91,8 +91,9 @@ public class ProjectController {
     public ApiResponse<Void> deleteProject(@Parameter(description = "项目ID", example = "1") @PathVariable Long projectId,
                                        HttpServletRequest request) {
         Long userId = getUserIdFromRequest(request);
-        log.info("删除项目请求: {}, 用户={}", projectId, userId);
-        return projectService.deleteProject(projectId, userId, null);
+        User.UserRole userRole = getUserRoleFromRequest(request);
+        log.info("删除项目请求: {}, 用户={}, 角色={}", projectId, userId, userRole);
+        return projectService.deleteProject(projectId, userId, userRole);
     }
 
     /**

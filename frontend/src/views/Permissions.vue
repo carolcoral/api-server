@@ -60,7 +60,7 @@
                     @change="(val) => handlePermCheck(perm.id, val)"
                   >
                     <span class="perm-name">{{ perm.name }}</span>
-                    <el-tag :type="perm.type === 'PAGE' ? '' : 'info'" size="small" class="perm-type-tag">
+                    <el-tag :type="perm.type === 'PAGE' ? 'primary' : 'success'" size="small" class="perm-type-tag">
                       {{ perm.type === 'PAGE' ? $t('permission.permission.pageAccess') : $t('permission.permission.buttonOperation') }}
                     </el-tag>
                   </el-checkbox>
@@ -107,12 +107,11 @@
             <el-table-column prop="groupName" :label="$t('permission.permission.permGroup')" width="140" show-overflow-tooltip />
             <el-table-column prop="type" :label="$t('permission.permission.permType')" width="110" align="center">
               <template #default="{ row }">
-                <el-tag :type="row.type === 'PAGE' ? '' : 'info'" size="small">
+                <el-tag :type="row.type === 'PAGE' ? 'primary' : 'success'" size="small">
                   {{ row.type === 'PAGE' ? $t('permission.permission.pageAccess') : $t('permission.permission.buttonOperation') }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sortOrder" :label="$t('permission.permission.sortOrder')" width="90" align="center" />
             <el-table-column :label="$t('permission.role.actions')" width="160" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button type="primary" link @click="handleEditPerm(row)" :disabled="!canEditPermission">
@@ -136,25 +135,53 @@
       @close="handlePermDialogClose"
     >
       <el-form ref="permFormRef" :model="permForm" :rules="permRules" label-width="110px">
-        <el-form-item :label="$t('permission.permission.permName')" prop="name">
-          <el-input v-model="permForm.name" :placeholder="$t('permission.permission.permNamePlaceholder')" />
-        </el-form-item>
-        <el-form-item :label="$t('permission.permission.permCode')" prop="code">
-          <el-input v-model="permForm.code" :placeholder="$t('permission.permission.permCodePlaceholder')" :disabled="isPermEdit" />
-        </el-form-item>
+        <!-- 1. 先选分组，分组决定了名称和编码的可选项 -->
         <el-form-item :label="$t('permission.permission.permGroup')" prop="groupName">
-          <el-input v-model="permForm.groupName" :placeholder="$t('permission.permission.permGroupPlaceholder')" />
+          <el-select
+            v-model="permForm.groupName"
+            filterable
+            allow-create
+            :placeholder="$t('permission.permission.permGroupPlaceholder')"
+            style="width: 100%"
+            :disabled="isPermEdit"
+            @change="handleGroupChange"
+          >
+            <el-option
+              v-for="item in groupSuggestions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+              :disabled="isGroupFullyUsed(item)"
+            />
+          </el-select>
         </el-form-item>
-        <el-form-item :label="$t('permission.permission.permType')" prop="type">
-          <el-radio-group v-model="permForm.type">
-            <el-radio value="PAGE">{{ $t('permission.permission.pageAccess') }}</el-radio>
-            <el-radio value="BUTTON">{{ $t('permission.permission.buttonOperation') }}</el-radio>
-          </el-radio-group>
+        <!-- 2. 权限编码（选择后自动填充名称），已使用的禁用 -->
+        <el-form-item :label="$t('permission.permission.permCode')" prop="code">
+          <el-select
+            v-model="permForm.code"
+            filterable
+            allow-create
+            :placeholder="$t('permission.permission.permCodePlaceholder')"
+            style="width: 100%"
+            :disabled="isPermEdit"
+            @change="handleCodeChange"
+          >
+            <el-option
+              v-for="item in filteredCodeSuggestions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+              :disabled="item.disabled"
+            />
+          </el-select>
         </el-form-item>
-        <el-form-item :label="$t('permission.permission.sortOrder')" prop="sortOrder">
-          <el-input-number v-model="permForm.sortOrder" :min="0" :max="999" />
-          <span class="form-hint">{{ $t('permission.permission.sortOrderHint') }}</span>
+        <el-form-item :label="$t('permission.permission.permType')">
+          <el-tag :type="permForm.type === 'PAGE' ? 'primary' : 'success'" size="default">
+            {{ permForm.type === 'PAGE' ? $t('permission.permission.pageAccess') : $t('permission.permission.buttonOperation') }}
+          </el-tag>
+          <span class="form-hint" style="margin-left: 8px">{{ $t('permission.permission.autoDetectHint') }}</span>
         </el-form-item>
+
       </el-form>
       <template #footer>
         <el-button @click="permDialogVisible = false">{{ $t('common.cancel') }}</el-button>
@@ -303,6 +330,10 @@ const canCreatePermission = computed(() => userStore.hasPermission('permission:c
 const canEditPermission = computed(() => userStore.hasPermission('permission:edit'))
 const canDeletePermission = computed(() => userStore.hasPermission('permission:delete'))
 
+// 权限建议数据（以分组为一级的级联结构）
+const groupSuggestions = ref([])   // [{ value, label, codes: [...], names: [...] }]
+const existingCodes = ref(new Set())
+
 const permDialogVisible = ref(false)
 const permDialogTitle = ref('')
 const isPermEdit = ref(false)
@@ -314,11 +345,13 @@ const permForm = reactive({
   name: '',
   code: '',
   groupName: '',
-  type: 'PAGE',
-  sortOrder: 0
+  type: 'PAGE'
 })
 
 const permRules = computed(() => ({
+  groupName: [
+    { required: true, message: t('permission.permission.permGroupRequired'), trigger: 'blur' }
+  ],
   name: [
     { required: true, message: t('permission.permission.permNameRequired'), trigger: 'blur' }
   ],
@@ -326,23 +359,86 @@ const permRules = computed(() => ({
     { required: true, message: t('permission.permission.permCodeRequired'), trigger: 'blur' },
     { pattern: /^[a-z][a-z0-9\-]*(:[a-z][a-z0-9\-]*)+$/, message: t('permission.permission.permCodeFormat'), trigger: 'blur' }
   ],
-  groupName: [
-    { required: true, message: t('permission.permission.permGroupRequired'), trigger: 'blur' }
-  ],
   type: [
     { required: true, message: t('permission.permission.permTypeRequired'), trigger: 'change' }
   ]
 }))
 
+// 当前选中分组下的编码和名称
+const currentGroupData = computed(() => {
+  if (!permForm.groupName) return null
+  return groupSuggestions.value.find(g => g.value === permForm.groupName) || null
+})
+
+// 根据选中分组过滤编码
+const filteredCodeSuggestions = computed(() => {
+  if (currentGroupData.value) return currentGroupData.value.codes || []
+  // 未选分组时展示全部编码
+  const all = []
+  groupSuggestions.value.forEach(g => {
+    if (g.codes) all.push(...g.codes)
+  })
+  return all
+})
+
+// 获取权限建议数据
+const fetchPermissionSuggestions = async () => {
+  try {
+    const response = await request.get('/permissions/suggestions')
+    if (response.code === 200) {
+      groupSuggestions.value = response.data?.groups || []
+      existingCodes.value = new Set(response.data?.existingCodes || [])
+    }
+  } catch (error) {
+    console.error('获取权限建议数据失败:', error)
+  }
+}
+
+// 选择分组后自动清空名称和编码（等待用户从该分组下选择）
+const handleGroupChange = (groupName) => {
+  if (!groupName) return
+  permForm.name = ''
+  permForm.code = ''
+  permForm.type = 'PAGE'
+}
+
+// 选择编码后自动填充名称、类型
+const handleCodeChange = (code) => {
+  if (!code) return
+  // 在过滤后的编码列表中查找
+  const suggestion = filteredCodeSuggestions.value.find(item => item.value === code)
+  if (suggestion) {
+    permForm.name = suggestion.name || code
+    permForm.type = suggestion.type || autoDetectType(code)
+  } else {
+    // 手动输入时，用编码作为名称，自动检测类型
+    permForm.name = code
+    permForm.type = autoDetectType(code)
+  }
+}
+
+// 判断分组下所有权限编码是否都已被添加
+const isGroupFullyUsed = (group) => {
+  if (!group.codes || group.codes.length === 0) return false
+  return group.codes.every(c => c.disabled)
+}
+
+// 根据编码自动识别类型
+const autoDetectType = (code) => {
+  if (!code) return 'PAGE'
+  if (code.endsWith(':view')) return 'PAGE'
+  return 'BUTTON'
+}
+
 const handleCreatePerm = () => {
   permDialogTitle.value = t('permission.permission.createPermission')
   isPermEdit.value = false
   permForm.id = null
+  permForm.groupName = ''
   permForm.name = ''
   permForm.code = ''
-  permForm.groupName = ''
   permForm.type = 'PAGE'
-  permForm.sortOrder = 0
+  fetchPermissionSuggestions()
   permDialogVisible.value = true
 }
 
@@ -350,11 +446,10 @@ const handleEditPerm = (row) => {
   permDialogTitle.value = t('permission.permission.editPermission')
   isPermEdit.value = true
   permForm.id = row.id
+  permForm.groupName = row.groupName
   permForm.name = row.name
   permForm.code = row.code
-  permForm.groupName = row.groupName
   permForm.type = row.type
-  permForm.sortOrder = row.sortOrder
   permDialogVisible.value = true
 }
 
@@ -394,8 +489,7 @@ const handlePermSubmit = async () => {
       name: permForm.name,
       code: permForm.code,
       groupName: permForm.groupName,
-      type: permForm.type,
-      sortOrder: permForm.sortOrder
+      type: permForm.type
     }
 
     const response = isPermEdit.value
@@ -424,6 +518,7 @@ const handlePermDialogClose = () => {
 onMounted(() => {
   fetchRoles()
   fetchPermissions()
+  fetchPermissionSuggestions()
 })
 </script>
 

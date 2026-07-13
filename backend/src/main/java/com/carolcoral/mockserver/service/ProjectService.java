@@ -193,9 +193,9 @@ public class ProjectService {
                 return ApiResponse.error("项目不存在");
             }
 
-            // 管理员或有 project:delete 权限的用户（userRole 为 null 表示通过 @PreAuthorize 授权）
-            // 但仍需检查是否为项目创建者，非创建者不可删除
-            if (userRole == null || userRole != User.UserRole.ADMIN) {
+            // 管理员（ADMIN角色）可以删除所有项目，不受创建者限制
+            // 非管理员需要是项目创建者才能删除
+            if (userRole != User.UserRole.ADMIN) {
                 Optional<Project> projectOpt = projectRepository.findById(projectId);
                 if (projectOpt.isPresent()) {
                     Project project = projectOpt.get();
