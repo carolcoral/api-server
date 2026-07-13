@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk" alt="JDK">
   <img src="https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs" alt="Node">
@@ -8,10 +8,10 @@
 </p>
 
 <h1 align="center">Mock Server</h1>
-<p align="center">Spring Boot + Vue 3 · 智能 API 模拟平台</p>
+<p align="center">Spring Boot + Vue 3 · 全功能 API 模拟平台</p>
 
 <p align="center">
-  接口模拟 · 模板引擎 · AI 对话与生成 · Swagger 导入导出 · RBAC 权限 · 动态代码 · 多数据库 · 多语言
+  接口模拟 · 模板引擎 · AI 对话 · Swagger 生态 · RBAC 权限 · 调试面板 · 运维监控 · 多数据库 · 多语言
 </p>
 
 ---
@@ -20,18 +20,20 @@
 
 |   | 模块 | 说明 |
 |---|------|------|
-| 🧩 | 接口模拟 | 固定 / 条件匹配 / 加权随机 / Java 动态代码 / 延迟模拟 / 默认响应 / WebSocket Mock |
-| 📝 | 模板引擎 | Faker.js 风格随机数据生成，模板助手面板一键预览渲染结果 |
-| 🤖 | AI 智能平台 | SSE 流式对话 · Markdown + 代码高亮 · 12+ LLM · 一键生成响应/代码/邮件/描述 |
-| 📥 | Swagger 生态 | 2.0 / OpenAPI 3.x 导入导出，递归 `$ref` 解析 |
-| 📦 | 项目管理 | 多项目隔离 · 成员权限 · JSON/Swagger 导入导出 · 冲突检测 |
+| 🧩 | 接口模拟 | 固定 / 条件匹配 / 加权随机 / Java 动态代码 / 延迟 / 默认响应 / WebSocket Mock |
+| 📝 | 模板引擎 | Faker.js 风格随机数据生成 `{{name()}}` `{{phone()}}`，模板面板一键预览 |
+| 🔍 | 调试面板 | 实时请求日志追踪 · 延迟分布可视化 · 请求/响应详情 · 搜索与分页 |
+| 🤖 | AI 智能平台 | SSE 流式对话 · 多服务商配置切换 · 12+ LLM · 一键生成响应/代码/邮件 |
+| 📥 | Swagger 生态 | 2.0 / OpenAPI 3.x 导入导出，递归 `$ref` 解析，冲突检测 |
+| 📦 | 项目管理 | 多项目隔离 · 成员权限 · JSON/Swagger 导入导出 |
 | 🧬 | 动态代码 | Monaco Editor 编译验证 · 6 种转换器 · 热加载即时生效 |
-| 🔐 | 权限管理 | RBAC 角色权限体系 · 30+ 项页面/按钮级控制 · 自定义角色 |
+| 🔐 | 权限管理 | RBAC 体系 · 50+ 项细粒度权限 · 权限定义管理 · 子权限自动同步 |
 | 🗄️ | 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，方言自动适配 |
-| 📊 | 数据统计 | 请求趋势 · 来源IP · AI调用量 · IOPS · JVM/CPU/内存/磁盘 · 年/月/日/时粒度 |
+| 📊 | 数据统计 | 请求趋势 · IP 来源 · AI 调用 · IOPS · JVM/CPU/内存/磁盘 |
 | ✉️ | 邮件系统 | SMTP 配置 · 模板管理 · HTML 预览 · 占位符替换 |
 | 🌍 | 国际化 | 中文 / English / 日本語 · 全站实时切换 |
-| 🧪 | 自动化测试 | Python 全自动测试框架，66 用例覆盖 AI / 功能 / RBAC / 安全 / Swagger |
+| 🧪 | 自动化测试 | Python 测试框架，90+ 用例覆盖 AI / 功能 / RBAC / 安全 / Swagger |
+| 🛡️ | 运维监控 | 健康检查 · Prometheus 指标 · 备份恢复 · Actuator 安全加固 |
 | 🐳 | 容器化 | Docker 多阶段构建 · 非 root · 镜像加速 · 离线兼容 |
 
 ---
@@ -57,7 +59,7 @@ git clone https://github.com/carolcoral/mock-server.git && cd mock-server
 
 # 手动构建
 ./build-all-in-one.sh
-java -jar backend/target/mock-server-2.3.2.jar
+java -jar backend/target/mock-server-2.3.3.jar
 
 # 开发模式
 cd backend && mvn spring-boot:run          # 终端 1
@@ -116,6 +118,8 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 | 🔌 | 多模型 | 12+ LLM 预设 + 自定义兼容（OpenAI / Gemini / Claude / DeepSeek / 通义千问 等） |
 | 📊 | 调用统计 | 多用户趋势折线图 · 年/月/日粒度 · 成功率追踪 |
 
+---
+
 ## 🗄️ 多数据库
 
 | 数据库 | 切换方式 | 适用场景 |
@@ -124,7 +128,17 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 | PostgreSQL | `DB_TYPE=postgresql` | 生产环境、高并发 |
 | MySQL | `DB_TYPE=mysql` | 已有 MySQL 基础设施 |
 
-只需修改 `.env` 中的 `DB_TYPE` 和对应连接信息，`DatabaseDialectProvider` 自动适配方言，同套代码全兼容。
+只需修改 `.env` 中的 `DB_TYPE` 和对应连接信息，`DatabaseDialectProvider` 自动适配方言。
+
+---
+
+## 🛡️ 运维与监控
+
+|   | 能力 | 说明 |
+|---|------|------|
+| 💚 | 健康检查 | 数据库连接池 / 磁盘空间 / Mock 服务状态，`/actuator/health` 详情展示 |
+| 📈 | Prometheus | `mock_requests_total` / `mock_request_duration` 等指标，Grafana 直接对接 |
+| 💾 | 备份恢复 | 一键导出/恢复完整 Mock 配置（JSON），支持合并与替换模式 |
 
 ---
 
@@ -197,6 +211,7 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 | CORS | 跨域白名单控制 |
 | 防注入 | SQL 参数化 · XSS 过滤 · CSRF 防护 |
 | RBAC | 角色-权限体系，页面/按钮级控制，动态菜单显隐 |
+| Actuator 安全 | 监控端点需登录认证，杜绝信息泄露 |
 
 ---
 

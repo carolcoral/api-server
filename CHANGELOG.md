@@ -1,6 +1,123 @@
 # 版本变更说明
 
-## v2.3.2 (2026-07-07)
+## v2.3.3 (2026-07-13)
+
+> Mock 调试面板 · 多 AI 配置切换 · 权限体系全覆盖 · 运维监控 · 权限定义管理 · Actuator 安全加固 · 移动端适配。
+
+### 🔍 Mock 调试面板
+- **请求日志追踪**：实时记录每次 Mock 请求的完整信息（路径/方法/耗时/状态码/响应大小），支持分页、搜索与清空
+- **延迟分布统计**：可视化展示请求延迟分布，快速定位性能瓶颈
+- **后端请求日志**：新增 `t_request_log` 表持久化所有 Mock 调用记录，`RequestLogService` 异步写入不影响请求响应
+- 新增 `debug-panel:view` 权限控制
+
+### 🤖 AI 配置多服务商切换
+- **多配置管理**：AI 设置页全面重构，支持同时配置多个 LLM 服务商，每个独立启用/禁用
+- **默认配置**：新增 `is_default` 字段，Chat 页面自动选择首个启用的默认配置，支持一键设为默认
+- **模型选择器**：对话页面新增配置/模型下拉切换，无需返回设置页即可在已启用服务商间切换
+- **自动修复**：启动时自动确保至少存在一个默认配置，避免空配置导致对话不可用
+
+### 🔐 权限体系全覆盖
+- **AI 设置子权限**：新增 `ai-settings:create/edit/delete/toggle/set-default/test` 6 项按钮级权限，前后端统一控制按钮显隐
+- **系统设置子权限**：新增 `settings:basic/security/jwt/mock/announcement/system/footer/registration` 8 项按钮级权限，菜单项按权限动态显隐
+- **运维监控权限**：新增 `ops:view/backup/restore` 3 项权限，备份恢复操作可独立分配
+- **跨项目查看**：新增 `project:view_all` `api:view_all` `code-template:view_all`，管理员可见所有项目数据
+- **权限自动同步**：`DatabaseMigration` 启动时将新增子权限自动赋予已拥有父权限的角色，无需手动配置
+- **权限分组修正**：用户管理权限从"系统管理"移至"权限管理"分组，侧边栏菜单结构更清晰
+
+### 🛠️ 权限定义管理
+- **权限 CRUD**：新增权限定义管理页面（Permissions.vue 重构为双标签页），支持创建/编辑/删除权限定义
+- **后端增强**：`PermissionService` 新增 `createPermission` / `updatePermission` / `deletePermission`，删除时自动清理角色关联
+- **Repository 增强**：`RolePermissionRepository` 新增 `deleteByPermissionId` / `existsByPermissionId` 方法
+
+### 📊 运维与监控
+- **运维监控页面**：新增 OpsMonitor.vue，涵盖健康检查仪表盘、数据概览、Prometheus 指标浏览器（表格/文本双视图）
+- **系统备份恢复**：支持一键导出完整 Mock 配置（项目/接口/响应/模板），JSON 格式，支持合并/替换两种恢复模式
+- **Prometheus 指标**：暴露 `mock_requests_total` / `mock_request_duration` 等指标端点，`application.yml` 启用 Prometheus 导出
+- **健康检查**：数据库连接池纳入健康检查，磁盘健康指示器基于实际使用率动态计算，`show-details: always`
+
+### 🔒 安全加固
+- **Actuator 端点认证**：`/actuator/**` 从公开访问改为需登录认证，移除 JWT 过滤器和 SecurityConfig 中的公开白名单
+- **前端 Axios 适配**：Actuator 响应（非统一格式）直接透传原始数据，避免拦截器误解析
+- **SPA 路由扩展**：新增 `/ops-monitor` SPA 路由转发，支持直接访问运维页面
+
+### 🎨 UI / UX
+- **角色铭牌增强**：右上角用户区域新增角色铭牌，流光科幻特效渐变动画，优先展示登录响应中的 `roleName`
+- **外部资源离线化**：用户头像改为本地 SVG 生成，登录页背景内置，移除对 Cravatar / Bing 的外部依赖
+- **移动端适配**：侧边栏、页面布局全面响应式优化，小屏幕下自动折叠菜单
+- **运维监控增强**：数据库卡片 UP 下方显示当前数据库类型，磁盘空间统一以 GB 为单位展示
+
+### 🐛 修复
+- `run.sh` 增强端口清理机制，修复端口变更后 PID 文件导致的启动检测失败
+- `AiConfigController` 修复无默认配置时对话页面不可用的问题，子权限注解精确匹配（create/toggle/delete/set-default/test 各归其位）
+- `DashboardLayout` 菜单按权限分组正确显隐，修复权限修正导致的侧边栏空白
+- 首页路由兜底逻辑扩展，优先匹配 ops-monitor / settings 权限再跳转
+
+### 📝 升级说明
+
+> ⚠️ **v2.3.2 → v2.3.3 数据库变更**：`DatabaseMigration` 启动时自动执行，需新增 `t_request_log` 表（Hibernate `ddl-auto: update` 自动创建）及 21 条权限记录。若自动迁移失败，请手动执行：
+
+```sql
+-- ============================================
+-- 从 v2.3.2 升级到 v2.3.3
+-- ============================================
+
+-- 1. 创建请求日志表（SQLite；MySQL/PostgreSQL 由 Hibernate 自动创建，可跳过）
+CREATE TABLE IF NOT EXISTS t_request_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_code VARCHAR(100),
+    api_path VARCHAR(500),
+    method VARCHAR(10),
+    status_code INTEGER,
+    response_time_ms INTEGER,
+    response_size INTEGER,
+    client_ip VARCHAR(50),
+    username VARCHAR(100),
+    request_time DATETIME NOT NULL,
+    success BOOLEAN DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_request_log_time ON t_request_log(request_time);
+CREATE INDEX IF NOT EXISTS idx_request_log_project ON t_request_log(project_code);
+
+-- 2. 新增权限记录（21 条，SQLite 语法，MySQL/PGSQL 需调整 NOW() 和 INSERT 语法）
+INSERT OR IGNORE INTO t_permission (name, code, group_name, type, sort_order, create_time, update_time) VALUES
+('项目管理-查看全部', 'project:view_all', '业务管理', 'BUTTON', 14, datetime('now'), datetime('now')),
+('接口管理-查看全部', 'api:view_all', '业务管理', 'BUTTON', 24, datetime('now'), datetime('now')),
+('代码模板-查看全部', 'code-template:view_all', '业务管理', 'BUTTON', 34, datetime('now'), datetime('now')),
+('调试面板-页面访问', 'debug-panel:view', '数据统计', 'PAGE', 51, datetime('now'), datetime('now')),
+('AI设置-创建', 'ai-settings:create', '系统管理', 'BUTTON', 91, datetime('now'), datetime('now')),
+('AI设置-编辑', 'ai-settings:edit', '系统管理', 'BUTTON', 92, datetime('now'), datetime('now')),
+('AI设置-删除', 'ai-settings:delete', '系统管理', 'BUTTON', 93, datetime('now'), datetime('now')),
+('AI设置-启用禁用', 'ai-settings:toggle', '系统管理', 'BUTTON', 94, datetime('now'), datetime('now')),
+('AI设置-设置默认', 'ai-settings:set-default', '系统管理', 'BUTTON', 95, datetime('now'), datetime('now')),
+('AI设置-测试连通性', 'ai-settings:test', '系统管理', 'BUTTON', 96, datetime('now'), datetime('now')),
+('系统设置-基础设置', 'settings:basic', '系统管理', 'BUTTON', 110, datetime('now'), datetime('now')),
+('系统设置-安全配置', 'settings:security', '系统管理', 'BUTTON', 111, datetime('now'), datetime('now')),
+('系统设置-JWT配置', 'settings:jwt', '系统管理', 'BUTTON', 112, datetime('now'), datetime('now')),
+('系统设置-Mock配置', 'settings:mock', '系统管理', 'BUTTON', 113, datetime('now'), datetime('now')),
+('系统设置-公告管理', 'settings:announcement', '系统管理', 'BUTTON', 114, datetime('now'), datetime('now')),
+('系统设置-系统信息', 'settings:system', '系统管理', 'PAGE', 115, datetime('now'), datetime('now')),
+('系统设置-页脚设置', 'settings:footer', '系统管理', 'BUTTON', 116, datetime('now'), datetime('now')),
+('系统设置-注册设置', 'settings:registration', '系统管理', 'BUTTON', 117, datetime('now'), datetime('now')),
+('运维与监控-页面访问', 'ops:view', '系统管理', 'PAGE', 101, datetime('now'), datetime('now')),
+('运维与监控-备份导出', 'ops:backup', '系统管理', 'BUTTON', 102, datetime('now'), datetime('now')),
+('运维与监控-数据恢复', 'ops:restore', '系统管理', 'BUTTON', 103, datetime('now'), datetime('now'));
+
+-- 3. 将用户管理权限分组从"系统管理"修正为"权限管理"
+UPDATE t_permission SET group_name = '权限管理' WHERE code IN ('user:view', 'user:create', 'user:edit', 'user:delete') AND group_name = '系统管理';
+
+-- 4. 子权限自动同步（DatabaseMigration 已自动执行，可跳过）
+-- 系统设置子权限同步到拥有 settings:view 的角色
+-- AI 设置子权限同步到拥有 ai-settings:view 的角色
+-- 运维监控权限同步到拥有 settings:view 的角色
+```
+
+> 💡 MySQL 用户：`INSERT OR IGNORE` → `INSERT IGNORE`，`datetime('now')` → `NOW()`
+> PostgreSQL 用户：`INSERT OR IGNORE` → `INSERT ... ON CONFLICT DO NOTHING`，`datetime('now')` → `NOW()`
+
+---
+
+
+## v2.3.2 (2026-07-05)
 
 > Mock 模板引擎、项目导入导出、访问页重构与国际化生产兼容、性能优化。
 

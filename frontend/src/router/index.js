@@ -141,6 +141,12 @@ const routes = [
         name: 'Permissions',
         component: () => import('@/views/Permissions.vue'),
         meta: { requiresAuth: true, requiredPermission: 'permission:view' }
+      },
+      {
+        path: '/ops-monitor',
+        name: 'OpsMonitor',
+        component: () => import('@/views/OpsMonitor.vue'),
+        meta: { requiresAuth: true, requiredPermission: 'ops:view' }
       }
     ]
   }
@@ -168,6 +174,8 @@ router.beforeEach((to, from, next) => {
     if (userStore.hasPermission('permission:view')) return '/permissions'
     if (userStore.hasPermission('email-template:view')) return '/email-templates'
     if (userStore.hasPermission('ai-settings:view')) return '/ai-settings'
+    if (userStore.hasPermission('ops:view')) return '/ops-monitor'
+    if (userStore.hasPermission('settings:view')) return '/settings'
     if (userStore.hasPermission('ai-chat:view')) return '/ai-chat'
     // 终极兜底：个人信息页无需权限
     return '/profile'

@@ -12,6 +12,7 @@ import com.carolcoral.mockserver.repository.EmailConfigRepository;
 import com.carolcoral.mockserver.service.EmailService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -50,6 +51,7 @@ public class EmailConfigController {
      */
     @GetMapping
     @Operation(summary = "获取邮箱配置")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:registration')")
     public ApiResponse<Map<String, Object>> getEmailConfig() {
         Optional<EmailConfig> configOpt = emailConfigRepository.findFirstByEnabledTrue();
         Map<String, Object> result = new HashMap<>();
@@ -78,6 +80,7 @@ public class EmailConfigController {
      */
     @PostMapping
     @Operation(summary = "保存邮箱配置")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:registration')")
     public ApiResponse<EmailConfig> saveEmailConfig(@RequestBody EmailConfigDTO dto) {
         // 查找现有配置（只有一个启用的记录）
         Optional<EmailConfig> existingOpt = emailConfigRepository.findFirstByEnabledTrue();
@@ -121,6 +124,7 @@ public class EmailConfigController {
      */
     @PostMapping("/test")
     @Operation(summary = "发送测试邮件")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:registration')")
     public ApiResponse<Boolean> testEmail(@RequestBody TestEmailDTO dto) {
         if (dto.getToAddress() == null || dto.getToAddress().isEmpty()) {
             return ApiResponse.error("请输入测试收件人邮箱");

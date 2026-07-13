@@ -38,7 +38,7 @@
             </svg>
             {{ $t('ai.aiSettings') }}
           </h3>
-          <el-button type="primary" size="small" @click="showAddDialog">
+          <el-button type="primary" size="small" @click="showAddDialog" v-if="canCreate">
             <el-icon style="margin-right: 4px"><Plus /></el-icon>
             {{ $t('ai.addConfig') }}
           </el-button>
@@ -72,7 +72,7 @@
                 </div>
                 <div class="config-item-actions">
                   <el-button
-                    v-if="config.enabled && !config.isDefault"
+                    v-if="config.enabled && !config.isDefault && canSetDefault"
                     size="small"
                     type="warning"
                     plain
@@ -82,13 +82,14 @@
                     {{ $t('ai.setDefault') }}
                   </el-button>
                   <el-button
+                    v-if="canEdit"
                     size="small"
                     @click="editConfig(config)"
                   >
                     <el-icon><Edit /></el-icon>
                   </el-button>
                   <el-button
-                    v-if="!config.enabled"
+                    v-if="!config.enabled && canToggle"
                     size="small"
                     type="success"
                     plain
@@ -98,7 +99,7 @@
                     {{ $t('ai.enable') }}
                   </el-button>
                   <el-button
-                    v-if="config.enabled"
+                    v-if="config.enabled && canToggle"
                     size="small"
                     type="warning"
                     plain
@@ -108,6 +109,7 @@
                     {{ $t('ai.disable') }}
                   </el-button>
                   <el-popconfirm
+                    v-if="canDelete"
                     :title="$t('ai.deleteConfigConfirm')"
                     @confirm="deleteConfig(config.id)"
                   >
@@ -325,6 +327,7 @@
           <div class="dialog-footer">
             <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
             <el-button
+              v-if="canTest"
               @click="testConnectivity"
               :loading="testing"
               plain
@@ -348,9 +351,18 @@ import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Link, Check, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 
 const { t } = useI18n()
+const userStore = useUserStore()
+
+const canCreate = computed(() => userStore.hasPermission('ai-settings:create'))
+const canEdit = computed(() => userStore.hasPermission('ai-settings:edit'))
+const canDelete = computed(() => userStore.hasPermission('ai-settings:delete'))
+const canToggle = computed(() => userStore.hasPermission('ai-settings:toggle'))
+const canSetDefault = computed(() => userStore.hasPermission('ai-settings:set-default'))
+const canTest = computed(() => userStore.hasPermission('ai-settings:test'))
 
 const loading = ref(false)
 const saving = ref(false)

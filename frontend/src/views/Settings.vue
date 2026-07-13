@@ -16,35 +16,35 @@
       <el-col :span="6">
         <el-card class="menu-card">
           <el-menu :default-active="activeMenu" @select="handleMenuSelect">
-            <el-menu-item index="basic">
+            <el-menu-item index="basic" v-if="canBasic || canSystem">
               <Setting :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.basic') }}</span>
             </el-menu-item>
-            <el-menu-item index="security">
+            <el-menu-item index="security" v-if="canSecurity">
               <Lock :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.security') }}</span>
             </el-menu-item>
-            <el-menu-item index="jwt">
+            <el-menu-item index="jwt" v-if="canJwt">
               <Key :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.jwt') }}</span>
             </el-menu-item>
-            <el-menu-item index="mock">
+            <el-menu-item index="mock" v-if="canMock">
               <Connection :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.mock') }}</span>
             </el-menu-item>
-            <el-menu-item index="announcement">
+            <el-menu-item index="announcement" v-if="canAnnouncement">
               <Bell :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.announcement') }}</span>
             </el-menu-item>
-            <el-menu-item index="system">
+            <el-menu-item index="system" v-if="canSystem">
               <InfoFilled :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.system') }}</span>
             </el-menu-item>
-            <el-menu-item index="footer">
+            <el-menu-item index="footer" v-if="canFooter">
               <Connection :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.footer') }}</span>
             </el-menu-item>
-            <el-menu-item index="registration">
+            <el-menu-item index="registration" v-if="canRegistration">
               <UserFilled :width="'1em'" :height="'1em'" />
               <span>{{ $t('settings.registration') }}</span>
             </el-menu-item>
@@ -621,6 +621,16 @@ import axios from 'axios'
 const { t, locale } = useI18n()
 const router = useRouter()
 const userStore = useUserStore()
+
+// 系统设置各子模块权限
+const canBasic = computed(() => userStore.hasPermission('settings:basic'))
+const canSecurity = computed(() => userStore.hasPermission('settings:security'))
+const canJwt = computed(() => userStore.hasPermission('settings:jwt'))
+const canMock = computed(() => userStore.hasPermission('settings:mock'))
+const canAnnouncement = computed(() => userStore.hasPermission('settings:announcement'))
+const canSystem = computed(() => userStore.hasPermission('settings:system') || userStore.hasPermission('settings:view'))
+const canFooter = computed(() => userStore.hasPermission('settings:footer'))
+const canRegistration = computed(() => userStore.hasPermission('settings:registration'))
 
 // 监听语言变化，保存到 localStorage
 // 注意：不在此处调用后端 API，避免与 saveBasicSettings 重复请求

@@ -100,7 +100,7 @@
         </el-sub-menu>
 
         <!-- 系统管理 - 根据权限显示 -->
-        <el-sub-menu index="sub-system" v-if="userStore.hasAnyPermission(['email-template:view', 'ai-settings:view', 'settings:view'])">
+        <el-sub-menu index="sub-system" v-if="userStore.hasAnyPermission(['email-template:view', 'ai-settings:view', 'settings:view', 'ops:view'])">
           <template #title>
             <el-icon><Tools /></el-icon>
             <span>{{ $t('nav.systemManagement') }}</span>
@@ -116,6 +116,10 @@
           <el-menu-item index="/settings" v-if="userStore.hasPermission('settings:view')">
             <el-icon><Setting /></el-icon>
             <span>{{ $t('nav.settings') }}</span>
+          </el-menu-item>
+          <el-menu-item index="/ops-monitor" v-if="userStore.hasPermission('ops:view')">
+            <el-icon><Monitor /></el-icon>
+            <span>{{ $t('ops.title') }}</span>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>
@@ -398,7 +402,7 @@ const defaultOpeneds = computed(() => {
   if (['/users', '/roles', '/permissions'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-permission')
   }
-  if (['/email-templates', '/ai-settings', '/settings'].some(p => path === p || path.startsWith(p + '/'))) {
+  if (['/email-templates', '/ai-settings', '/settings', '/ops-monitor'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-system')
   }
   return opened

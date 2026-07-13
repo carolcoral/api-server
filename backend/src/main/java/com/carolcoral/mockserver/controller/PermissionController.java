@@ -7,6 +7,7 @@
 package com.carolcoral.mockserver.controller;
 
 import com.carolcoral.mockserver.dto.ApiResponse;
+import com.carolcoral.mockserver.entity.Permission;
 import com.carolcoral.mockserver.service.PermissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -47,5 +48,26 @@ public class PermissionController {
     @PutMapping("/role/{roleId}")
     public ApiResponse<Void> assignPermissions(@PathVariable Long roleId, @RequestBody List<Long> permissionIds) {
         return permissionService.assignPermissions(roleId, permissionIds);
+    }
+
+    @Operation(summary = "创建新权限")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('permission:create')")
+    @PostMapping
+    public ApiResponse<Permission> createPermission(@RequestBody Permission permission) {
+        return permissionService.createPermission(permission);
+    }
+
+    @Operation(summary = "更新权限")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('permission:edit')")
+    @PutMapping("/{id}")
+    public ApiResponse<Permission> updatePermission(@PathVariable Long id, @RequestBody Permission permission) {
+        return permissionService.updatePermission(id, permission);
+    }
+
+    @Operation(summary = "删除权限")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('permission:delete')")
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deletePermission(@PathVariable Long id) {
+        return permissionService.deletePermission(id);
     }
 }

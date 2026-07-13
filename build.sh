@@ -288,7 +288,7 @@ mkdir -p "$BADGES_DIR"
 
 # 定义图标下载列表: "文件名=shields.io_URL"
 BADGE_URLS=(
-  "version.svg=https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square"
+  "version.svg=https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square"
   "license.svg=https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square"
   "jdk.svg=https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk"
   "node.svg=https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs"
@@ -349,7 +349,7 @@ if [ -d "$BADGES_DIR" ]; then
   print_success "badges 已同步到后端静态资源目录"
 fi
 
-print_info "后端jar包: backend/target/mock-server-2.1.2.jar"
+print_info "后端jar包: backend/target/mock-server-2.3.3.jar"
 print_info "前端dist目录: frontend/dist/"
 print_info ""
 print_info "启动后端: cd backend && mvn spring-boot:run -Djava.home=\"$INTERNAL_JAVA_HOME\""

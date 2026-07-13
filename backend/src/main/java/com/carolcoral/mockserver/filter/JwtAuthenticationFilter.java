@@ -191,7 +191,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             requestUri.equals("/ai-settings") ||
             requestUri.equals("/ai-chat") ||
             requestUri.equals("/roles") ||
-            requestUri.equals("/permissions")) {
+            requestUri.equals("/permissions") ||
+            requestUri.equals("/ops-monitor")) {
             return true;
         }
 
@@ -206,8 +207,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                ("/api" + AUTH_FORGOT_PASSWORD_PATH).equals(requestUri) ||
                requestUri.startsWith(MOCK_SERVER_PATH_PREFIX) ||
                requestUri.startsWith("/api" + MOCK_SERVER_PATH_PREFIX) ||
-               requestUri.startsWith(ACTUATOR_PATH_PREFIX) ||
-               requestUri.startsWith("/api" + ACTUATOR_PATH_PREFIX) ||
                requestUri.startsWith("/api/public/") ||
                requestUri.equals("/error") ||
                requestUri.equals("/api/error") ||

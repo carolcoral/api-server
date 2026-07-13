@@ -366,7 +366,24 @@ public class DatabaseMigration implements CommandLineRunner {
             {"用户管理-编辑", "user:edit", "权限管理", "BUTTON", "68"},
             {"用户管理-删除", "user:delete", "权限管理", "BUTTON", "69"},
             {"AI设置-页面访问", "ai-settings:view", "系统管理", "PAGE", "90"},
+            {"AI设置-创建", "ai-settings:create", "系统管理", "BUTTON", "91"},
+            {"AI设置-编辑", "ai-settings:edit", "系统管理", "BUTTON", "92"},
+            {"AI设置-删除", "ai-settings:delete", "系统管理", "BUTTON", "93"},
+            {"AI设置-启用禁用", "ai-settings:toggle", "系统管理", "BUTTON", "94"},
+            {"AI设置-设置默认", "ai-settings:set-default", "系统管理", "BUTTON", "95"},
+            {"AI设置-测试连通性", "ai-settings:test", "系统管理", "BUTTON", "96"},
             {"系统设置-页面访问", "settings:view", "系统管理", "PAGE", "100"},
+            {"系统设置-基础设置", "settings:basic", "系统管理", "BUTTON", "110"},
+            {"系统设置-安全配置", "settings:security", "系统管理", "BUTTON", "111"},
+            {"系统设置-JWT配置", "settings:jwt", "系统管理", "BUTTON", "112"},
+            {"系统设置-Mock配置", "settings:mock", "系统管理", "BUTTON", "113"},
+            {"系统设置-公告管理", "settings:announcement", "系统管理", "BUTTON", "114"},
+            {"系统设置-系统信息", "settings:system", "系统管理", "PAGE", "115"},
+            {"系统设置-页脚设置", "settings:footer", "系统管理", "BUTTON", "116"},
+            {"系统设置-注册设置", "settings:registration", "系统管理", "BUTTON", "117"},
+            {"运维与监控-页面访问", "ops:view", "系统管理", "PAGE", "101"},
+            {"运维与监控-备份导出", "ops:backup", "系统管理", "BUTTON", "102"},
+            {"运维与监控-数据恢复", "ops:restore", "系统管理", "BUTTON", "103"},
         };
 
         String valuesClause = "VALUES (?, ?, ?, ?, ?, " + now + ", " + now + ")";
@@ -392,23 +409,47 @@ public class DatabaseMigration implements CommandLineRunner {
             log.warn("修正用户管理权限 group_name 失败: {}", e.getMessage());
         }
 
-        // 将 debug-panel:view 权限同步赋予已有 statistics:view 权限的角色
-        try {
-            int affected = jdbcTemplate.update(
-                "INSERT INTO t_role_permission (role_id, permission_id) " +
-                "SELECT DISTINCT rp.role_id, (SELECT id FROM t_permission WHERE code = 'debug-panel:view') " +
-                "FROM t_role_permission rp " +
-                "INNER JOIN t_permission p ON rp.permission_id = p.id " +
-                "WHERE p.code = 'statistics:view' " +
-                "AND (SELECT id FROM t_permission WHERE code = 'debug-panel:view') IS NOT NULL " +
-                "AND NOT EXISTS (SELECT 1 FROM t_role_permission rp2 " +
-                    "WHERE rp2.role_id = rp.role_id AND rp2.permission_id = (SELECT id FROM t_permission WHERE code = 'debug-panel:view'))"
-            );
-            if (affected > 0) {
-                log.info("已同步 debug-panel:view 权限到 {} 个拥有 statistics:view 的角色", affected);
+        // 将系统设置子模块权限同步赋予已有 settings:view 权限的角色
+        syncPermissionsToRoles("settings:view", new String[]{
+            "settings:basic", "settings:security", "settings:jwt", "settings:mock",
+            "settings:announcement", "settings:system", "settings:footer", "settings:registration"
+        });
+
+        // 将 AI 设置操作权限同步赋予已有 ai-settings:view 权限的角色
+        syncPermissionsToRoles("ai-settings:view", new String[]{
+            "ai-settings:create", "ai-settings:edit", "ai-settings:delete",
+            "ai-settings:toggle", "ai-settings:set-default", "ai-settings:test"
+        });
+
+        // 将运维与监控权限同步赋予已有 settings:view 权限的角色
+        syncPermissionsToRoles("settings:view", new String[]{
+            "ops:view", "ops:backup", "ops:restore"
+        });
+    }
+
+    /**
+     * 将一组权限同步赋予已拥有源权限的角色
+     */
+    private void syncPermissionsToRoles(String sourceCode, String[] targetCodes) {
+        for (String targetCode : targetCodes) {
+            try {
+                int affected = jdbcTemplate.update(
+                    "INSERT INTO t_role_permission (role_id, permission_id) " +
+                    "SELECT DISTINCT rp.role_id, (SELECT id FROM t_permission WHERE code = ?) " +
+                    "FROM t_role_permission rp " +
+                    "INNER JOIN t_permission p ON rp.permission_id = p.id " +
+                    "WHERE p.code = ? " +
+                    "AND (SELECT id FROM t_permission WHERE code = ?) IS NOT NULL " +
+                    "AND NOT EXISTS (SELECT 1 FROM t_role_permission rp2 " +
+                        "WHERE rp2.role_id = rp.role_id AND rp2.permission_id = (SELECT id FROM t_permission WHERE code = ?))",
+                    targetCode, sourceCode, targetCode, targetCode
+                );
+                if (affected > 0) {
+                    log.info("已同步 {} 权限到 {} 个拥有 {} 的角色", targetCode, affected, sourceCode);
+                }
+            } catch (Exception e) {
+                log.warn("同步 {} 权限失败（可能已存在）: {}", targetCode, e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("同步 debug-panel:view 权限失败（可能已存在）: {}", e.getMessage());
         }
     }
 }

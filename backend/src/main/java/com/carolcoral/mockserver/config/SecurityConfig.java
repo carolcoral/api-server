@@ -90,7 +90,6 @@ public class SecurityConfig {
                                 "/api/mock/**",
                                 "/api/ws/**",
                                 "/api/error",
-                                "/api/actuator/**",
                                 "/api/system/version",
                                 // Bing 图片代理
                                 "/bing-hp",
@@ -140,8 +139,11 @@ public class SecurityConfig {
                                 "/ai-settings",
                                 "/ai-chat",
                                 "/roles",
-                                "/permissions"
+                                "/permissions",
+                                "/ops-monitor"
                         ).permitAll()
+                        // Actuator 端点 — 需要登录认证
+                        .requestMatchers("/actuator/**").authenticated()
                         // 角色管理接口 - 需要认证（细粒度权限由 @PreAuthorize 控制）
                         .requestMatchers("/api/roles/**").authenticated()
                         // 权限管理接口 - 需要认证（细粒度权限由 @PreAuthorize 控制）

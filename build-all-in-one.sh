@@ -711,7 +711,7 @@ mkdir -p "$BADGES_DIR"
 
 # 定义图标下载列表: "文件名=shields.io_URL"
 BADGE_URLS=(
-  "version.svg=https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square"
+  "version.svg=https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square"
   "license.svg=https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square"
   "jdk.svg=https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk"
   "node.svg=https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs"
@@ -753,7 +753,7 @@ PROJECT_CHANGELOG="$PROJECT_ROOT/CHANGELOG.md"
 if [ -f "$PROJECT_README" ]; then
     cp "$PROJECT_README" "$BACKEND_STATIC/README.md"
     # 替换 shields.io 图标为本地离线图标，避免内网/离线环境不显示
-    sed -i 's|https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square|/badges/version.svg|g' "$BACKEND_STATIC/README.md"
+    sed -i 's|https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square|/badges/version.svg|g' "$BACKEND_STATIC/README.md"
     sed -i 's|https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square|/badges/license.svg|g' "$BACKEND_STATIC/README.md"
     sed -i 's|https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk|/badges/jdk.svg|g' "$BACKEND_STATIC/README.md"
     sed -i 's|https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs|/badges/node.svg|g' "$BACKEND_STATIC/README.md"
@@ -767,7 +767,7 @@ fi
 if [ -f "$PROJECT_README_US" ]; then
     cp "$PROJECT_README_US" "$BACKEND_STATIC/README-US.md"
     # 替换 shields.io 图标为本地离线图标，避免内网/离线环境不显示
-    sed -i 's|https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square|/badges/version.svg|g' "$BACKEND_STATIC/README-US.md"
+    sed -i 's|https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square|/badges/version.svg|g' "$BACKEND_STATIC/README-US.md"
     sed -i 's|https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square|/badges/license.svg|g' "$BACKEND_STATIC/README-US.md"
     sed -i 's|https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk|/badges/jdk.svg|g' "$BACKEND_STATIC/README-US.md"
     sed -i 's|https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs|/badges/node.svg|g' "$BACKEND_STATIC/README-US.md"

@@ -6,15 +6,23 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
       base-path: /actuator
   endpoint:
     health:
       enabled: true
-      show-details: when-authorized
+      show-details: always
+    prometheus:
+      enabled: true
   health:
     defaults:
       enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: mock-server
 
 spring:
   profiles:

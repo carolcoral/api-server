@@ -71,7 +71,7 @@ public class SystemAnnouncementController {
      */
     @Operation(summary = "获取所有公告（分页）", description = "获取所有系统公告（仅管理员）")
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:announcement')")
     public ApiResponse<PageResult<SystemAnnouncementDTO>> getAllAnnouncements(
             @Parameter(description = "页码", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "每页大小", example = "15") @RequestParam(defaultValue = "15") int size,
@@ -93,7 +93,7 @@ public class SystemAnnouncementController {
      */
     @Operation(summary = "获取公告详情", description = "根据ID获取公告详情")
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:announcement')")
     public ApiResponse<SystemAnnouncementDTO> getAnnouncementById(
             @Parameter(description = "公告ID", example = "1") @PathVariable Long id) {
         log.info("获取公告详情: {}", id);
@@ -108,7 +108,7 @@ public class SystemAnnouncementController {
      */
     @Operation(summary = "创建公告", description = "创建新的系统公告（仅管理员）")
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:announcement')")
     public ApiResponse<SystemAnnouncementDTO> createAnnouncement(
             @Parameter(description = "公告信息") @Valid @RequestBody SystemAnnouncementDTO announcementDTO) {
         log.info("创建公告: {}", announcementDTO.getTitle());
@@ -124,7 +124,7 @@ public class SystemAnnouncementController {
      */
     @Operation(summary = "更新公告", description = "更新系统公告（仅管理员）")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:announcement')")
     public ApiResponse<SystemAnnouncementDTO> updateAnnouncement(
             @Parameter(description = "公告ID", example = "1") @PathVariable Long id,
             @Parameter(description = "公告信息") @Valid @RequestBody SystemAnnouncementDTO announcementDTO) {
@@ -140,7 +140,7 @@ public class SystemAnnouncementController {
      */
     @Operation(summary = "删除公告", description = "删除系统公告（仅管理员）")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:announcement')")
     public ApiResponse<Void> deleteAnnouncement(
             @Parameter(description = "公告ID", example = "1") @PathVariable Long id) {
         log.info("删除公告: {}", id);
@@ -156,7 +156,7 @@ public class SystemAnnouncementController {
      */
     @Operation(summary = "启用/禁用公告", description = "切换公告的启用状态（仅管理员）")
     @PutMapping("/{id}/toggle")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:announcement')")
     public ApiResponse<SystemAnnouncementDTO> toggleAnnouncementStatus(
             @Parameter(description = "公告ID", example = "1") @PathVariable Long id,
             @Parameter(description = "是否启用") @RequestBody Map<String, Boolean> enabledMap) {

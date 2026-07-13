@@ -48,7 +48,8 @@ public class MockService {
     public MockService(CacheUtil cacheUtil, ObjectMapper objectMapper, RequestLogService requestLogService,
                       ResponseRequestParamService responseRequestParamService, MockApiRepository mockApiRepository,
                       TransformerRegistry transformerRegistry, SystemConfigService systemConfigService,
-                      MockTemplateEngine mockTemplateEngine) {
+                      MockTemplateEngine mockTemplateEngine,
+                      MockMetricsService mockMetricsService) {
         this.cacheUtil = cacheUtil;
         this.objectMapper = objectMapper;
         this.requestLogService = requestLogService;
@@ -57,6 +58,7 @@ public class MockService {
         this.transformerRegistry = transformerRegistry;
         this.systemConfigService = systemConfigService;
         this.mockTemplateEngine = mockTemplateEngine;
+        this.mockMetricsService = mockMetricsService;
     }
 
     private final CacheUtil cacheUtil;
@@ -64,6 +66,7 @@ public class MockService {
     private final RequestLogService requestLogService;
     private final ResponseRequestParamService responseRequestParamService;
     private final MockApiRepository mockApiRepository;
+    private final MockMetricsService mockMetricsService;
     private final TransformerRegistry transformerRegistry;
     private final SystemConfigService systemConfigService;
     private final MockTemplateEngine mockTemplateEngine;
@@ -278,6 +281,15 @@ public class MockService {
                 Long userId = null;
                 // TODO: 从请求中获取用户ID
                 requestLogService.logRequestAsync(matchedApi, request, statusCode, responseTime, userId);
+
+                // 记录 Prometheus 指标
+                try {
+                    String projectCode = matchedApi.getProject() != null ? matchedApi.getProject().getCode() : "unknown";
+                    mockMetricsService.recordRequest(
+                            request.getMethod(), statusCode, responseTime, projectCode);
+                } catch (Exception e) {
+                    log.debug("记录 Prometheus 指标失败: {}", e.getMessage());
+                }
             }
         }
     }

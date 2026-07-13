@@ -82,7 +82,7 @@ public class SystemConfigController {
      */
     @PostMapping("/language")
     @Operation(summary = "更新系统语言")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:basic')")
     public ApiResponse<Void> updateLanguage(@RequestBody DefaultLanguageDTO dto) {
         systemConfigService.saveConfig("defaultLanguage", dto.getLanguage(), "系统默认语言");
         log.info("管理员更新系统语言为: {}", dto.getLanguage());
@@ -98,7 +98,7 @@ public class SystemConfigController {
      */
     @PostMapping("/date-format")
     @Operation(summary = "更新系统日期格式")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:basic')")
     public ApiResponse<Void> updateDateFormat(@RequestBody DateFormatDTO dto) {
         systemConfigService.saveConfig("dateFormat", dto.getDateFormat(), "系统日期格式");
         log.info("管理员更新系统日期格式为: {}", dto.getDateFormat());
@@ -114,7 +114,7 @@ public class SystemConfigController {
      */
     @PostMapping("/mock")
     @Operation(summary = "更新Mock配置")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:mock')")
     public ApiResponse<Void> updateMockConfig(@RequestBody MockConfigDTO dto) {
         if (dto.getDefaultResponseDelay() != null) {
             systemConfigService.saveConfig("defaultResponseDelay", String.valueOf(dto.getDefaultResponseDelay()), "默认响应延迟（毫秒）");
@@ -183,7 +183,7 @@ public class SystemConfigController {
      */
     @PostMapping("/registration")
     @Operation(summary = "保存注册配置")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:registration')")
     public ApiResponse<Void> saveRegistrationConfig(@RequestBody RegistrationConfigDTO dto) {
         if (dto.getEnableRegistration() != null) {
             systemConfigService.saveConfig("enableRegistration", String.valueOf(dto.getEnableRegistration()), "是否开启用户注册");
@@ -261,7 +261,7 @@ public class SystemConfigController {
      */
     @PostMapping("/footer")
     @Operation(summary = "保存页脚配置")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:footer')")
     public ApiResponse<Void> saveFooterConfig(@RequestBody FooterConfigDTO dto) {
         if (dto.getEnableCopyright() != null) {
             systemConfigService.saveConfig("footerEnableCopyright", String.valueOf(dto.getEnableCopyright()), "页脚-是否启用版权信息");

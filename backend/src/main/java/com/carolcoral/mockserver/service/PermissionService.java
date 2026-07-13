@@ -97,6 +97,76 @@ public class PermissionService {
     }
 
     /**
+     * 创建新权限
+     */
+    @Transactional
+    public ApiResponse<Permission> createPermission(Permission permission) {
+        try {
+            if (permissionRepository.existsByCode(permission.getCode())) {
+                return ApiResponse.error("权限编码已存在");
+            }
+            Permission saved = permissionRepository.save(permission);
+            log.info("创建权限成功: id={}, code={}", saved.getId(), saved.getCode());
+            return ApiResponse.success(saved);
+        } catch (Exception e) {
+            log.error("创建权限失败: {}", e.getMessage(), e);
+            return ApiResponse.error("创建权限失败");
+        }
+    }
+
+    /**
+     * 更新权限
+     */
+    @Transactional
+    public ApiResponse<Permission> updatePermission(Long id, Permission updated) {
+        try {
+            Permission existing = permissionRepository.findById(id).orElse(null);
+            if (existing == null) {
+                return ApiResponse.error("权限不存在");
+            }
+            // 检查编码是否与其他权限冲突
+            if (!existing.getCode().equals(updated.getCode()) && permissionRepository.existsByCode(updated.getCode())) {
+                return ApiResponse.error("权限编码已存在");
+            }
+            existing.setName(updated.getName());
+            existing.setCode(updated.getCode());
+            existing.setGroupName(updated.getGroupName());
+            existing.setType(updated.getType());
+            if (updated.getSortOrder() != null) {
+                existing.setSortOrder(updated.getSortOrder());
+            }
+            Permission saved = permissionRepository.save(existing);
+            log.info("更新权限成功: id={}, code={}", saved.getId(), saved.getCode());
+            return ApiResponse.success(saved);
+        } catch (Exception e) {
+            log.error("更新权限失败: {}", e.getMessage(), e);
+            return ApiResponse.error("更新权限失败");
+        }
+    }
+
+    /**
+     * 删除权限（同时清理角色-权限关联）
+     */
+    @Transactional
+    public ApiResponse<Void> deletePermission(Long id) {
+        try {
+            if (!permissionRepository.existsById(id)) {
+                return ApiResponse.error("权限不存在");
+            }
+            // 先删除角色-权限关联
+            rolePermissionRepository.deleteByPermissionId(id);
+            rolePermissionRepository.flush();
+            // 再删除权限本身
+            permissionRepository.deleteById(id);
+            log.info("删除权限成功: id={}", id);
+            return ApiResponse.success();
+        } catch (Exception e) {
+            log.error("删除权限失败: {}", e.getMessage(), e);
+            return ApiResponse.error("删除权限失败");
+        }
+    }
+
+    /**
      * 获取当前用户的所有权限编码列表
      */
     public Set<String> getUserPermissionCodes(List<Long> roleIds) {

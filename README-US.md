@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.3.2-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk" alt="JDK">
   <img src="https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs" alt="Node">
@@ -8,10 +8,10 @@
 </p>
 
 <h1 align="center">Mock Server</h1>
-<p align="center">Full-featured API Mock Platform with Spring Boot + Vue 3</p>
+<p align="center">Full-featured API Mock Platform · Spring Boot + Vue 3</p>
 
 <p align="center">
-  HTTP / WebSocket Mock · Multi-project Isolation · Fine-grained RBAC · AI Generation · Swagger Import · Template Engine · Multi-Database · Import/Export · i18n · Automated Testing
+  HTTP / WebSocket Mock · Debug Panel · AI Generation · Swagger Import · RBAC · Template Engine · Multi-DB · Ops Monitor · i18n
 </p>
 
 ---
@@ -20,20 +20,22 @@
 
 | Module | Capabilities |
 |------|------|
-| 🧩 API Mocking | Fixed / Conditional / Weighted random / Java dynamic code / Delay simulation / Default response / WebSocket Mock |
+| 🧩 API Mocking | Fixed / Conditional / Weighted random / Java dynamic code / Delay / Default response / WebSocket Mock |
 | 📝 Template Engine | Faker.js-style randomized data: `{{name()}}` `{{phone()}}`, helper panel + one-click preview |
-| 🔐 Fine-grained RBAC | Role-based access with 30+ page & button-level permissions, custom roles, dynamic menus |
-| 🤖 AI Platform | Multi-model chat (SSE + Markdown + syntax highlighting) · One-click generate responses/code/emails/docs · 12+ LLM providers · RAG retrieval |
-| 📥 Swagger Import | Swagger 2.0 / OpenAPI 3.x, JSON upload or URL, recursive `$ref` resolution |
-| 📦 Project Management | Multi-project isolation · 3-tier member permissions · Import/export (JSON) · Swagger export · Conflict detection |
-| 🗄️ Multi-Database | SQLite / PostgreSQL / MySQL one-click switch, dialect abstraction auto-adaptive |
+| 🔍 Debug Panel | Real-time request log tracking · Latency distribution · Request/response details · Search & pagination |
+| 🤖 AI Platform | SSE streaming · Multi-provider switching · 12+ LLM · One-click generate responses/code/emails |
+| 📥 Swagger Import | 2.0 / OpenAPI 3.x, JSON upload or URL, recursive `$ref` resolution |
+| 📦 Project Management | Multi-project isolation · Member permissions · JSON/Swagger import & export |
 | 🧬 Code Templates | Monaco Editor · Compile validation · System + project-level · Hot reload · 6 transformer types |
-| 🧪 Automated Testing | Python test framework, 66 cases covering AI / Features / RBAC / Security / Swagger |
+| 🔐 Fine-grained RBAC | 50+ page & button-level permissions · Permission definition management · Custom roles · Auto-sync |
+| 🗄️ Multi-Database | SQLite / PostgreSQL / MySQL one-click switch, dialect auto-adaptive |
+| 📊 Statistics | Request trends · Source IP · AI call volume · IOPS · JVM/CPU/Memory/Disk |
 | ✉️ Email System | SMTP config · Template management · HTML preview · Placeholder substitution |
-| 🌍 Internationalization | Chinese / English / 日本語 · Full-site real-time switching |
-| 📊 Monitoring | Request trends · Source IP · AI call volume · Incoming trends · IOPS · JVM/CPU/Memory/Disk |
-| 🎨 Modern UI | Dark sidebar · Canvas dynamic lines · Collapsible groups · Compact mode · Welcome page |
-| 🐳 Containerized | Docker multi-stage build · Non-root · Maven mirror · Offline badge compatibility |
+| 🌍 i18n | Chinese / English / 日本語 · Full-site real-time switching |
+| 🧪 Automated Testing | Python test framework, 90+ cases covering AI / Features / RBAC / Security / Swagger |
+| 🛡️ Ops & Monitoring | Health checks · Prometheus metrics · Backup & restore · Actuator security |
+| 🎨 Modern UI | Dark sidebar · Canvas dynamic lines · Role badges · Mobile responsive · Welcome page |
+| 🐳 Containerized | Docker multi-stage build · Non-root · Maven mirror · Offline compatible |
 
 ---
 
@@ -55,7 +57,7 @@ Access: `http://localhost:8080` | API: `/api`
 ```bash
 # Manual build
 ./build-all-in-one.sh
-java -jar backend/target/mock-server-2.3.2.jar
+java -jar backend/target/mock-server-2.3.3.jar
 
 # Development mode
 cd backend && mvn spring-boot:run              # Terminal 1
@@ -108,13 +110,13 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 
 | Capability | Description |
 |------|------|
-| 💬 Smart Chat | Multi-turn context memory · SSE streaming · Markdown + GitHub-style syntax highlighting · Persistent chat history · Smart suggestions |
-| 🔍 Dynamic Retrieval | Real-time document search to inject relevant context into prompts, fallback to general knowledge |
-| 🎨 Content Generation | One-click generation of response data · Java code templates · HTML email templates · API description docs |
-| 🔌 Multi-Model Support | OpenAI · Azure · Gemini · Claude · DeepSeek · Qwen · GLM · Moonshot · Baichuan · MiniMax · MiMo · Doubao + Custom |
+| 💬 Smart Chat | Multi-turn context memory · SSE streaming · Multi-provider switching · Markdown + syntax highlighting · Persistent history |
+| 🔍 Dynamic Retrieval | Real-time document search injecting context into prompts, fallback to general knowledge |
+| 🎨 Content Generation | One-click: response data · Java code · HTML email templates · API descriptions |
+| 🔌 Multi-Model | 12+ providers: OpenAI · Azure · Gemini · Claude · DeepSeek · Qwen · GLM · Moonshot · Baichuan · MiniMax · MiMo · Doubao + Custom |
 | 📊 Call Statistics | Multi-user AI call trend charts · Year/Month/Day granularity · Success rate monitoring |
 
-> 💡 All AI generation uses SSE streaming with flexible timeout (30-600s).
+---
 
 ## 🗄️ Multi-Database
 
@@ -125,6 +127,16 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 | MySQL | `DB_TYPE=mysql` | Existing MySQL infrastructure |
 
 Just set `DB_TYPE` and connection info in `.env`, the `DatabaseDialectProvider` handles the rest.
+
+---
+
+## 🛡️ Ops & Monitoring
+
+| Capability | Description |
+|------|------|
+| 💚 Health Checks | DB connection pool / Disk space / Mock service status, `show-details: always` via `/actuator/health` |
+| 📈 Prometheus | `mock_requests_total` / `mock_request_duration` metrics, ready for Grafana dashboards |
+| 💾 Backup & Restore | One-click export/restore full Mock config (JSON), merge & replace modes |
 
 ---
 
@@ -198,6 +210,7 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 | CORS | Cross-origin whitelist control |
 | Injection Prevention | SQL parameterization · XSS filtering · CSRF protection |
 | RBAC | Role-permission system, page/button-level control, dynamic menu visibility |
+| Actuator Security | Monitoring endpoints require authentication, preventing info leaks |
 
 ---
 

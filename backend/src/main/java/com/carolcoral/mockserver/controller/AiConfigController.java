@@ -53,14 +53,14 @@ public class AiConfigController {
     }
 
     @Operation(summary = "保存或更新 AI 配置")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:view')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:create')")
     @PostMapping
     public ApiResponse<AiConfig> saveConfig(@RequestBody AiConfig config) {
         return ApiResponse.success(aiConfigService.saveConfig(config));
     }
 
     @Operation(summary = "切换启用状态")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:view')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:toggle')")
     @PutMapping("/{id}/toggle")
     public ApiResponse<AiConfig> toggleEnabled(@PathVariable Long id) {
         AiConfig config = aiConfigService.getById(id);
@@ -93,14 +93,14 @@ public class AiConfigController {
     }
 
     @Operation(summary = "设置默认 AI 配置")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:view')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:set-default')")
     @PutMapping("/{id}/set-default")
     public ApiResponse<AiConfig> setDefault(@PathVariable Long id) {
         return ApiResponse.success(aiConfigService.setDefault(id));
     }
 
     @Operation(summary = "删除 AI 配置")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:view')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:delete')")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteConfig(@PathVariable Long id) {
         aiConfigService.deleteConfig(id);
@@ -119,7 +119,7 @@ public class AiConfigController {
     }
 
     @Operation(summary = "连通性验证 - 测试 AI 服务商配置是否可用")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:view')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-settings:test')")
     @PostMapping("/test-connectivity")
     public ApiResponse<Map<String, Object>> testConnectivity(@RequestBody Map<String, String> params) {
         String apiUrl = params.get("apiUrl");

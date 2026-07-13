@@ -70,6 +70,12 @@ service.interceptors.response.use(
       return response
     }
     
+    // 如果是 Actuator 端点（非统一响应格式），直接返回原始数据
+    const url = response.config.url || ''
+    if (url.includes('/actuator/')) {
+      return response.data
+    }
+
     // 处理响应数据
     if (res.code === 200) {
       return res
