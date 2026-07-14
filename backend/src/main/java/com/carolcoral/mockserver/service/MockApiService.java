@@ -220,11 +220,16 @@ public class MockApiService {
 
             MockApi updatedApi = mockApiRepository.save(existingApi);
 
-            // 更新缓存
-            cacheUtil.cacheApi(updatedApi);
+            // 重新从数据库加载完整对象（确保 project 等懒加载关联被正确加载），
+            // 否则 cacheApi 中因 project 为 null 而不会更新带项目ID的缓存 key，
+            // 导致请求处理时仍命中旧缓存（customResponseSource 为空），代码模板不生效。
+            MockApi reloadedApi = mockApiRepository.findById(updatedApi.getId()).orElse(updatedApi);
 
-            log.info("更新接口成功: {}/{} {}", updatedApi.getProject().getCode(), updatedApi.getPath(), updatedApi.getMethod());
-            return ApiResponse.success(updatedApi);
+            // 更新缓存
+            cacheUtil.cacheApi(reloadedApi);
+
+            log.info("更新接口成功: {}/{} {}", reloadedApi.getProject().getCode(), reloadedApi.getPath(), reloadedApi.getMethod());
+            return ApiResponse.success(reloadedApi);
 
         } catch (Exception e) {
             log.error("更新接口失败: {}", e.getMessage(), e);

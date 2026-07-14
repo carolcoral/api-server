@@ -117,6 +117,7 @@ public class DatabaseMigration implements CommandLineRunner {
         safeAlter("ALTER TABLE t_request_log ADD COLUMN request_body TEXT", "request_body");
         safeAlter("ALTER TABLE t_request_log ADD COLUMN response_body TEXT", "response_body");
         safeAlter("ALTER TABLE t_request_log ADD COLUMN response_content_type VARCHAR(100)", "response_content_type");
+        safeAlter("ALTER TABLE t_request_log ADD COLUMN source VARCHAR(50) DEFAULT 'MOCK'", "source");
     }
 
     /**
@@ -392,8 +393,8 @@ public class DatabaseMigration implements CommandLineRunner {
             {"运维与监控-备份导出", "ops:backup", "系统管理", "BUTTON", "102"},
             {"运维与监控-数据恢复", "ops:restore", "系统管理", "BUTTON", "103"},
             // 请求录制与回放
-            {"录制回放-页面访问", "record-replay:view", "数据统计", "PAGE", "52"},
-            {"录制回放-执行回放", "record-replay:replay", "数据统计", "BUTTON", "53"},
+            {"录制回放-页面访问", "record-replay:view", "业务管理", "PAGE", "52"},
+            {"录制回放-执行回放", "record-replay:replay", "业务管理", "BUTTON", "53"},
         };
 
         String valuesClause = "VALUES (?, ?, ?, ?, ?, " + now + ", " + now + ")";
@@ -436,8 +437,8 @@ public class DatabaseMigration implements CommandLineRunner {
             "ops:view", "ops:backup", "ops:restore"
         });
 
-        // 将录制回放权限同步赋予已有 debug-panel:view 权限的角色
-        syncPermissionsToRoles("debug-panel:view", new String[]{
+        // 将录制回放权限同步赋予已有 api:view 权限的角色（已迁移到业务管理分组）
+        syncPermissionsToRoles("api:view", new String[]{
             "record-replay:view", "record-replay:replay"
         });
     }
