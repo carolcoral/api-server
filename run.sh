@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "=========================================="
-echo "Mock Server 运行脚本 v2.3.3"
+echo "API Server 运行脚本 v2.3.3"
 echo "=========================================="
 
 # 颜色输出
@@ -26,9 +26,9 @@ cd "$SCRIPT_DIR" 2>/dev/null || { print_error "无法进入脚本目录: $SCRIPT
 # 查找 jar 包
 find_jar() {
     local jar=""
-    jar=$(find "$SCRIPT_DIR" -maxdepth 1 -name "mock-server-*.jar" -type f 2>/dev/null | head -n 1)
+    jar=$(find "$SCRIPT_DIR" -maxdepth 1 -name "api-server-*.jar" -type f 2>/dev/null | head -n 1)
     [ -n "$jar" ] && [ -f "$jar" ] && { echo "$jar"; return 0; }
-    jar=$(find "$SCRIPT_DIR/backend/target" -maxdepth 1 -name "mock-server-*.jar" -type f 2>/dev/null | head -n 1)
+    jar=$(find "$SCRIPT_DIR/backend/target" -maxdepth 1 -name "api-server-*.jar" -type f 2>/dev/null | head -n 1)
     [ -n "$jar" ] && [ -f "$jar" ] && { echo "$jar"; return 0; }
     return 1
 }
@@ -187,11 +187,11 @@ fi
 # 构造数据库和日志路径参数
 DB_TYPE=${DB_TYPE:-sqlite}
 if [ "$JAR_DIR" = "$SCRIPT_DIR" ]; then
-    JAVA_DB_URL="jdbc:sqlite:./data/mock-server.db"
-    JAVA_LOG_PATH="./logs/mock-server.log"
+    JAVA_DB_URL="jdbc:sqlite:./data/api-server.db"
+    JAVA_LOG_PATH="./logs/api-server.log"
 else
-    JAVA_DB_URL="jdbc:sqlite:./backend/data/mock-server.db"
-    JAVA_LOG_PATH="./backend/logs/mock-server.log"
+    JAVA_DB_URL="jdbc:sqlite:./backend/data/api-server.db"
+    JAVA_LOG_PATH="./backend/logs/api-server.log"
 fi
 
 # 启动参数：仅 SQLite 模式需要覆盖 DB_URL 路径，MySQL/PostgreSQL 由 profile YAML 自动构建
@@ -291,7 +291,7 @@ fi
 
 echo ""
 echo "=========================================="
-print_success "Mock Server 已启动！"
+print_success "API Server 已启动！"
 echo "=========================================="
 echo "  访问地址:  http://localhost:${SERVER_PORT}"
 echo "  API 文档:  http://localhost:${SERVER_PORT}/swagger-ui.html"

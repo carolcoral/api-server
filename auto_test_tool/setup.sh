@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================
-# Mock Server 自动化测试工具 - 环境安装脚本
+# API Server 自动化测试工具 - 环境安装脚本
 # ============================================
 # 自动检测并安装: Python3, pip, 虚拟环境, 项目依赖
 # 支持: Linux (Ubuntu/Debian/CentOS/RHEL/Fedora), macOS, CNB 云开发环境
@@ -307,9 +307,9 @@ configure_test_url() {
     export TEST_BASE_URL="$target_url"
 }
 
-# ---------- 部署并启动 Mock Server（CNB 环境） ----------
-deploy_mock_server() {
-    log_step "部署 Mock Server 服务..."
+# ---------- 部署并启动 API Server（CNB 环境） ----------
+deploy_api_server() {
+    log_step "部署 API Server 服务..."
 
     cd "$WORKSPACE_DIR"
 
@@ -362,7 +362,7 @@ deploy_and_test() {
     log_step "CNB 云开发环境：一键部署并测试"
 
     # 部署服务
-    deploy_mock_server
+    deploy_api_server
 
     # 配置测试地址
     configure_test_url "$@"
@@ -522,7 +522,7 @@ main() {
                 echo ""
                 echo "选项:"
                 echo "  (无参数)      安装测试工具环境"
-                echo "  --deploy      部署 Mock Server 并运行测试 (CNB 环境)"
+                echo "  --deploy      部署 API Server 并运行测试 (CNB 环境)"
                 echo "  --url <URL>   指定测试目标地址"
                 echo "  --help        显示帮助"
                 exit 0
@@ -535,7 +535,7 @@ main() {
 
     echo ""
     echo "============================================"
-    echo "  Mock Server 自动化测试工具 - 环境安装"
+    echo "  API Server 自动化测试工具 - 环境安装"
     echo "============================================"
 
     detect_os

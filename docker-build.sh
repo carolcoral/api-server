@@ -1,6 +1,6 @@
 #!/bin/bash
 # ========================================
-# Mock Server Docker 构建 & 推送脚本
+# API Server Docker 构建 & 推送脚本
 # ========================================
 set -e
 
@@ -12,7 +12,7 @@ print_ok()  { echo -e "${GREEN}[OK]${NC} $1"; }
 print_err() { echo -e "${RED}[ERR]${NC} $1"; }
 print_info(){ echo -e "${YELLOW}[>>]${NC} $1"; }
 
-IMAGE="docker.cnb.cool/xindu.site/mock-server"
+IMAGE="docker.cnb.cool/xindu.site/api-server"
 TAG="${1:-latest}"
 FULL_IMAGE="${IMAGE}:${TAG}"
 

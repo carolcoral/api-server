@@ -1,2 +1,2 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
-com.carolcoral.mockserver.config.SqliteEnvironmentPostProcessor
+com.carolcoral.apiserver.config.SqliteEnvironmentPostProcessor

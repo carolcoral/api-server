@@ -1,6 +1,6 @@
 # 自动化测试工具
 
-Mock Server 系统全功能自动化测试工具，支持页面访问测试、功能测试、模板引擎测试、导入导出测试、响应管理测试、RBAC 权限测试、AI 功能测试等，覆盖 9 大领域 90+ 用例。
+API Server 系统全功能自动化测试工具，支持页面访问测试、功能测试、模板引擎测试、导入导出测试、响应管理测试、RBAC 权限测试、AI 功能测试等，覆盖 9 大领域 90+ 用例。
 
 ## 目录结构
 
@@ -44,7 +44,7 @@ auto_test_tool/
 # 安装依赖
 pip install -r requirements.txt
 
-# 确保 Mock Server 已启动
+# 确保 API Server 已启动
 cd /workspace && ./run.sh
 
 # 运行全部测试

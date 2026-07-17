@@ -4,7 +4,7 @@
 # ========================================
 spring:
   datasource:
-    url: jdbc:postgresql://${PGSQL_HOST:localhost}:${PGSQL_PORT:5432}/${PGSQL_DATABASE:mock_server}
+    url: jdbc:postgresql://${PGSQL_HOST:localhost}:${PGSQL_PORT:5432}/${PGSQL_DATABASE:api_server}
     driver-class-name: org.postgresql.Driver
     username: ${PGSQL_USERNAME:postgres}
     password: ${PGSQL_PASSWORD:}

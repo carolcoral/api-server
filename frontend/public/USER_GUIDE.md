@@ -69,11 +69,11 @@ $.amount > 100           // 请求体中 amount 大于 100
 
 ```bash
 # 基本格式
-curl -X {METHOD} http://localhost:8080/api/mock-server/{projectCode}/{path}
+curl -X {METHOD} http://localhost:8080/api/api-server/{projectCode}/{path}
 
 # 示例
-curl -X GET http://localhost:8080/api/mock-server/myproject/api/user/list
-curl -X POST http://localhost:8080/api/mock-server/myproject/api/user/login \
+curl -X GET http://localhost:8080/api/api-server/myproject/api/user/list
+curl -X POST http://localhost:8080/api/api-server/myproject/api/user/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"123456"}'
 ```
@@ -82,7 +82,7 @@ curl -X POST http://localhost:8080/api/mock-server/myproject/api/user/login \
 
 ```javascript
 // 建立 WebSocket 连接
-const ws = new WebSocket('ws://localhost:8080/api/ws/mock-server/{projectCode}/{path}')
+const ws = new WebSocket('ws://localhost:8080/api/ws/api-server/{projectCode}/{path}')
 
 // 监听消息
 ws.onmessage = (event) => {
@@ -137,7 +137,7 @@ ws.send('{"action":"getData"}')
 
 ### AI 智能功能
 
-Mock Server 集成 AI 能力，支持多种智能生成场景：
+API Server 集成 AI 能力，支持多种智能生成场景：
 
 #### AI 设置
 

@@ -1,7 +1,7 @@
 services:
-  mock-server:
-    image: docker.cnb.cool/xindu.site/mock-server:latest
-    container_name: mock-server
+  api-server:
+    image: docker.cnb.cool/xindu.site/api-server:latest
+    container_name: api-server
     restart: unless-stopped
     # 以 root 用户启动入口脚本，由启动脚本内部切换到 appuser 运行 Java
     # 这样确保 volume 挂载的 data/logs 目录可以被正确初始化权限
@@ -12,8 +12,8 @@ services:
       - TZ=Asia/Shanghai
       - SERVER_PORT=8080
       - DB_TYPE=${DB_TYPE:-sqlite}
-      - DB_URL=${DB_URL:-jdbc:sqlite:/app/data/mock-server.db}
-      - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs/mock-server.log}
+      - DB_URL=${DB_URL:-jdbc:sqlite:/app/data/api-server.db}
+      - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs/api-server.log}
       # MySQL 配置（DB_TYPE=mysql 时生效）
       - MYSQL_HOST=${MYSQL_HOST:-}
       - MYSQL_PORT=${MYSQL_PORT:-}
@@ -30,7 +30,7 @@ services:
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-CHANGE_ME}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@mockserver.com}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@apiserver.com}
       - SWAGGER_USERNAME=${SWAGGER_USERNAME:-swagger_admin}
       - SWAGGER_PASSWORD=${SWAGGER_PASSWORD:-CHANGE_ME}
       - JAVA_OPTS=-Xmx512m -Xms256m

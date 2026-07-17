@@ -1,4 +1,4 @@
-# Mock Server 一键构建和运行指南
+# API Server 一键构建和运行指南
 
 ## 概述
 
@@ -29,7 +29,7 @@
 
 2. **运行 JAR 包**
    ```bash
-   java -jar backend/target/mock-server-2.3.3.jar
+   java -jar backend/target/api-server-2.3.3.jar
    ```
 
 ### 方式三：开发模式

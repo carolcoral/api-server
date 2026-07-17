@@ -13,10 +13,10 @@
     </parent>
 
     <groupId>com.carolcoral</groupId>
-    <artifactId>mock-server</artifactId>
+    <artifactId>api-server</artifactId>
     <version>2.3.3</version>
-    <name>mock-server</name>
-    <description>Mock Server for API Simulation</description>
+    <name>api-server</name>
+    <description>API Server for API Simulation</description>
 
     <properties>
         <java.version>21</java.version>

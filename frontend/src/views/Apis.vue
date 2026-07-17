@@ -80,7 +80,7 @@
                 @click="handleCopyPath(row)"
                 style="font-family: monospace;"
               >
-                /api/mock-server/{{ row.project?.code }}{{ row.path }}
+                /api/api-server/{{ row.project?.code }}{{ row.path }}
               </el-button>
               <el-tooltip :content="$t('api.copyPath')" placement="top">
                 <el-button
@@ -315,7 +315,7 @@
           <el-col :span="14">
             <span style="color: #909399; font-size: 14px;">
               <span>{{ $t('api.apiPathInfo') }}</span>
-              <span style="color: #303133; font-weight: 600;">/api/mock-server/{{ currentApi?.project?.code }}{{ currentApi?.path }}</span>
+              <span style="color: #303133; font-weight: 600;">/api/api-server/{{ currentApi?.project?.code }}{{ currentApi?.path }}</span>
               <span style="margin-left: 20px;">{{ $t('api.method') }}</span>
               <el-tag :type="getMethodTagType(currentApi?.method)">{{ currentApi?.method }}</el-tag>
             </span>
@@ -1801,7 +1801,7 @@ const handleDelete = async (row) => {
 
 // 复制接口路径（兼容 Chrome 140+ 及非 HTTPS 环境）
 const handleCopyPath = async (row) => {
-  const path = `/api/mock-server/${row.project?.code}${row.path}`
+  const path = `/api/api-server/${row.project?.code}${row.path}`
   try {
     // 优先使用现代 Clipboard API（HTTPS 环境）
     await navigator.clipboard.writeText(path)

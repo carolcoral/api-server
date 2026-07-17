@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Mock Server 自动化测试工具 - 主入口
+API Server 自动化测试工具 - 主入口
 =====================================
 
 用法:
@@ -47,7 +47,7 @@ class AutoTestTool:
 
     def __init__(self, config_path: str = None):
         print("\n" + "=" * 70)
-        print("  Mock Server 自动化测试工具 v1.1")
+        print("  API Server 自动化测试工具 v1.1")
         print("=" * 70)
 
         # 加载配置
@@ -106,7 +106,7 @@ class AutoTestTool:
         # 检查系统连通性
         print("\n🔍 检查系统连通性...")
         if not self._check_connectivity():
-            print("❌ 无法连接到目标系统，请确保 Mock Server 已启动")
+            print("❌ 无法连接到目标系统，请确保 API Server 已启动")
             self.runner.report.end_time = time.time()
             return self.runner.report
 
@@ -314,7 +314,7 @@ class AutoTestTool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Mock Server 自动化测试工具",
+        description="API Server 自动化测试工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:

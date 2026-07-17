@@ -8,12 +8,12 @@ server:
 
 spring:
   application:
-    name: mock-server
+    name: api-server
   
   # 云数据库配置
   datasource:
     # 使用腾讯云 MySQL（推荐生产环境）
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:mock_server}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8mb4&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:api_server}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8mb4&allowPublicKeyRetrieval=true
     username: ${MYSQL_USERNAME:root}
     password: ${MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -67,7 +67,7 @@ spring:
 
 # JWT 配置
 jwt:
-  secret: ${JWT_SECRET:!CHANGE_ME!}  # 生产环境必须通过环境变量设置强密钥
+  secret: ${JWT_SECRET:scbcnlsue#TVYbxka73bdlyabjj63glbod4vjb^FRIGBbja63jku^FXYZ123456789ABC}  # 生产环境必须通过环境变量设置强密钥
   expiration: ${JWT_EXPIRATION:86400000} # 24小时
   # 令牌前缀
   token-prefix: Bearer
@@ -79,7 +79,7 @@ springdoc:
   swagger-ui:
     enabled: false
 
-# Mock Server 配置
+# API Server 配置
 mock:
   server:
     default-response-delay: 0
@@ -89,7 +89,7 @@ mock:
 # 日志配置
 logging:
   level:
-    com.carolcoral.mockserver: INFO
+    com.carolcoral.apiserver: INFO
     org.springframework.security: WARN
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
@@ -97,7 +97,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId}] %logger{36} - %msg%n"
   file:
-    name: /app/logs/mock-server.log
+    name: /app/logs/api-server.log
     max-size: 100MB
     max-history: 30
     total-size-cap: 3GB
@@ -109,7 +109,7 @@ logging:
 admin:
   username: ${ADMIN_USERNAME:admin}
   password: ${ADMIN_PASSWORD:!CHANGE_ME!}  # 生产环境必须通过环境变量设置
-  email: ${ADMIN_EMAIL:admin@mockserver.com}
+  email: ${ADMIN_EMAIL:admin@apiserver.com}
 
 # 监控配置
 management:
@@ -167,7 +167,7 @@ async:
     max-pool-size: 50
     queue-capacity: 1000
     keep-alive-seconds: 60
-    thread-name-prefix: mock-server-async-
+    thread-name-prefix: api-server-async-
 
 # 限流配置（防止滥用）
 rate-limit:
@@ -211,7 +211,7 @@ cloud:
 
 # 自定义配置
 app:
-  name: Mock Server
+  name: API Server
   version: 1.0.0
   author: carolcoral
   github: https://github.com/carolcoral

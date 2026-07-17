@@ -206,6 +206,8 @@ import {
 const { t } = useI18n()
 const userStore = useUserStore()
 
+const canClearMemory = computed(() => userStore.hasPermission('ai-chat:view') || userStore.isAdmin)
+
 // ============ highlight.js 配置 ============
 marked.setOptions({
   // 不在 marked 阶段高亮，统一在 wrapCodeBlocks 中手动调用 hljs，

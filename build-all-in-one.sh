@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "=========================================="
-echo "Mock Server 一键构建脚本"
+echo "API Server 一键构建脚本"
 echo "作者: carolcoral"
 echo "=========================================="
 

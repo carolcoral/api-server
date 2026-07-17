@@ -1,19 +1,19 @@
 # ========================================
 # PostgreSQL 数据库 - Docker Compose
-# Mock Server 生产环境数据源
+# API Server 生产环境数据源
 # ========================================
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: mock-server-pgsql
+    container_name: api-server-pgsql
     restart: unless-stopped
     ports:
       - "${PGSQL_PORT:-5432}:5432"
     environment:
       - POSTGRES_USER=${PGSQL_USERNAME:-postgres}
       - POSTGRES_PASSWORD=${PGSQL_PASSWORD:-CHANGE_ME}
-      - POSTGRES_DB=${PGSQL_DATABASE:-mock_server}
+      - POSTGRES_DB=${PGSQL_DATABASE:-api_server}
       - TZ=Asia/Shanghai
       # 性能调优
       - POSTGRES_SHARED_BUFFERS=256MB
@@ -22,7 +22,7 @@ services:
     volumes:
       - pgsql_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PGSQL_USERNAME:-postgres} -d ${PGSQL_DATABASE:-mock_server}"]
+      test: ["CMD-SHELL", "pg_isready -U ${PGSQL_USERNAME:-postgres} -d ${PGSQL_DATABASE:-api_server}"]
       interval: 10s
       timeout: 5s
       retries: 5

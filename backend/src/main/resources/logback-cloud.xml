@@ -4,7 +4,7 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     
     <!-- 云环境变量 -->
-    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="mock-server"/>
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="api-server"/>
     <springProperty scope="context" name="instanceId" source="INSTANCE_ID" defaultValue="localhost"/>
     
     <!-- 控制台输出格式（JSON格式，便于日志收集） -->
@@ -32,12 +32,12 @@
     
     <!-- 文件输出（轮转） -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/app/logs/mock-server.log</file>
+        <file>/app/logs/api-server.log</file>
         
         <!-- 轮转策略 -->
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <!-- 日志文件命名 -->
-            <fileNamePattern>/app/logs/mock-server.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>/app/logs/api-server.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             
             <!-- 日志保留策略 -->
             <maxFileSize>100MB</maxFileSize>
@@ -64,10 +64,10 @@
     
     <!-- 错误日志单独输出 -->
     <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/app/logs/mock-server-error.log</file>
+        <file>/app/logs/api-server-error.log</file>
         
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>/app/logs/mock-server-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>/app/logs/api-server-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>50MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
@@ -88,10 +88,10 @@
     
     <!-- SQL日志（开发调试用） -->
     <appender name="SQL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/app/logs/mock-server-sql.log</file>
+        <file>/app/logs/api-server-sql.log</file>
         
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>/app/logs/mock-server-sql.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>/app/logs/api-server-sql.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>7</maxHistory>
         </rollingPolicy>
         
@@ -132,15 +132,15 @@
     </logger>
     
     <!-- 应用日志 -->
-    <logger name="com.carolcoral.mockserver" level="INFO"/>
-    <logger name="com.carolcoral.mockserver.service" level="DEBUG"/>
-    <logger name="com.carolcoral.mockserver.controller" level="DEBUG"/>
+    <logger name="com.carolcoral.apiserver" level="INFO"/>
+    <logger name="com.carolcoral.apiserver.service" level="DEBUG"/>
+    <logger name="com.carolcoral.apiserver.controller" level="DEBUG"/>
     
     <!-- 过滤器日志 -->
-    <logger name="com.carolcoral.mockserver.filter" level="DEBUG"/>
+    <logger name="com.carolcoral.apiserver.filter" level="DEBUG"/>
     
     <!-- 缓存日志 -->
-    <logger name="com.carolcoral.mockserver.util.CacheUtil" level="DEBUG"/>
+    <logger name="com.carolcoral.apiserver.util.CacheUtil" level="DEBUG"/>
     
     <!-- Swagger日志 -->
     <logger name="org.springdoc" level="INFO"/>

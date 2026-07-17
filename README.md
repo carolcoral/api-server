@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Vue-3.x-brightgreen?style=flat-square&logo=vuedotjs" alt="Vue">
 </p>
 
-<h1 align="center">Mock Server</h1>
+<h1 align="center">API Server</h1>
 <p align="center">Spring Boot + Vue 3 · 全功能 API 模拟平台</p>
 
 <p align="center">
@@ -44,7 +44,7 @@
 
 ```bash
 # 一键启动（自动构建前后端）
-git clone https://github.com/carolcoral/mock-server.git && cd mock-server
+git clone https://github.com/carolcoral/api-server.git && cd api-server
 ./run.sh
 ```
 
@@ -59,7 +59,7 @@ git clone https://github.com/carolcoral/mock-server.git && cd mock-server
 
 # 手动构建
 ./build-all-in-one.sh
-java -jar backend/target/mock-server-2.3.3.jar
+java -jar backend/target/api-server-2.3.3.jar
 
 # 开发模式
 cd backend && mvn spring-boot:run          # 终端 1
@@ -145,9 +145,9 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 ## 📁 项目结构
 
 ```
-mock-server/
+api-server/
 ├── backend/                          # Spring Boot
-│   └── src/.../mockserver/
+│   └── src/.../apiserver/
 │       ├── config/                   # Security / Web / CORS / 邮件
 │       ├── controller/               # REST 控制器
 │       ├── entity/                   # JPA 实体

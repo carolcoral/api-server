@@ -217,7 +217,7 @@ const passwordRules = computed(() => ({
   newPassword: [
     { required: true, message: t('profile.newPasswordPlaceholder'), trigger: 'blur' },
     { min: 8, message: t('profile.passwordMinLength'), trigger: 'blur' },
-    { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/, message: t('profile.passwordStrengthHint'), trigger: 'blur' }
+    { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, message: t('profile.passwordStrengthHint'), trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, message: t('profile.confirmPasswordRequired'), trigger: 'blur' },

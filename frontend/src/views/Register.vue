@@ -19,7 +19,7 @@
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
             <line x1="12" y1="22.08" x2="12" y2="12"/>
           </svg>
-          Mock Server
+          API Server
         </h1>
         <p>{{ $t('register.subtitle') }}</p>
       </div>
@@ -188,7 +188,12 @@ const rules = computed(() => ({
   ],
   password: [
     { required: true, message: t('register.passwordRequired'), trigger: 'blur' },
-    { min: 8, message: t('register.passwordMinLength'), trigger: 'blur' }
+    { min: 8, message: t('register.passwordMinLength'), trigger: 'blur' },
+    {
+      pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/,
+      message: t('register.passwordStrengthHint'),
+      trigger: 'blur'
+    }
   ],
   confirmPassword: [
     { validator: validateConfirmPassword, trigger: 'blur' }

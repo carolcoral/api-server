@@ -58,7 +58,7 @@ main:
             - |
               set -e
               git remote remove github 2>/dev/null || true
-              git remote add github "https://${GITHUB_TOKEN}@github.com/carolcoral/mock-server.git"
+              git remote add github "https://${GITHUB_TOKEN}@github.com/carolcoral/api-server.git"
               git push github --mirror
   web_trigger_sync_to_github:
     - imports: https://cnb.cool/xindu.site/secret/-/blob/main/token.yaml
@@ -71,5 +71,5 @@ main:
             - |
               set -e
               git remote remove github 2>/dev/null || true
-              git remote add github "https://${GITHUB_TOKEN}@github.com/carolcoral/mock-server.git"
+              git remote add github "https://${GITHUB_TOKEN}@github.com/carolcoral/api-server.git"
               git push github --mirror

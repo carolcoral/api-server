@@ -556,7 +556,7 @@ async function handleExport() {
       String(now.getHours()).padStart(2, '0') +
       String(now.getMinutes()).padStart(2, '0') +
       String(now.getSeconds()).padStart(2, '0')
-    link.download = `mock-server-backup-${ts}.json`
+    link.download = `api-server-backup-${ts}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

@@ -1,4 +1,4 @@
-# Mock Server — 功能待办文档
+# API Server — 功能待办文档
 
 > 最后更新：2026-07-13
 
@@ -7,7 +7,7 @@
 ## ✅ 已完成功能
 
 ### 核心 Mock 引擎
-- [x] **HTTP Mock** — 通配路由 `/api/mock-server/{projectCode}/**`，支持 GET/POST/PUT/DELETE/PATCH/OPTIONS
+- [x] **HTTP Mock** — 通配路由 `/api/api-server/{projectCode}/**`，支持 GET/POST/PUT/DELETE/PATCH/OPTIONS
 - [x] **WebSocket Mock** — `/api/ws/mock/{projectCode}/{path}`，支持会话管理
 - [x] **5 种响应模式**：固定 / 条件匹配 / 加权随机 / Java 动态代码处理器 / 默认响应
 - [x] **响应延迟模拟** — 每个响应可配置毫秒级延迟（受系统最大延迟限制保护）

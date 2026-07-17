@@ -45,7 +45,7 @@ class ReportGenerator:
         filepath = os.path.join(self.output_dir, filename)
 
         data = {
-            "title": "Mock Server 自动化测试报告",
+            "title": "API Server 自动化测试报告",
             "timestamp": datetime.now().isoformat(),
             "summary": {
                 "total_cases": self.report.total_cases,
@@ -190,7 +190,7 @@ class ReportGenerator:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Server 自动化测试报告</title>
+    <title>API Server 自动化测试报告</title>
     <style>
         * {{ margin:0; padding:0; box-sizing:border-box; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -216,7 +216,7 @@ class ReportGenerator:
 <body>
 <div class="container">
     <div class="header">
-        <h1>Mock Server 自动化测试报告</h1>
+        <h1>API Server 自动化测试报告</h1>
         <div class="subtitle">生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |
                           总耗时: {self.report.duration_seconds:.2f}s</div>
     </div>
@@ -245,7 +245,7 @@ class ReportGenerator:
     {warnings_html}
     {suites_html}
     <div class="footer">
-        Mock Server Auto Test Tool · Generated at {datetime.now().isoformat()}
+        API Server Auto Test Tool · Generated at {datetime.now().isoformat()}
     </div>
 </div>
 </body>
@@ -258,7 +258,7 @@ class ReportGenerator:
         filepath = os.path.join(self.output_dir, filename)
 
         lines = [
-            "# Mock Server 自动化测试报告",
+            "# API Server 自动化测试报告",
             "",
             f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             f"**总耗时**: {self.report.duration_seconds:.2f}s",

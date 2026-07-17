@@ -13,7 +13,7 @@
           <InfoFilled :width="'1em'" :height="'1em'" style="margin-right: 4px;" />
           {{ $t('emailTemplate.placeholdersBtn') }}
         </el-button>
-        <el-button type="primary" @click="openDialog()">
+        <el-button type="primary" @click="openDialog()" :disabled="!canCreateTemplate">
           <Edit :width="'1em'" :height="'1em'" style="margin-right: 5px;" />
           {{ $t('emailTemplate.createTemplate') }}
         </el-button>
@@ -102,11 +102,11 @@
         </el-table-column>
         <el-table-column :label="$t('common.edit')" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openDialog(row)">
+            <el-button link type="primary" @click="openDialog(row)" :disabled="!canEditTemplate">
               <Edit :width="'1em'" :height="'1em'" />
               {{ $t('common.edit') }}
             </el-button>
-            <el-button link type="danger" @click="deleteTemplate(row.id)">
+            <el-button link type="danger" @click="deleteTemplate(row.id)" :disabled="!canDeleteTemplate">
               <Delete :width="'1em'" :height="'1em'" />
             </el-button>
           </template>
@@ -269,14 +269,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete, InfoFilled, View, MagicStick } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 import { generateEmailTemplateStream } from '@/api/ai'
 
 const { t } = useI18n()
+const userStore = useUserStore()
+
+const canCreateTemplate = computed(() => userStore.hasPermission('email-template:create'))
+const canEditTemplate = computed(() => userStore.hasPermission('email-template:edit'))
+const canDeleteTemplate = computed(() => userStore.hasPermission('email-template:delete'))
 
 const templates = ref([])
 const loading = ref(false)

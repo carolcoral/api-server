@@ -1,11 +1,11 @@
 # ========================================
-# Mock Server - Debian 构建版
+# API Server - Debian 构建版
 # ========================================
 
 FROM debian:12-slim
 
 LABEL maintainer="carolcoral"
-LABEL description="Mock Server v2.1.2"
+LABEL description="API Server v2.1.2"
 
 # ---- 基础依赖 + Eclipse Temurin JDK 21 + Maven + Node.js ----
 # 一次性装完所有构建依赖，setup-env.sh 检测到全部就绪后直接跳过
@@ -52,7 +52,7 @@ RUN bash build-all-in-one.sh
 
 # ---- 保留产物，删除源码 ----
 RUN mkdir -p /app/data /app/logs /app/frontend/dist \
-    && cp backend/target/mock-server-*.jar /app/mock-server.jar \
+    && cp backend/target/api-server-*.jar /app/api-server.jar \
     && cp -r frontend/dist/* /app/frontend/dist/ \
     && rm -rf /app/build \
     && rm -rf /root/.m2 /root/.npm /root/.cache /root/.sdkman
@@ -68,9 +68,9 @@ RUN printf '#!/bin/sh\n\
 mkdir -p /app/data /app/logs\n\
 if [ "$(id -u)" = "0" ]; then\n\
     chown -R appuser:appgroup /app/data /app/logs 2>/dev/null || true\n\
-    exec gosu appuser java ${JAVA_OPTS} -jar /app/mock-server.jar --server.port=8080\n\
+    exec gosu appuser java ${JAVA_OPTS} -jar /app/api-server.jar --server.port=8080\n\
 else\n\
-    exec java ${JAVA_OPTS} -jar /app/mock-server.jar --server.port=8080\n\
+    exec java ${JAVA_OPTS} -jar /app/api-server.jar --server.port=8080\n\
 fi\n' > /app/start.sh \
     && chmod +x /app/start.sh \
     && chown -R appuser:appgroup /app

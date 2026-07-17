@@ -19,7 +19,7 @@
           <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
           <line x1="12" y1="22.08" x2="12" y2="12"/>
         </svg>
-        <h2 v-show="!collapsed">Mock Server</h2>
+        <h2 v-show="!collapsed">API Server</h2>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -103,8 +103,14 @@
           </el-menu-item>
         </el-sub-menu>
 
+        <!-- AI 服务 - 一级菜单（所有登录用户可访问） -->
+        <el-menu-item index="/ai-subscription">
+          <el-icon><Cpu /></el-icon>
+          <span>{{ $t('nav.aiSubscription') }}</span>
+        </el-menu-item>
+
         <!-- 系统管理 - 根据权限显示 -->
-        <el-sub-menu index="sub-system" v-if="userStore.hasAnyPermission(['email-template:view', 'ai-settings:view', 'settings:view', 'ops:view'])">
+        <el-sub-menu index="sub-system" v-if="userStore.hasAnyPermission(['email-template:view', 'ai-settings:view', 'ai-service:view', 'settings:view', 'ops:view'])">
           <template #title>
             <el-icon><Tools /></el-icon>
             <span>{{ $t('nav.systemManagement') }}</span>
@@ -116,6 +122,10 @@
           <el-menu-item index="/ai-settings" v-if="userStore.hasPermission('ai-settings:view')">
             <el-icon><Cpu /></el-icon>
             <span>{{ $t('nav.aiSettings') }}</span>
+          </el-menu-item>
+          <el-menu-item index="/ai-service" v-if="userStore.hasPermission('ai-service:view')">
+            <el-icon><Connection /></el-icon>
+            <span>{{ $t('nav.aiService') }}</span>
           </el-menu-item>
           <el-menu-item index="/settings" v-if="userStore.hasPermission('settings:view')">
             <el-icon><Setting /></el-icon>
@@ -151,7 +161,7 @@
               <Fold v-if="mobileMenuOpen" />
             </el-icon>
           </div>
-          <h3>{{ route.meta.title || 'Mock Server' }}</h3>
+          <h3>{{ route.meta.title || 'API Server' }}</h3>
         </div>
         <div class="header-right">
           <el-dropdown @command="handleCommand">
@@ -407,7 +417,7 @@ const defaultOpeneds = computed(() => {
   if (['/users', '/roles', '/permissions'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-permission')
   }
-  if (['/email-templates', '/ai-settings', '/settings', '/ops-monitor'].some(p => path === p || path.startsWith(p + '/'))) {
+  if (['/email-templates', '/ai-settings', '/ai-service', '/settings', '/ops-monitor'].some(p => path === p || path.startsWith(p + '/'))) {
     opened.push('sub-system')
   }
   return opened

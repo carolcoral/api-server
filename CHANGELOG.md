@@ -222,11 +222,11 @@ INSERT OR IGNORE INTO t_permission (name, code, group_name, type, sort_order, cr
 -- ============================================
 
 -- 1. 导出 SQLite 数据
--- sqlite3 data/mock-server.db .dump > backup.sql
+-- sqlite3 data/api-server.db .dump > backup.sql
 
 -- 2. 创建目标数据库
--- PostgreSQL: CREATE DATABASE mock_server;
--- MySQL:      CREATE DATABASE mock_server CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- PostgreSQL: CREATE DATABASE api_server;
+-- MySQL:      CREATE DATABASE api_server CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 3. 修改 .env 配置
 -- DB_TYPE=postgresql  或  DB_TYPE=mysql

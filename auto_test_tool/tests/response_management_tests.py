@@ -240,7 +240,7 @@ class ResponseManagementTests:
             response_bodies.append(resp_body)
 
         # 多次请求 Mock 端点
-        mock_path = f"/mock-server/{proj_code}{api_path}"
+        mock_path = f"/api-server/{proj_code}{api_path}"
         results = set()
         for _ in range(10):
             s, r, e = self.runner.client.get(mock_path)
@@ -313,7 +313,7 @@ class ResponseManagementTests:
         })
 
         # 多次请求验证非默认响应也能出现
-        mock_path = f"/mock-server/{proj_code}{api_path}"
+        mock_path = f"/api-server/{proj_code}{api_path}"
         has_non_default = False
         for _ in range(15):
             s, r, e = self.runner.client.get(mock_path)

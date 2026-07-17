@@ -1,5 +1,5 @@
 {
-  "name": "mock-server-ui",
+  "name": "api-server-ui",
   "version": "2.3.3",
   "private": true,
   "type": "module",

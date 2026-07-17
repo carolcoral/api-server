@@ -647,7 +647,7 @@ const saving = ref(false)
 
 // 基础设置
 const basicSettings = reactive({
-  appName: 'Mock Server',
+  appName: 'API Server',
   version: 'v-',
   language: localStorage.getItem('locale') || 'zh-CN',
   dateFormat: 'YYYY-MM-DD'
@@ -696,7 +696,7 @@ const loadBasicConfig = async () => {
     const verResponse = await request.get('/system/version')
     if (verResponse.code === 200 && verResponse.data) {
       basicSettings.version = 'v' + (verResponse.data.version || '-')
-      basicSettings.appName = verResponse.data.appName || 'Mock Server'
+      basicSettings.appName = verResponse.data.appName || 'API Server'
     }
   } catch (error) {
     console.error('获取版本号失败:', error)
@@ -720,8 +720,8 @@ const securitySettings = reactive({
 const jwtSettings = reactive({
   tokenExpiration: 1800, // 30分钟
   refreshTokenExpiration: 604800, // 7天
-  issuer: 'mock-server',
-  audience: 'mock-server-users'
+  issuer: 'api-server',
+  audience: 'api-server-users'
 })
 
 // Mock配置
@@ -954,8 +954,8 @@ const saveJwtSettings = async () => {
 const resetJwtSettings = () => {
   jwtSettings.tokenExpiration = 1800
   jwtSettings.refreshTokenExpiration = 604800
-  jwtSettings.issuer = 'mock-server'
-  jwtSettings.audience = 'mock-server-users'
+  jwtSettings.issuer = 'api-server'
+  jwtSettings.audience = 'api-server-users'
   ElMessage.info(t('settings.settingsReset'))
 }
 

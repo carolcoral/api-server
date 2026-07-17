@@ -4,7 +4,7 @@
 # ========================================
 spring:
   datasource:
-    url: ${DB_URL:jdbc:sqlite:./data/mock-server.db}
+    url: ${DB_URL:jdbc:sqlite:./data/api-server.db}
     driver-class-name: org.sqlite.JDBC
     username: ${DB_USERNAME:}
     password: ${DB_PASSWORD:}

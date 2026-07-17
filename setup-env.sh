@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "=========================================="
-echo "Mock Server 环境安装脚本"
+echo "API Server 环境安装脚本"
 echo "作者: carolcoral"
 echo "=========================================="
 

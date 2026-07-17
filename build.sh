@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "=========================================="
-echo "Mock Server 构建脚本"
+echo "API Server 构建脚本"
 echo "作者: carolcoral"
 echo "=========================================="
 
@@ -349,7 +349,7 @@ if [ -d "$BADGES_DIR" ]; then
   print_success "badges 已同步到后端静态资源目录"
 fi
 
-print_info "后端jar包: backend/target/mock-server-2.3.3.jar"
+print_info "后端jar包: backend/target/api-server-2.3.3.jar"
 print_info "前端dist目录: frontend/dist/"
 print_info ""
 print_info "启动后端: cd backend && mvn spring-boot:run -Djava.home=\"$INTERNAL_JAVA_HOME\""

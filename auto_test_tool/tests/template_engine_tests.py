@@ -278,7 +278,7 @@ class TemplateEngineTests:
             return False, "创建模板响应失败", {}
 
         # 调用Mock端点验证模板渲染
-        mock_path = f"/mock-server/{proj_code}{api_path}" if proj_code else f"/mock-server/{proj_code}/{api_path}"
+        mock_path = f"/api-server/{proj_code}{api_path}" if proj_code else f"/api-server/{proj_code}/{api_path}"
         status4, resp4, err4 = self.runner.client.get(mock_path)
         self.runner.client.delete(f"/mock-apis/{api_id}")
 
@@ -338,7 +338,7 @@ class TemplateEngineTests:
             return False, "创建UUID响应失败", {}
 
         # 两次请求获取UUID
-        mock_path = f"/mock-server/{proj_code}{api_path}"
+        mock_path = f"/api-server/{proj_code}{api_path}"
         uuids = []
         import time
         for _ in range(2):

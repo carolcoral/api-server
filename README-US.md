@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Vue-3.x-brightgreen?style=flat-square&logo=vuedotjs" alt="Vue">
 </p>
 
-<h1 align="center">Mock Server</h1>
+<h1 align="center">API Server</h1>
 <p align="center">Full-featured API Mock Platform · Spring Boot + Vue 3</p>
 
 <p align="center">
@@ -45,7 +45,7 @@ Requirements: JDK 21+ · Maven 3.6+ · Node.js 18+ · npm 9+
 
 ```bash
 # One-click start (auto builds frontend & backend)
-git clone https://github.com/carolcoral/mock-server.git && cd mock-server
+git clone https://github.com/carolcoral/api-server.git && cd api-server
 ./run.sh
 ```
 
@@ -57,7 +57,7 @@ Access: `http://localhost:8080` | API: `/api`
 ```bash
 # Manual build
 ./build-all-in-one.sh
-java -jar backend/target/mock-server-2.3.3.jar
+java -jar backend/target/api-server-2.3.3.jar
 
 # Development mode
 cd backend && mvn spring-boot:run              # Terminal 1
@@ -143,9 +143,9 @@ Just set `DB_TYPE` and connection info in `.env`, the `DatabaseDialectProvider` 
 ## 📁 Project Structure
 
 ```
-mock-server/
+api-server/
 ├── backend/                          # Spring Boot
-│   └── src/.../mockserver/
+│   └── src/.../apiserver/
 │       ├── config/                   # Security / Web / CORS / Email
 │       ├── controller/               # REST Controllers
 │       ├── entity/                   # JPA Entities

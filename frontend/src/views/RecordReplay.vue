@@ -210,10 +210,10 @@
         <el-table-column prop="requestTime" :label="$t('recordReplay.requestTime')" width="180" show-overflow-tooltip />
         <el-table-column :label="$t('permission.role.actions')" width="160" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link :icon="View" @click="handleViewDetail(row)">
+            <el-button type="primary" link :icon="View" @click="handleViewDetail(row)" :disabled="!canViewDetail">
               {{ $t('recordReplay.viewDetail') }}
             </el-button>
-            <el-button type="success" link :icon="RefreshRight" @click="handleOpenReplay(row)">
+            <el-button type="success" link :icon="RefreshRight" @click="handleOpenReplay(row)" :disabled="!canReplay">
               {{ $t('recordReplay.replay') }}
             </el-button>
           </template>
@@ -333,10 +333,15 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Promotion, Delete, Plus, MagicStick, Search, RefreshRight, View, Check, Document } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 import { generateApiDescriptionStream } from '@/api/ai'
 
 const { t } = useI18n()
+const userStore = useUserStore()
+
+const canViewDetail = computed(() => userStore.hasPermission('record-replay:view'))
+const canReplay = computed(() => userStore.hasPermission('record-replay:replay'))
 
 const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
 
