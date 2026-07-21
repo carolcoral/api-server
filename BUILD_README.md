@@ -29,7 +29,7 @@
 
 2. **运行 JAR 包**
    ```bash
-   java -jar backend/target/api-server-2.3.3.jar
+   java -jar backend/target/api-server-2.4.0.jar
    ```
 
 ### 方式三：开发模式

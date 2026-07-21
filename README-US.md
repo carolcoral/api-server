@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.0-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk" alt="JDK">
   <img src="https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs" alt="Node">
@@ -57,7 +57,7 @@ Access: `http://localhost:8080` | API: `/api`
 ```bash
 # Manual build
 ./build-all-in-one.sh
-java -jar backend/target/api-server-2.3.3.jar
+java -jar backend/target/api-server-2.4.0.jar
 
 # Development mode
 cd backend && mvn spring-boot:run              # Terminal 1

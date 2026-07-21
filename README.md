@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.3.3-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.0-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk" alt="JDK">
   <img src="https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs" alt="Node">
@@ -8,10 +8,10 @@
 </p>
 
 <h1 align="center">API Server</h1>
-<p align="center">Spring Boot + Vue 3 · 全功能 API 模拟平台</p>
+<p align="center">Spring Boot + Vue 3 · 全功能 API 模拟与 AI 服务管理平台</p>
 
 <p align="center">
-  接口模拟 · 模板引擎 · AI 对话 · Swagger 生态 · RBAC 权限 · 调试面板 · 运维监控 · 多数据库 · 多语言
+  接口模拟 · 模板引擎 · AI 对话 · AI 服务管理 · 用户自助 · 录制回放 · Swagger 生态 · RBAC 权限 · 调试面板 · 运维监控 · 多数据库 · 多语言
 </p>
 
 ---
@@ -21,14 +21,17 @@
 |   | 模块 | 说明 |
 |---|------|------|
 | 🧩 | 接口模拟 | 固定 / 条件匹配 / 加权随机 / Java 动态代码 / 延迟 / 默认响应 / WebSocket Mock |
+| 🤖 | AI 智能平台 | SSE 流式对话 · 多服务商配置切换 · 12+ LLM · AI 代理统一接入 · 一键生成响应/代码/邮件 |
+| 🎛️ | AI 服务管理 | 服务商/模型/订阅/额度/API Key 全生命周期管理 · 模型健康检查 · 批量远程导入 |
+| 👤 | AI 用户自助 | 模型自主订阅 · 优先级/权重配置 · 个人 API Key · 用量统计 · 回落保护 |
+| 📡 | 录制回放 | HTTP 透明代理录制 · 请求回放对比 · 录制数据搜索与管理 |
 | 📝 | 模板引擎 | Faker.js 风格随机数据生成 `{{name()}}` `{{phone()}}`，模板面板一键预览 |
 | 🔍 | 调试面板 | 实时请求日志追踪 · 延迟分布可视化 · 请求/响应详情 · 搜索与分页 |
-| 🤖 | AI 智能平台 | SSE 流式对话 · 多服务商配置切换 · 12+ LLM · 一键生成响应/代码/邮件 |
 | 📥 | Swagger 生态 | 2.0 / OpenAPI 3.x 导入导出，递归 `$ref` 解析，冲突检测 |
 | 📦 | 项目管理 | 多项目隔离 · 成员权限 · JSON/Swagger 导入导出 |
 | 🧬 | 动态代码 | Monaco Editor 编译验证 · 6 种转换器 · 热加载即时生效 |
-| 🔐 | 权限管理 | RBAC 体系 · 50+ 项细粒度权限 · 权限定义管理 · 子权限自动同步 |
-| 🗄️ | 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，方言自动适配 |
+| 🔐 | 权限管理 | RBAC 体系 · 60+ 项细粒度权限 · 权限扫描 · 子权限自动同步 |
+| 🗄️ | 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，WAL 模式 · 方言自动适配 |
 | 📊 | 数据统计 | 请求趋势 · IP 来源 · AI 调用 · IOPS · JVM/CPU/内存/磁盘 |
 | ✉️ | 邮件系统 | SMTP 配置 · 模板管理 · HTML 预览 · 占位符替换 |
 | 🌍 | 国际化 | 中文 / English / 日本語 · 全站实时切换 |
@@ -59,7 +62,7 @@ git clone https://github.com/carolcoral/api-server.git && cd api-server
 
 # 手动构建
 ./build-all-in-one.sh
-java -jar backend/target/api-server-2.3.3.jar
+java -jar backend/target/api-server-2.4.0.jar
 
 # 开发模式
 cd backend && mvn spring-boot:run          # 终端 1

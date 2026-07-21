@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  * 服务启动时自动加载并缓存，版本不变时内容不变
  *
  * @author carolcoral
- * @since 2.3.3
+ * @since 2.4.0
  */
 @Service
 public class PermissionScanner {

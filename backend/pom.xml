@@ -14,7 +14,7 @@
 
     <groupId>com.carolcoral</groupId>
     <artifactId>api-server</artifactId>
-    <version>2.3.3</version>
+    <version>2.4.0</version>
     <name>api-server</name>
     <description>API Server for API Simulation</description>
 

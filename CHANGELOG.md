@@ -1,6 +1,214 @@
 # 版本变更说明
 
-## v2.3.3 (2026-07-13)
+## v2.4.0 (2026-07-21)
+
+> AI 服务管理 · 用户自助订阅 · 代理请求录制回放 · 权限扫描增强 · 项目品牌升级 · 性能优化。
+
+### 🤖 AI 服务管理平台
+
+- **服务商管理**：独立页面管理 AI 服务商，支持创建/编辑/删除（级联删除关联模型和订阅），API 类型与认证方式配置
+- **模型管理**：按服务商查看模型列表，支持手动添加、批量远程导入（调用 `/v1/models` 端点自动拉取），价格/Token 上限/流式/自动模式等参数配置，模型健康检查（延迟探测 + 在线状态）
+- **订阅管理**：用户-模型订阅关系，支持优先级/权重/回落启用/MaxTokens 等策略配置
+- **额度管理**：按用户/模型维度设置请求配额与周期限制
+- **API Key 管理**：用户级 API Key 生成与管理，支持绑定服务商
+- **调用日志**：全量 AI 请求日志追踪，记录 Token 用量/延迟/费用/回落链/错误信息，支持分页浏览
+- **统计看板**：模型总数/订阅数/API Key 数/今日调用 四项指标，页面横幅展示总调用次数
+- 新增权限：`ai-service:view`（页面访问）、`ai-subscription:view`（订阅页面）、6 项 AI 服务管理子权限
+
+### 🧩 AI 用户自助订阅
+
+- **订阅管理页面**：普通用户可自行订阅已启用的模型，配置优先级与权重，支持回落订阅
+- **个人 API Key**：用户可创建/查看/删除个人 API Key
+- **用量统计**：查看个人 AI 调用历史与 Token 消耗
+- **自动模式订阅**：支持后端自动选择最优模型，订阅互斥逻辑防止冲突
+- 新增权限：`ai-subscription:subscribe`、`ai-subscription:key-manage` 用户自助权限
+
+### 📡 AI 代理统一接入
+
+- **OpenAI 兼容代理**：`/api/ai/v1/chat/completions` 端点完全兼容 OpenAI Chat API 格式
+- **智能模型选择**：`AiModelSelector` 根据用户订阅优先级/权重/健康状态自动选择最佳模型，支持故障回落链
+- **SSE 流式实时推送**：优化流式响应传输，减少缓冲延迟，支持中断与错误恢复
+- **LAZY 加载安全**：`JacksonConfig` 禁用空 Bean 序列化失败，避免 Hibernate 代理序列化异常；`AiProxyExceptionHandler` 全局异常处理
+
+### 🔄 请求录制回放
+
+- **透明代理录制**：`HttpProxyController` 捕获 HTTP 请求/响应并持久化为 `ProxyRecord`
+- **录制回放页面**：`RecordReplay.vue` 支持查看/搜索/回放已录制的请求，对比响应差异
+- **代理记录管理**：完整的录制数据 CRUD，支持按路径/状态码/时间范围筛选
+
+### 🔐 权限系统增强
+
+- **权限扫描器**：`PermissionScanner` 启动时自动扫描所有 `@PreAuthorize` 注解，按分组级联展示可用权限，创建权限时联动过滤
+- **权限类型自动识别**：`:view` 后缀 → 页面权限，其他 → 按钮权限，用户无需手动选择
+- **分组级联禁用**：分组下所有权限均已添加时该分组自动隐藏
+- **菜单权限修复**：AI 订阅菜单从硬编码改为 `v-if` 权限判断，无权限用户不可见
+- 新增 `record-replay:view`、`record-replay:replay` 录制回放权限
+
+### 🏗️ 项目品牌升级
+
+- **项目重命名**：`MockServer` → `API Server`，包名 `com.carolcoral.mockserver` → `com.carolcoral.apiserver`
+- **数据库重命名**：默认数据库文件 `mock-server.db` → `api-server.db`
+- **启动类重命名**：`MockServerApplication` → `ApiServerApplication`，OpenAPI 文档标题同步更新
+
+### ⚡ 性能优化
+
+- **SQLite WAL 模式**：启用 WAL（Write-Ahead Logging）模式，提升并发读写性能，减少锁竞争
+- **自动测试工具升级**：`auto_test_tool/setup.sh` 优化环境配置流程，减少构建时间
+
+### 🐛 修复
+
+- **删除服务商级联清理**：修复删除服务商后模型和订阅成为孤儿数据的问题，`deleteProvider` 增加级联删除
+- **侧边栏权限显示**：AI 订阅菜单添加 `v-if="hasPermission('ai-subscription:view')"` 修复无权限用户可见菜单但点击无反应
+- **统计卡片准确性**：清理孤儿模型数据（`provider_id` 指向不存在服务商），统计数字与实际列表一致
+- 模板引擎增加容错处理，避免异常渲染导致的服务中断
+
+### 📝 升级说明
+
+> ⚠️ **v2.3.3 → v2.4.0 数据库变更**：`DatabaseMigration` 启动时自动执行。本次新增 7 张表及 18 条权限记录。若自动迁移失败，请手动执行：
+
+```sql
+-- ============================================
+-- 从 v2.3.3 升级到 v2.4.0
+-- ============================================
+
+-- 1. 创建 AI 服务商表
+CREATE TABLE IF NOT EXISTS t_ai_provider (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    base_url VARCHAR(500) NOT NULL,
+    api_key VARCHAR(500) NOT NULL,
+    api_type VARCHAR(50),
+    auth_type VARCHAR(20),
+    description VARCHAR(500),
+    status BOOLEAN NOT NULL DEFAULT 1,
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL
+);
+
+-- 2. 创建 AI 模型表
+CREATE TABLE IF NOT EXISTS t_ai_model (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_id BIGINT NOT NULL,
+    model_name VARCHAR(100) NOT NULL,
+    display_name VARCHAR(100),
+    input_price DOUBLE,
+    output_price DOUBLE,
+    max_tokens INTEGER,
+    supports_stream BOOLEAN NOT NULL DEFAULT 1,
+    health_status VARCHAR(20) DEFAULT 'online',
+    last_health_check DATETIME,
+    cooldown_until DATETIME,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    avg_latency_ms BIGINT,
+    auto_mode BOOLEAN NOT NULL DEFAULT 0,
+    status BOOLEAN NOT NULL DEFAULT 1,
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL,
+    FOREIGN KEY (provider_id) REFERENCES t_ai_provider(id)
+);
+
+-- 3. 创建 AI 订阅表
+CREATE TABLE IF NOT EXISTS t_ai_subscription (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id BIGINT NOT NULL,
+    model_id BIGINT NOT NULL,
+    provider_id BIGINT NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 0,
+    weight INTEGER NOT NULL DEFAULT 1,
+    max_tokens_per_request INTEGER,
+    fallback_enabled BOOLEAN NOT NULL DEFAULT 0,
+    tags VARCHAR(200),
+    status BOOLEAN NOT NULL DEFAULT 1,
+    expire_time DATETIME,
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ai_sub_user ON t_ai_subscription(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_sub_model ON t_ai_subscription(model_id);
+
+-- 4. 创建 AI 额度表
+CREATE TABLE IF NOT EXISTS t_ai_quota (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id BIGINT NOT NULL,
+    model_id BIGINT NOT NULL,
+    provider_id BIGINT NOT NULL,
+    period_limit BIGINT DEFAULT 0,
+    period_type VARCHAR(10) DEFAULT 'daily',
+    used_count BIGINT NOT NULL DEFAULT 0,
+    reset_time DATETIME,
+    status BOOLEAN NOT NULL DEFAULT 1,
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL
+);
+
+-- 5. 创建 AI API Key 表
+CREATE TABLE IF NOT EXISTS t_ai_api_key (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id BIGINT NOT NULL,
+    provider_id BIGINT,
+    key_name VARCHAR(100),
+    api_key VARCHAR(500) NOT NULL UNIQUE,
+    status BOOLEAN NOT NULL DEFAULT 1,
+    create_time DATETIME NOT NULL,
+    update_time DATETIME NOT NULL
+);
+
+-- 6. 创建 AI 用量日志表
+CREATE TABLE IF NOT EXISTS t_ai_usage_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id BIGINT NOT NULL,
+    provider_id BIGINT,
+    model_id BIGINT,
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    total_tokens INTEGER,
+    latency_ms BIGINT,
+    cost FLOAT,
+    status_code INTEGER,
+    fallback_from BIGINT,
+    error_msg VARCHAR(500),
+    request_body TEXT,
+    response_body TEXT,
+    create_time DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_user ON t_ai_usage_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_time ON t_ai_usage_log(create_time);
+
+-- 7. 创建代理录制记录表
+CREATE TABLE IF NOT EXISTS t_proxy_record (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    method VARCHAR(10),
+    path VARCHAR(500),
+    request_headers TEXT,
+    request_body TEXT,
+    response_status INTEGER,
+    response_headers TEXT,
+    response_body TEXT,
+    duration_ms BIGINT,
+    create_time DATETIME NOT NULL
+);
+
+-- 8. 新增权限记录（18 条）
+INSERT OR IGNORE INTO t_permission (name, code, group_name, type, sort_order, create_time, update_time) VALUES
+('AI服务管理-页面访问', 'ai-service:view', '系统管理', 'PAGE', 54, datetime('now'), datetime('now')),
+('AI服务管理-创建服务商', 'ai-service:create', '系统管理', 'BUTTON', 55, datetime('now'), datetime('now')),
+('AI服务管理-编辑服务商', 'ai-service:edit', '系统管理', 'BUTTON', 56, datetime('now'), datetime('now')),
+('AI服务管理-删除服务商', 'ai-service:delete', '系统管理', 'BUTTON', 57, datetime('now'), datetime('now')),
+('AI服务管理-管理模型', 'ai-service:models', '系统管理', 'BUTTON', 58, datetime('now'), datetime('now')),
+('AI服务管理-管理订阅', 'ai-service:subscriptions', '系统管理', 'BUTTON', 59, datetime('now'), datetime('now')),
+('AI服务管理-管理额度', 'ai-service:quotas', '系统管理', 'BUTTON', 60, datetime('now'), datetime('now')),
+('AI订阅-页面访问', 'ai-subscription:view', 'AI用户自助', 'PAGE', 118, datetime('now'), datetime('now')),
+('AI订阅-订阅管理', 'ai-subscription:subscribe', 'AI用户自助', 'BUTTON', 119, datetime('now'), datetime('now')),
+('AI订阅-密钥管理', 'ai-subscription:key-manage', 'AI用户自助', 'BUTTON', 120, datetime('now'), datetime('now')),
+('录制回放-页面访问', 'record-replay:view', '业务管理', 'PAGE', 52, datetime('now'), datetime('now')),
+('录制回放-执行回放', 'record-replay:replay', '业务管理', 'BUTTON', 53, datetime('now'), datetime('now'));
+
+-- 9. 清理孤儿模型数据（若存在）
+DELETE FROM t_ai_model WHERE provider_id NOT IN (SELECT id FROM t_ai_provider);
+```
+
+> 💡 MySQL 用户：`INSERT OR IGNORE` → `INSERT IGNORE`，`datetime('now')` → `NOW()`
+> PostgreSQL 用户：`INSERT OR IGNORE` → `INSERT ... ON CONFLICT DO NOTHING`，`datetime('now')` → `NOW()`
 
 > Mock 调试面板 · 多 AI 配置切换 · 权限体系全覆盖 · 运维监控 · 权限定义管理 · Actuator 安全加固 · 移动端适配。
 

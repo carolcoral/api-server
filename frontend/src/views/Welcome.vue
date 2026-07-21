@@ -169,7 +169,7 @@ import {
   UserFilled,
   ChatDotSquare,
   MagicStick,
-  Files,
+  Cpu,
   DataAnalysis,
   DocumentCopy,
   Monitor
@@ -261,7 +261,7 @@ const features = [
     bg: 'linear-gradient(135deg, #43e97b, #38f9d7)'
   },
   {
-    icon: Files, titleKey: 'welcome.ms_feature6Title', descKey: 'welcome.ms_feature6Desc',
+    icon: Cpu, titleKey: 'welcome.ms_feature6Title', descKey: 'welcome.ms_feature6Desc',
     bg: 'linear-gradient(135deg, #a18cd1, #fbc2eb)'
   },
   {
