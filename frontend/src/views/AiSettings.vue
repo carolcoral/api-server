@@ -483,6 +483,7 @@ function showAddDialog() {
 function editConfig(config) {
   editingConfig.value = config
   form.value = {
+    id: config.id,
     provider: config.provider,
     providerName: config.providerName,
     apiUrl: config.apiUrl,

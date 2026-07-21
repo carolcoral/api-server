@@ -39,4 +39,6 @@ public interface AiUsageLogRepository extends JpaRepository<AiUsageLog, Long> {
                                            @Param("end") LocalDateTime end);
 
     long countByUserId(Long userId);
+
+    long countByCreateTimeBetween(LocalDateTime start, LocalDateTime end);
 }

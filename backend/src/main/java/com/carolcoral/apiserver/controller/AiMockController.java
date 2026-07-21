@@ -219,7 +219,7 @@ public class AiMockController {
         try {
             writer = initSseResponse(response);
             reader = supplier.get();
-            streamToClient(writer, reader);
+            streamToClient(writer, reader, response);
             logAiCall(apiType, true, null);
         } catch (RuntimeException e) {
             log.error("AI 流式生成失败 [{}]: {}", apiType, e.getMessage());
@@ -237,6 +237,7 @@ public class AiMockController {
     private PrintWriter initSseResponse(HttpServletResponse response) throws IOException {
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("UTF-8");
+        response.setBufferSize(0); // 禁用 servlet 容器输出缓冲
         response.setHeader("Cache-Control", "no-cache");
         response.setHeader("Connection", "keep-alive");
         response.setHeader("X-Accel-Buffering", "no");
@@ -263,11 +264,12 @@ public class AiMockController {
         }
     }
 
-    private void streamToClient(PrintWriter writer, BufferedReader reader) throws IOException {
+    private void streamToClient(PrintWriter writer, BufferedReader reader, HttpServletResponse response) throws IOException {
         String line;
         while ((line = reader.readLine()) != null) {
             writer.write(line + "\n");
             writer.flush();
+            response.flushBuffer(); // 强制 servlet 容器立即推送到客户端
             if (line.contains("[DONE]")) {
                 break;
             }
@@ -364,6 +366,7 @@ public class AiMockController {
         // 设置 SSE 响应头
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("UTF-8");
+        response.setBufferSize(0); // 禁用 servlet 容器输出缓冲，确保实时推送
         response.setHeader("Cache-Control", "no-cache");
         response.setHeader("Connection", "keep-alive");
         response.setHeader("X-Accel-Buffering", "no"); // 禁用 nginx 缓冲
@@ -379,6 +382,7 @@ public class AiMockController {
                 // 逐行透传 SSE 数据
                 writer.write(line + "\n");
                 writer.flush();
+                response.flushBuffer(); // 强制 servlet 容器立即推送到客户端
 
                 // 检测 [DONE] 标记
                 if (line.contains("[DONE]")) {

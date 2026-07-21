@@ -622,9 +622,11 @@ const sendMessage = async (text) => {
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 
+      let hasContent = false
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.substring(6).trim()
+        // 兼容 data: 和 data: 两种格式（Spring SseEmitter 默认不带空格）
+        if (line.startsWith('data:')) {
+          const data = line.substring(5).trim()
           if (data === '[DONE]') continue
           if (data.startsWith('[ERROR]')) {
             const errMsg = data.substring(8).trim()
@@ -632,29 +634,47 @@ const sendMessage = async (text) => {
           }
           try {
             const parsed = JSON.parse(data)
+            // 处理服务商错误响应（如 429 错误）
+            if (parsed?.error?.message) {
+              throw new Error(parsed.error.message)
+            }
             const delta = parsed?.choices?.[0]?.delta?.content
             if (delta) {
               messages.value[assistantIdx].content += delta
-              await scrollToBottom()
+              hasContent = true
             }
           } catch (e) {
-            // 忽略非 JSON 行
+            // 如果是业务错误，继续抛出；JSON 解析失败则忽略
+            if (e instanceof SyntaxError) {
+              continue
+            }
+            throw e
           }
         }
       }
+      // 每收到一批数据后滚动一次，避免逐 delta 滚动导致 UI 卡顿和渲染延迟
+      if (hasContent) {
+        await scrollToBottom()
+      }
     }
 
-    if (buffer.startsWith('data: ')) {
-      const data = buffer.substring(6).trim()
+    if (buffer.startsWith('data:')) {
+      const data = buffer.substring(5).trim()
       if (data !== '[DONE]' && !data.startsWith('[ERROR]')) {
         try {
           const parsed = JSON.parse(data)
+          // 处理服务商错误响应
+          if (parsed?.error?.message) {
+            throw new Error(parsed.error.message)
+          }
           const delta = parsed?.choices?.[0]?.delta?.content
           if (delta) {
             messages.value[assistantIdx].content += delta
             await scrollToBottom()
           }
-        } catch (e) {}
+        } catch (e) {
+          if (!(e instanceof SyntaxError)) throw e
+        }
       }
     }
 

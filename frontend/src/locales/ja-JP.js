@@ -1383,7 +1383,10 @@ export default {
     createKey: 'APIキー作成',
     createTime: '作成時間',
     deleteKeyConfirm: 'このAPIキーを削除してもよろしいですか？復元できません。',
-    deleteKeySuccess: 'APIキーが削除されました'
+    deleteKeySuccess: 'APIキーが削除されました',
+    availableServices: '利用可能なサービス',
+    availableProviders: 'プロバイダー',
+    availableModelsList: '利用可能なモデル'
   },
 
   // AI サービス管理
@@ -1394,6 +1397,7 @@ export default {
     totalSubscriptions: 'サブスクリプション総数',
     totalApiKeys: 'APIキー数',
     todayCalls: '本日の呼び出し',
+    totalCalls: '総呼び出し回数',
     providers: 'プロバイダー',
     models: 'モデル',
     subscriptions: 'サブスクリプション',
@@ -1433,6 +1437,12 @@ export default {
     outputPrice: '出力価格',
     maxTokens: '最大トークン',
     stream: 'ストリーム',
+    autoMode: '自動モード',
+    autoModeDesc: '自動モード：購読中の全モデルから最適なモデルを自動選択し、障害時に自動切替します',
+    autoModeExclusive: '自動モードと指定モデルは排他的です',
+    autoModeExclusiveDesc: '自動モードを購読中のため、指定モデルを購読できません。自動モードの購読を解除してください。',
+    specificModelExclusive: '指定モデルを購読中です',
+    specificModelExclusiveDesc: '指定モデルを購読中のため、自動モードを購読できません。すべての指定モデルの購読を解除してください。',
     health: 'ヘルス',
     online: 'オンライン',
     offline: 'オフライン',

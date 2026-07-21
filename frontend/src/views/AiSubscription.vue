@@ -24,10 +24,11 @@
       <el-table :data="subscriptions" v-loading="subsLoading" empty-text="暂无订阅">
         <el-table-column prop="id" :label="$t('aiService.id')" width="70" />
         <el-table-column prop="providerName" :label="$t('aiService.provider')" width="150" show-overflow-tooltip />
-        <el-table-column prop="displayName" :label="$t('aiService.model')" width="200" show-overflow-tooltip>
+        <el-table-column prop="displayName" :label="$t('aiService.model')" width="240" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="url-cell">
               <span>{{ row.displayName || row.modelName }}</span>
+              <el-tag v-if="row.autoMode" type="warning" size="small" effect="plain" style="flex-shrink:0">{{ $t('aiService.autoMode') }}</el-tag>
               <el-button size="small" text type="primary" @click="copyKey(row.modelName)">
                 <el-icon><CopyDocument /></el-icon>
               </el-button>
@@ -76,6 +77,50 @@
               </template>
             </el-popconfirm>
           </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- 可用服务 -->
+    <el-card class="section-card" shadow="never" style="margin-top: 20px">
+      <template #header>
+        <div class="card-header">
+          <span>{{ $t('aiSubscription.availableServices') }}</span>
+        </div>
+      </template>
+      <el-table :data="allAvailableModels" v-loading="allModelsLoading" empty-text="暂无可用的模型">
+        <el-table-column prop="providerName" :label="$t('aiSubscription.availableProviders')" width="150" show-overflow-tooltip />
+        <el-table-column prop="displayName" :label="$t('aiSubscription.availableModelsList')" width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span>{{ row.displayName || row.modelName }}</span>
+              <el-tag v-if="row.autoMode" type="warning" size="small" effect="plain">{{ $t('aiService.autoMode') }}</el-tag>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('aiService.price')" width="100" align="center">
+          <template #default="{ row }">
+            <span v-if="row.inputPrice != null">${{ row.inputPrice }}</span>
+            <span v-else class="no-data">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('aiService.maxTokens')" width="100" align="center">
+          <template #default="{ row }">{{ row.maxTokens || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="$t('aiService.health')" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.healthStatus === 'online' ? 'success' : row.healthStatus === 'degraded' ? 'warning' : 'danger'" size="small">
+              {{ row.healthStatus ? $t('aiService.' + row.healthStatus) : $t('aiService.online') }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('aiSubscription.subscriberCount')" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag type="info" size="small">{{ row.subscriberCount || 0 }} 人</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('aiService.stream')" width="80" align="center">
+          <template #default="{ row }">{{ row.supportsStream ? '✓' : '✗' }}</template>
         </el-table-column>
       </el-table>
     </el-card>
@@ -147,25 +192,44 @@
             v-model="subscribeForm.modelId"
             :placeholder="$t('aiService.selectModel')"
             style="width: 100%"
-            :disabled="!subscribeForm.providerId || modelsLoading"
+            :disabled="!subscribeForm.providerId || modelsLoading || hasAutoModeSubscription"
             @change="onModelChange"
           >
             <el-option
-              v-for="m in availableModels"
+              v-for="m in dropdownModels"
               :key="m.id"
-              :label="m.displayName || m.modelName"
+              :label="(m.autoMode ? '🤖 ' : '') + (m.displayName || m.modelName)"
               :value="m.id"
-              :disabled="subscribedModelIds.includes(m.id)"
-            />
+              :disabled="subscribedModelIds.includes(m.id) || isModelDisabledByExclusivity(m)"
+            >
+              <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+                <span>{{ m.displayName || m.modelName }}</span>
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                  <el-tag v-if="m.autoMode" type="warning" size="small" effect="plain">{{ $t('aiService.autoMode') }}</el-tag>
+                  <el-tag v-if="isModelDisabledByExclusivity(m)" type="danger" size="small" effect="plain">{{ m.autoMode ? $t('aiService.specificModelExclusive') : $t('aiService.autoModeExclusive') }}</el-tag>
+                </div>
+              </div>
+            </el-option>
           </el-select>
+          <el-alert v-if="hasAutoModeSubscription" type="warning" :closable="false" show-icon style="margin-top:8px">
+            <template #title>{{ $t('aiService.autoModeExclusiveDesc') }}</template>
+          </el-alert>
+          <el-alert v-if="hasSpecificModelSubscription && !hasAutoModeSubscription" type="warning" :closable="false" show-icon style="margin-top:8px">
+            <template #title>{{ $t('aiService.specificModelExclusiveDesc') }}</template>
+          </el-alert>
         </el-form-item>
       </el-form>
 
       <!-- 模型信息展示 -->
       <div v-if="selectedModelInfo" class="model-info-card">
+        <el-alert v-if="selectedModelInfo.autoMode" type="warning" :closable="false" show-icon style="margin-bottom:12px">
+          <template #title>
+            {{ $t('aiService.autoModeDesc') }}
+          </template>
+        </el-alert>
         <el-descriptions border :column="2" size="small">
           <el-descriptions-item :label="$t('aiService.modelName')">
-            <el-tag type="success" size="small">{{ selectedModelInfo.modelName }}</el-tag>
+            <el-tag :type="selectedModelInfo.autoMode ? 'warning' : 'success'" size="small">{{ selectedModelInfo.modelName }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item :label="$t('aiService.displayName')">
             {{ selectedModelInfo.displayName || '—' }}
@@ -268,6 +332,35 @@ const userStore = useUserStore()
 const canSubscribe = computed(() => userStore.hasPermission('ai-subscription:subscribe'))
 const canManageKey = computed(() => userStore.hasPermission('ai-subscription:key-manage'))
 
+// ========== 可用服务 ==========
+const allAvailableModels = ref([])
+const allModelsLoading = ref(false)
+
+const fetchAllAvailableModels = async () => {
+  allModelsLoading.value = true
+  try {
+    const providerRes = await listAvailableProviders()
+    if (providerRes.code !== 200) {
+      allModelsLoading.value = false
+      return
+    }
+    const allProviders = providerRes.data || []
+    const allModels = []
+    for (const provider of allProviders) {
+      const modelRes = await listAvailableModels(provider.id)
+      if (modelRes.code === 200) {
+        const models = modelRes.data || []
+        allModels.push(...models)
+      }
+    }
+    allAvailableModels.value = allModels
+  } catch (e) {
+    console.error('获取可用模型列表失败', e)
+  } finally {
+    allModelsLoading.value = false
+  }
+}
+
 // ========== 我的订阅 ==========
 const subscriptions = ref([])
 const subsLoading = ref(false)
@@ -314,9 +407,53 @@ const subscribeForm = reactive({
   modelId: null
 })
 
+// 下拉框模型列表（包含虚拟自动模式选项）
+const dropdownModels = computed(() => {
+  const models = [...availableModels.value]
+  // 如果当前服务商下没有自动模式模型，且用户没有自动模式订阅，添加虚拟自动模式选项
+  const hasAutoModeModel = models.some(m => m.autoMode)
+  if (!hasAutoModeModel && !hasAutoModeSubscription.value && subscribeForm.providerId) {
+    models.unshift({
+      id: -1,
+      modelName: 'auto',
+      displayName: t('aiService.autoMode'),
+      autoMode: true,
+      virtual: true,
+      inputPrice: null,
+      outputPrice: null,
+      maxTokens: null,
+      supportsStream: true,
+      healthStatus: 'online',
+      subscriberCount: 0,
+      providerName: providers.value.find(p => p.id === subscribeForm.providerId)?.name || ''
+    })
+  }
+  return models
+})
+
 const subscribedModelIds = computed(() => {
   return subscriptions.value.map(s => s.modelId)
 })
+
+// 是否已订阅自动模式模型
+const hasAutoModeSubscription = computed(() => {
+  return subscriptions.value.some(s => s.autoMode)
+})
+
+// 是否已订阅指定模型（非自动模式）
+const hasSpecificModelSubscription = computed(() => {
+  return subscriptions.value.some(s => !s.autoMode)
+})
+
+// 判断模型是否因互斥而被禁用
+const isModelDisabledByExclusivity = (model) => {
+  if (!model) return false
+  // 如果已订阅自动模式，则禁用所有指定模型
+  if (hasAutoModeSubscription.value && !model.autoMode) return true
+  // 如果已订阅指定模型，则禁用所有自动模式模型
+  if (hasSpecificModelSubscription.value && model.autoMode) return true
+  return false
+}
 
 const fetchProviders = async () => {
   providersLoading.value = true
@@ -365,7 +502,7 @@ const onModelChange = (modelId) => {
     selectedModelInfo.value = null
     return
   }
-  const model = availableModels.value.find(m => m.id === modelId)
+  const model = dropdownModels.value.find(m => m.id === modelId)
   selectedModelInfo.value = model || null
 }
 
@@ -380,7 +517,11 @@ const handleSubscribe = async () => {
   }
   subscribing.value = true
   try {
-    const res = await subscribeModel(subscribeForm.modelId)
+    const isVirtualAutoMode = subscribeForm.modelId === -1
+    const res = await subscribeModel({
+      modelId: subscribeForm.modelId,
+      providerId: isVirtualAutoMode ? subscribeForm.providerId : undefined
+    })
     if (res.code === 200) {
       ElMessage.success(t('aiSubscription.subscribeSuccess'))
       showSubscribeDialog.value = false
@@ -494,6 +635,7 @@ onMounted(() => {
   fetchSubscriptions()
   fetchApiKeys()
   fetchProviders()
+  fetchAllAvailableModels()
 })
 </script>
 

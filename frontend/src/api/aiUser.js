@@ -24,8 +24,8 @@ export function listMySubscriptions() {
   return request({ url: `${BASE}/subscriptions`, method: 'get' })
 }
 
-export function subscribeModel(modelId) {
-  return request({ url: `${BASE}/subscriptions`, method: 'post', data: { modelId } })
+export function subscribeModel(data) {
+  return request({ url: `${BASE}/subscriptions`, method: 'post', data })
 }
 
 export function unsubscribeModel(id) {

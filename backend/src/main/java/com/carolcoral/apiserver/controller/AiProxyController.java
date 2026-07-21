@@ -6,9 +6,7 @@
 
 package com.carolcoral.apiserver.controller;
 
-import com.carolcoral.apiserver.dto.ApiResponse;
 import com.carolcoral.apiserver.dto.ChatCompletionRequest;
-import com.carolcoral.apiserver.dto.ChatCompletionResponse;
 import com.carolcoral.apiserver.entity.AiApiKey;
 import com.carolcoral.apiserver.entity.AiModel;
 import com.carolcoral.apiserver.entity.User;
@@ -21,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -64,43 +61,34 @@ public class AiProxyController {
     }
 
     /**
-     * Chat Completion（非流式）
+     * Chat Completion — 统一使用 SSE 流式返回（OpenAI 兼容）
+     * 对外订阅地址的核心接口，仅需 API Key 鉴权。
+     * 在请求线程中完成所有 Hibernate 数据加载，避免异步线程中 LAZY 代理失效。
      */
-    @Operation(summary = "Chat Completion", description = "OpenAI 兼容的 Chat Completion 接口")
-    @PostMapping("/v1/chat/completions")
-    public ChatCompletionResponse chatCompletions(
-            @Parameter(description = "Chat Completion 请求") @RequestBody ChatCompletionRequest request,
-            HttpServletRequest servletRequest) throws Exception {
-
-        User user = authenticateUser(servletRequest);
-        log.info("AI Chat: user={}, model={}", user.getUsername(), request.getModel());
-
-        try {
-            return aiProxyService.processChatCompletion(user, request);
-        } catch (AiProxyService.QuotaExceededException e) {
-            throw new RuntimeException("AI 调用额度已用尽，请等待额度重置或联系管理员");
-        }
-    }
-
-    /**
-     * Chat Completion（流式 SSE）
-     */
-    @Operation(summary = "Chat Completion (Stream)", description = "OpenAI 兼容的流式 Chat Completion 接口")
-    @PostMapping(value = "/v1/chat/completions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatCompletionsStream(
+    @Operation(summary = "Chat Completion (SSE 流式)", description = "OpenAI 兼容的流式 Chat Completion 接口，仅需 API Key 鉴权。不限制 produces 以适应不同客户端 Accept 头。")
+    @PostMapping(value = "/v1/chat/completions")
+    public SseEmitter chatCompletions(
             @Parameter(description = "Chat Completion 请求") @RequestBody ChatCompletionRequest request,
             HttpServletRequest servletRequest) {
 
         User user = authenticateUser(servletRequest);
-        log.info("AI Chat Stream: user={}, model={}", user.getUsername(), request.getModel());
+        String clientIp = servletRequest.getRemoteAddr();
+        String userAgent = servletRequest.getHeader("User-Agent");
+        log.info("AI Chat Stream: user={}, model={}, clientIp={}, userAgent={}", user.getUsername(), request.getModel(), clientIp, userAgent);
 
-        SseEmitter emitter = new SseEmitter(300000L); // 5分钟超时
+        // 在请求线程中完成所有数据加载，提取为简单参数传给异步任务
+        final Long userId = user.getId();
+        final String modelName = request.getModel();
+        final String strategy = request.getFallbackStrategy();
+
+        SseEmitter emitter = new SseEmitter(300000L);
 
         streamExecutor.execute(() -> {
             try {
-                aiProxyService.processStreamChatCompletion(user, request, chunk -> {
+                aiProxyService.processStreamChatCompletionAsync(userId, modelName, strategy, request, chunk -> {
                     try {
-                        emitter.send(SseEmitter.event().data(chunk));
+                        // 手动构建 SSE 格式，确保 data: 后面有空格（兼容前端解析）
+                        emitter.send(SseEmitter.event().data(chunk, MediaType.APPLICATION_JSON));
                     } catch (IOException e) {
                         log.warn("SSE 发送失败: {}", e.getMessage());
                     }
@@ -108,13 +96,13 @@ public class AiProxyController {
                 emitter.complete();
             } catch (AiProxyService.QuotaExceededException e) {
                 try {
-                    emitter.send(SseEmitter.event().data("data: {\"error\":\"额度已用尽\"}\n\n"));
+                    emitter.send(SseEmitter.event().data("{\"error\":\"额度已用尽\"}", MediaType.APPLICATION_JSON));
                     emitter.complete();
                 } catch (IOException ignored) {}
             } catch (Exception e) {
                 log.error("流式 AI 调用失败: {}", e.getMessage());
                 try {
-                    emitter.send(SseEmitter.event().data("data: {\"error\":\"" + e.getMessage() + "\"}\n\n"));
+                    emitter.send(SseEmitter.event().data("{\"error\":\"" + e.getMessage() + "\"}", MediaType.APPLICATION_JSON));
                     emitter.complete();
                 } catch (IOException ignored) {}
             }
@@ -152,10 +140,12 @@ public class AiProxyController {
 
     /**
      * 全局异常处理 - 返回 OpenAI 兼容的错误 JSON
+     * 使用 produces 强制指定 JSON，避免客户端 Accept 头导致的内容协商失败
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleException(Exception e) {
-        log.error("AI 接口异常: {}", e.getMessage());
+    public ResponseEntity<Map<String, Object>> handleException(Exception e, HttpServletRequest request) {
+        log.error("AI 接口异常: {}, clientIp={}, userAgent={}", e.getMessage(),
+                request.getRemoteAddr(), request.getHeader("User-Agent"));
         Map<String, Object> error = new LinkedHashMap<>();
         Map<String, Object> errDetail = new LinkedHashMap<>();
         errDetail.put("message", "AI 服务暂时不可用: " + e.getMessage());
@@ -163,12 +153,13 @@ public class AiProxyController {
         errDetail.put("code", "500");
         error.put("error", errDetail);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(error);
     }
 
     /**
      * 通过 API Key 鉴权
+     * 注意：last_used 更新改为异步，避免并发写入锁死 SQLite
      */
     private User authenticateUser(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
@@ -181,8 +172,18 @@ public class AiProxyController {
             throw new RuntimeException("无效的 API Key");
         }
         AiApiKey key = keyOpt.get();
-        key.setLastUsed(java.time.LocalDateTime.now());
-        apiKeyRepository.save(key);
+        // 异步更新 last_used，避免每个请求都同步写库
+        final Long keyId = key.getId();
+        streamExecutor.execute(() -> {
+            try {
+                apiKeyRepository.findById(keyId).ifPresent(k -> {
+                    k.setLastUsed(java.time.LocalDateTime.now());
+                    apiKeyRepository.save(k);
+                });
+            } catch (Exception ignored) {
+                // 静默失败，不影响业务
+            }
+        });
         return key.getUser();
     }
 }

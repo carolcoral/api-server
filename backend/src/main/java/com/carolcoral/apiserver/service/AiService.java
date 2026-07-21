@@ -1119,12 +1119,16 @@ public class AiService {
 
     /**
      * 判断 API 地址是否指向系统自身（避免 HTTP 循环调用）
+     * 同时检查当前实例是否有可用订阅，无订阅则走外部 HTTP 请求转发给有订阅的实例。
      */
     private boolean isSystemSelfUrl(String apiUrl) {
         if (apiUrl == null) return false;
-        // 检测常见系统自身地址模式
         String url = apiUrl.toLowerCase();
-        return url.contains("/api/ai/v1") || url.contains("/api/ai/");
+        if (!url.contains("/api/ai/v1") && !url.contains("/api/ai/")) {
+            return false;
+        }
+        // 只有当前实例有可用订阅时，才走内部路由；无订阅则转发给有订阅的实例
+        return aiProxyService.hasAvailableSubscriptions();
     }
 
     /**

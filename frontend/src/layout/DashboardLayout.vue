@@ -103,8 +103,8 @@
           </el-menu-item>
         </el-sub-menu>
 
-        <!-- AI 服务 - 一级菜单（所有登录用户可访问） -->
-        <el-menu-item index="/ai-subscription">
+        <!-- AI 订阅 - 根据权限显示 -->
+        <el-menu-item index="/ai-subscription" v-if="userStore.hasPermission('ai-subscription:view')">
           <el-icon><Cpu /></el-icon>
           <span>{{ $t('nav.aiSubscription') }}</span>
         </el-menu-item>

@@ -115,10 +115,19 @@ public class AiAdminController {
         return ApiResponse.success(providerRepository.save(provider));
     }
 
-    @Operation(summary = "删除服务商", description = "删除AI服务商及其关联数据")
+    @Operation(summary = "删除服务商", description = "删除AI服务商及其关联的模型、订阅数据")
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-service:delete')")
     @DeleteMapping("/providers/{id}")
     public ApiResponse<Void> deleteProvider(@PathVariable Long id) {
+        // 1. 删除该服务商下的所有模型
+        List<AiModel> models = modelRepository.findByProviderId(id);
+        modelRepository.deleteAll(models);
+
+        // 2. 删除该服务商下的所有订阅
+        List<AiSubscription> subscriptions = subscriptionRepository.findByProviderId(id);
+        subscriptionRepository.deleteAll(subscriptions);
+
+        // 3. 删除服务商本身
         providerRepository.deleteById(id);
         return ApiResponse.success();
     }
@@ -144,6 +153,7 @@ public class AiAdminController {
         model.setOutputPrice(dto.getOutputPrice());
         model.setMaxTokens(dto.getMaxTokens());
         model.setSupportsStream(dto.getSupportsStream());
+        model.setAutoMode(dto.getAutoMode() != null ? dto.getAutoMode() : false);
         model.setStatus(dto.getStatus());
         return ApiResponse.success(modelRepository.save(model));
     }
@@ -159,6 +169,7 @@ public class AiAdminController {
         model.setOutputPrice(dto.getOutputPrice());
         model.setMaxTokens(dto.getMaxTokens());
         model.setSupportsStream(dto.getSupportsStream());
+        model.setAutoMode(dto.getAutoMode() != null ? dto.getAutoMode() : false);
         model.setStatus(dto.getStatus());
         return ApiResponse.success(modelRepository.save(model));
     }
@@ -315,17 +326,18 @@ public class AiAdminController {
             @RequestParam(required = false) Long userId) {
         List<AiSubscription> subs;
         if (userId != null) {
-            subs = subscriptionRepository.findByUserIdAndStatusTrue(userId);
+            // 使用 JOIN FETCH 避免 LAZY 加载问题（模型/服务商已删除时不会崩溃）
+            subs = subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(userId);
         } else {
-            subs = subscriptionRepository.findAll();
+            subs = subscriptionRepository.findByStatusTrueWithModelAndProvider();
         }
         List<Map<String, Object>> result = new ArrayList<>();
         for (AiSubscription sub : subs) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", sub.getId());
-            m.put("user", Map.of("id", sub.getUser().getId(), "username", sub.getUser().getUsername()));
-            m.put("provider", Map.of("id", sub.getProvider().getId(), "name", sub.getProvider().getName(), "code", sub.getProvider().getCode()));
-            m.put("model", Map.of("id", sub.getModel().getId(), "modelName", sub.getModel().getModelName(), "displayName", sub.getModel().getDisplayName()));
+            m.put("user", safeUserRef(sub.getUser()));
+            m.put("provider", safeProviderRef(sub.getProvider()));
+            m.put("model", safeModelRef(sub.getModel()));
             m.put("priority", sub.getPriority());
             m.put("weight", sub.getWeight());
             m.put("tags", sub.getTags());
@@ -336,6 +348,21 @@ public class AiAdminController {
             result.add(m);
         }
         return ApiResponse.success(result);
+    }
+
+    private Map<String, Object> safeUserRef(User user) {
+        if (user == null) return Map.of("id", 0, "username", "未知");
+        return Map.of("id", user.getId(), "username", user.getUsername() != null ? user.getUsername() : "未知");
+    }
+
+    private Map<String, Object> safeProviderRef(AiProvider provider) {
+        if (provider == null) return Map.of("id", 0, "name", "已删除", "code", "");
+        return Map.of("id", provider.getId(), "name", provider.getName() != null ? provider.getName() : "", "code", provider.getCode() != null ? provider.getCode() : "");
+    }
+
+    private Map<String, Object> safeModelRef(AiModel model) {
+        if (model == null) return Map.of("id", 0, "modelName", "已删除", "displayName", "已删除");
+        return Map.of("id", model.getId(), "modelName", model.getModelName() != null ? model.getModelName() : "", "displayName", model.getDisplayName() != null ? model.getDisplayName() : "");
     }
 
     @PostMapping("/subscriptions")
@@ -577,10 +604,11 @@ public class AiAdminController {
         LocalDateTime todayEnd = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59).withNano(999999999);
 
         Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalModels", modelRepository.count());
+        stats.put("totalModels", modelRepository.countByStatusTrue());
         stats.put("totalSubscriptions", subscriptionRepository.count());
         stats.put("totalApiKeys", apiKeyRepository.count());
-        stats.put("todayCalls", usageLogRepository.count());
+        stats.put("todayCalls", usageLogRepository.countByCreateTimeBetween(todayStart, todayEnd));
+        stats.put("totalCalls", usageLogRepository.count());
         return ApiResponse.success(stats);
     }
 

@@ -40,6 +40,13 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column :label="$t('aiService.autoMode')" width="90" align="center">
+        <template #default="{ row }">
+          <el-tag :type="row.autoMode ? 'warning' : 'info'" size="small" effect="plain" round>
+            {{ row.autoMode ? 'Auto' : '—' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column :label="$t('aiService.health')" width="100" align="center">
         <template #default="{ row }">
           <el-tag
@@ -94,6 +101,9 @@
         </el-form-item>
         <el-form-item :label="$t('aiService.maxTokens')">
           <el-input-number v-model="form.maxTokens" :min="1" :max="131072" :step="256" style="width:100%" />
+        </el-form-item>
+        <el-form-item :label="$t('aiService.autoMode')">
+          <el-switch v-model="form.autoMode" />
         </el-form-item>
         <el-form-item :label="$t('aiService.stream')">
           <el-switch v-model="form.supportsStream" />
@@ -176,7 +186,7 @@ const selectedRemoteModels = ref([])
 
 const form = ref({
   modelName: '', displayName: '', inputPrice: null, outputPrice: null,
-  maxTokens: 4096, supportsStream: true, status: true
+  maxTokens: 4096, supportsStream: true, autoMode: false, status: true
 })
 
 // 与已有模型对比，显示已存在列表
@@ -189,7 +199,7 @@ const alreadyExist = computed(() => {
 function resetForm() {
   form.value = {
     modelName: '', displayName: '', inputPrice: null, outputPrice: null,
-    maxTokens: 4096, supportsStream: true, status: true
+    maxTokens: 4096, supportsStream: true, autoMode: false, status: true
   }
 }
 
@@ -295,7 +305,7 @@ function editModel(row) {
     modelName: row.modelName, displayName: row.displayName || '',
     inputPrice: row.inputPrice, outputPrice: row.outputPrice,
     maxTokens: row.maxTokens || 4096, supportsStream: row.supportsStream,
-    status: row.status
+    autoMode: row.autoMode || false, status: row.status
   }
   dialogVisible.value = true
 }

@@ -25,6 +25,10 @@
         <h2>{{ $t('aiService.title') }}</h2>
         <p>{{ $t('aiService.description') }}</p>
       </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">{{ totalCalls }}</div>
+        <div class="hero-stat-label">{{ $t('aiService.totalCalls') }}</div>
+      </div>
     </div>
 
     <div class="content-wrapper" v-loading="pageLoading">
@@ -83,6 +87,7 @@ const { t } = useI18n()
 
 const activeTab = ref('providers')
 const pageLoading = ref(false)
+const totalCalls = ref(0)
 
 // 子面板引用
 const providersRef = ref(null)
@@ -125,6 +130,7 @@ async function loadStats() {
       statsCards.value[1].value = d.totalSubscriptions || 0
       statsCards.value[2].value = d.totalApiKeys || 0
       statsCards.value[3].value = d.todayCalls || 0
+      totalCalls.value = d.totalCalls || 0
       statsCards.value[0].label = t('aiService.totalModels')
       statsCards.value[1].label = t('aiService.totalSubscriptions')
       statsCards.value[2].label = t('aiService.totalApiKeys')
@@ -228,7 +234,30 @@ onUnmounted(() => {
   z-index: 1;
 }
 
-.hero-text { z-index: 1; }
+.hero-text { z-index: 1; flex: 1; }
+
+.hero-stat {
+  z-index: 1;
+  text-align: right;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+  min-width: 120px;
+}
+
+.hero-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.hero-stat-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  margin-top: 2px;
+}
 
 .hero-text h2 {
   margin: 0 0 4px;

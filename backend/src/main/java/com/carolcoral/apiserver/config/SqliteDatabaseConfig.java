@@ -7,19 +7,27 @@
 package com.carolcoral.apiserver.config;
 
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
 
+import javax.sql.DataSource;
 import java.io.File;
+import java.sql.Connection;
+import java.sql.Statement;
 
 /**
- * SQLite数据库配置 - 自动创建数据库目录
+ * SQLite数据库配置 - 自动创建数据库目录并启用 WAL 模式
  *
  * @author carolcoral
  */
 @Configuration
 public class SqliteDatabaseConfig implements InitializingBean {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SqliteDatabaseConfig.class);
+
+    @Autowired
+    private DataSource dataSource;
 
     // 从系统属性（由.env文件加载）获取配置
     private String sqliteUrl = System.getProperty("DB_URL", "jdbc:sqlite:./data/api-server.db");
@@ -40,6 +48,23 @@ public class SqliteDatabaseConfig implements InitializingBean {
             log.info("数据库和日志目录初始化完成");
         } catch (Exception e) {
             log.error("初始化目录失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 应用启动后启用 SQLite WAL 模式和并发优化。
+     * WAL (Write-Ahead Logging) 允许并发读取不被写入阻塞，大幅降低 SQLITE_BUSY。
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void enableWalMode() {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA journal_mode=WAL");
+            stmt.execute("PRAGMA busy_timeout=5000");
+            stmt.execute("PRAGMA synchronous=NORMAL");
+            log.info("SQLite WAL 模式已启用 (journal_mode=WAL, busy_timeout=5000, synchronous=NORMAL)");
+        } catch (Exception e) {
+            log.error("启用 SQLite WAL 模式失败: {}", e.getMessage(), e);
         }
     }
 

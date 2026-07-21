@@ -7,7 +7,11 @@
 package com.carolcoral.apiserver.service;
 
 import com.carolcoral.apiserver.entity.AiConfig;
+import com.carolcoral.apiserver.entity.AiModel;
+import com.carolcoral.apiserver.entity.AiProvider;
 import com.carolcoral.apiserver.repository.AiConfigRepository;
+import com.carolcoral.apiserver.repository.AiModelRepository;
+import com.carolcoral.apiserver.repository.AiProviderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -33,6 +37,12 @@ public class AiConfigService {
 
     @Autowired
     private AiConfigRepository aiConfigRepository;
+
+    @Autowired
+    private AiProviderRepository providerRepository;
+
+    @Autowired
+    private AiModelRepository modelRepository;
 
     /**
      * 获取所有 AI 配置
@@ -70,37 +80,114 @@ public class AiConfigService {
         return aiConfigRepository.findByProvider(provider).orElse(null);
     }
 
-    /**
-     * 保存或更新 AI 配置
-     */
     @Transactional
     public AiConfig saveConfig(AiConfig config) {
         // 标准化 API 地址，避免包含非标准路径后缀
         if (config.getApiUrl() != null) {
             config.setApiUrl(normalizeApiUrl(config.getApiUrl()));
         }
-        AiConfig existing = aiConfigRepository.findByProvider(config.getProvider()).orElse(null);
-        if (existing != null) {
-            existing.setProviderName(config.getProviderName());
-            existing.setApiUrl(config.getApiUrl());
-            existing.setApiKey(config.getApiKey());
-            existing.setDefaultModel(config.getDefaultModel());
-            existing.setMaxTokens(config.getMaxTokens());
-            existing.setTemperature(config.getTemperature());
-            existing.setTimeout(config.getTimeout());
-            existing.setEnabled(config.getEnabled());
-            existing.setModels(config.getModels());
-            // 只有通过 setDefault 接口设置，保存时不自动设置
-            if (Boolean.TRUE.equals(config.getIsDefault())) {
-                existing.setIsDefault(true);
+        // 有 id 按 id 更新，否则新建（不再按 provider 查找，避免同一 provider 多条配置被覆盖）
+        AiConfig saved;
+        if (config.getId() != null) {
+            AiConfig existing = aiConfigRepository.findById(config.getId()).orElse(null);
+            if (existing != null) {
+                existing.setProvider(config.getProvider());
+                existing.setProviderName(config.getProviderName());
+                existing.setApiUrl(config.getApiUrl());
+                existing.setApiKey(config.getApiKey());
+                existing.setDefaultModel(config.getDefaultModel());
+                existing.setMaxTokens(config.getMaxTokens());
+                existing.setTemperature(config.getTemperature());
+                existing.setTimeout(config.getTimeout());
+                existing.setEnabled(config.getEnabled());
+                existing.setModels(config.getModels());
+                // 只有通过 setDefault 接口设置，保存时不自动设置
+                if (Boolean.TRUE.equals(config.getIsDefault())) {
+                    existing.setIsDefault(true);
+                }
+                saved = aiConfigRepository.save(existing);
+            } else {
+                saved = aiConfigRepository.save(config);
             }
-            AiConfig saved = aiConfigRepository.save(existing);
-            ensureDefaultConfig();
-            return saved;
+        } else {
+            saved = aiConfigRepository.save(config);
         }
-        AiConfig saved = aiConfigRepository.save(config);
         ensureDefaultConfig();
+
+        // 同步到 AI 服务管理表，确保 OpenAI 兼容接口和 auto 模式有具体模型可用
+        syncToAiProviderAndModels(saved);
+
         return saved;
+    }
+
+    /**
+     * 将 AI 配置同步到 AiProvider/AiModel，使外部订阅和 auto 模式能选择到具体模型
+     */
+    private void syncToAiProviderAndModels(AiConfig config) {
+        if (!Boolean.TRUE.equals(config.getEnabled()) || config.getProvider() == null || config.getProvider().isBlank()) {
+            return;
+        }
+
+        String code = config.getProvider();
+
+        // 查找或创建服务商
+        AiProvider provider = providerRepository.findByCode(code).orElse(null);
+        if (provider == null) {
+            provider = new AiProvider();
+            provider.setCode(code);
+            provider.setName(config.getProviderName() != null ? config.getProviderName() : code);
+            provider.setBaseUrl(config.getApiUrl());
+            provider.setApiType(code);
+            provider.setAuthType("bearer");
+            provider.setApiKey(config.getApiKey());
+            provider.setStatus(true);
+        } else {
+            provider.setName(config.getProviderName() != null ? config.getProviderName() : provider.getName());
+            provider.setBaseUrl(config.getApiUrl());
+            provider.setApiKey(config.getApiKey());
+            provider.setStatus(true);
+        }
+        provider = providerRepository.save(provider);
+
+        // 解析模型列表
+        List<String> modelNames = new ArrayList<>();
+        if (config.getDefaultModel() != null && !config.getDefaultModel().isBlank()) {
+            modelNames.add(config.getDefaultModel().trim());
+        }
+        if (config.getModels() != null && !config.getModels().isBlank()) {
+            for (String m : config.getModels().split(",")) {
+                String trimmed = m.trim();
+                if (!trimmed.isEmpty() && !modelNames.contains(trimmed)) {
+                    modelNames.add(trimmed);
+                }
+            }
+        }
+        // 未指定模型时，使用预设默认值
+        if (modelNames.isEmpty()) {
+            Map<String, Map<String, String>> presets = getPresetProviders();
+            Map<String, String> preset = presets.get(code);
+            if (preset != null) {
+                String defaultModel = preset.get("defaultModel");
+                if (defaultModel != null && !defaultModel.isBlank()) {
+                    modelNames.add(defaultModel);
+                }
+            }
+        }
+
+        // 创建不存在的具体模型（非 auto 模式）
+        for (String modelName : modelNames) {
+            if (modelRepository.findByProviderIdAndModelName(provider.getId(), modelName).isEmpty()) {
+                AiModel model = new AiModel();
+                model.setProvider(provider);
+                model.setModelName(modelName);
+                model.setDisplayName(modelName);
+                model.setSupportsStream(true);
+                model.setStatus(true);
+                model.setAutoMode(false);
+                modelRepository.save(model);
+                log.info("从 AI 配置同步创建模型: provider={}, model={}", provider.getName(), modelName);
+            }
+        }
     }
 
     /**
@@ -119,6 +206,15 @@ public class AiConfigService {
         }
         AiConfig saved = aiConfigRepository.save(config);
         ensureDefaultConfig();
+
+        // 同步服务商启用状态
+        if (saved.getProvider() != null) {
+            providerRepository.findByCode(saved.getProvider()).ifPresent(provider -> {
+                provider.setStatus(enabled);
+                providerRepository.save(provider);
+            });
+        }
+
         return saved;
     }
 

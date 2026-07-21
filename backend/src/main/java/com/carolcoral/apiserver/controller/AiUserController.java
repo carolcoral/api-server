@@ -104,6 +104,7 @@ public class AiUserController {
             item.put("inputPrice", m.getInputPrice());
             item.put("outputPrice", m.getOutputPrice());
             item.put("supportsStream", m.getSupportsStream());
+            item.put("autoMode", m.getAutoMode());
             item.put("healthStatus", m.getHealthStatus());
             item.put("providerName", m.getProvider().getName());
             item.put("subscriberCount", subscriptionRepository.countByModelIdAndStatusTrue(m.getId()));
@@ -119,18 +120,21 @@ public class AiUserController {
     @PreAuthorize("hasAuthority('ai-subscription:view')")
     public ApiResponse<List<Map<String, Object>>> listMySubscriptions() {
         User user = getCurrentUser();
-        List<AiSubscription> subs = subscriptionRepository.findByUserIdAndStatusTrue(user.getId());
+        // 使用 JOIN FETCH 避免模型/服务商 LAZY 加载时因删除导致崩溃
+        List<AiSubscription> subs = subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(user.getId());
         List<Map<String, Object>> result = new ArrayList<>();
         for (AiSubscription sub : subs) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", sub.getId());
-            m.put("providerName", sub.getProvider().getName());
-            m.put("providerCode", sub.getProvider().getCode());
-            m.put("modelName", sub.getModel().getModelName());
-            m.put("displayName", sub.getModel().getDisplayName());
-            m.put("maxTokens", sub.getModel().getMaxTokens());
-            m.put("inputPrice", sub.getModel().getInputPrice());
-            m.put("outputPrice", sub.getModel().getOutputPrice());
+            m.put("modelId", sub.getModel() != null ? sub.getModel().getId() : null);
+            m.put("providerName", sub.getProvider() != null ? sub.getProvider().getName() : "已删除");
+            m.put("providerCode", sub.getProvider() != null ? sub.getProvider().getCode() : "");
+            m.put("modelName", sub.getModel() != null ? sub.getModel().getModelName() : "已删除");
+            m.put("displayName", sub.getModel() != null ? sub.getModel().getDisplayName() : "已删除");
+            m.put("autoMode", sub.getModel() != null ? sub.getModel().getAutoMode() : false);
+            m.put("maxTokens", sub.getModel() != null ? sub.getModel().getMaxTokens() : null);
+            m.put("inputPrice", sub.getModel() != null ? sub.getModel().getInputPrice() : null);
+            m.put("outputPrice", sub.getModel() != null ? sub.getModel().getOutputPrice() : null);
             m.put("priority", sub.getPriority());
             m.put("weight", sub.getWeight());
             m.put("tags", sub.getTags());
@@ -150,6 +154,12 @@ public class AiUserController {
         User user = getCurrentUser();
         Long modelId = ((Number) body.get("modelId")).longValue();
 
+        // 处理虚拟自动模式订阅（modelId = -1）
+        if (modelId == -1) {
+            Long providerId = ((Number) body.get("providerId")).longValue();
+            return subscribeAutoMode(user, providerId);
+        }
+
         AiModel model = modelRepository.findById(modelId)
                 .orElseThrow(() -> new RuntimeException("模型不存在"));
 
@@ -159,6 +169,25 @@ public class AiUserController {
 
         if (subscriptionRepository.existsByUserIdAndModelId(user.getId(), modelId)) {
             return ApiResponse.error("您已订阅此模型");
+        }
+
+        // 检查互斥：自动模式与指定模型不能同时订阅
+        List<AiSubscription> existingSubs = subscriptionRepository.findByUserIdAndStatusTrue(user.getId());
+        boolean isAutoModeModel = model.getAutoMode() != null && model.getAutoMode();
+        if (isAutoModeModel) {
+            // 订阅自动模式时，检查是否已有指定模型订阅
+            boolean hasSpecificModel = existingSubs.stream()
+                    .anyMatch(s -> s.getModel().getAutoMode() == null || !s.getModel().getAutoMode());
+            if (hasSpecificModel) {
+                return ApiResponse.error("您已订阅指定模型，无法订阅自动模式。请先取消所有指定模型订阅。");
+            }
+        } else {
+            // 订阅指定模型时，检查是否已有自动模式订阅
+            boolean hasAutoMode = existingSubs.stream()
+                    .anyMatch(s -> s.getModel().getAutoMode() != null && s.getModel().getAutoMode());
+            if (hasAutoMode) {
+                return ApiResponse.error("您已订阅自动模式，无法订阅指定模型。请先取消自动模式订阅。");
+            }
         }
 
         AiSubscription sub = new AiSubscription();
@@ -175,6 +204,73 @@ public class AiUserController {
         result.put("id", sub.getId());
         result.put("message", "订阅成功");
         return ApiResponse.success(result);
+    }
+
+    /**
+     * 订阅自动模式（虚拟选项）
+     */
+    private ApiResponse<Map<String, Object>> subscribeAutoMode(User user, Long providerId) {
+        // 检查是否已有指定模型订阅
+        List<AiSubscription> existingSubs = subscriptionRepository.findByUserIdAndStatusTrue(user.getId());
+        boolean hasSpecificModel = existingSubs.stream()
+                .anyMatch(s -> s.getModel().getAutoMode() == null || !s.getModel().getAutoMode());
+        if (hasSpecificModel) {
+            return ApiResponse.error("您已订阅指定模型，无法订阅自动模式。请先取消所有指定模型订阅。");
+        }
+
+        // 检查是否已有自动模式订阅
+        boolean hasAutoMode = existingSubs.stream()
+                .anyMatch(s -> s.getModel().getAutoMode() != null && s.getModel().getAutoMode());
+        if (hasAutoMode) {
+            return ApiResponse.error("您已订阅自动模式，无需重复订阅。");
+        }
+
+        // 查找或创建自动模式模型
+        AiModel autoModeModel = findOrCreateAutoModeModel(providerId);
+
+        AiSubscription sub = new AiSubscription();
+        sub.setUser(user);
+        sub.setProvider(autoModeModel.getProvider());
+        sub.setModel(autoModeModel);
+        sub.setPriority(0);
+        sub.setWeight(1);
+        sub.setFallbackEnabled(true);
+        sub.setStatus(true);
+        sub = subscriptionRepository.save(sub);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", sub.getId());
+        result.put("message", "自动模式订阅成功");
+        return ApiResponse.success(result);
+    }
+
+    /**
+     * 查找或创建自动模式模型
+     */
+    private AiModel findOrCreateAutoModeModel(Long providerId) {
+        // 查找现有自动模式模型
+        List<AiModel> models = modelRepository.findByProviderId(providerId);
+        AiModel autoModeModel = models.stream()
+                .filter(m -> m.getAutoMode() != null && m.getAutoMode())
+                .findFirst()
+                .orElse(null);
+
+        if (autoModeModel == null) {
+            // 创建自动模式模型
+            AiProvider provider = providerRepository.findById(providerId)
+                    .orElseThrow(() -> new RuntimeException("服务商不存在"));
+
+            autoModeModel = new AiModel();
+            autoModeModel.setProvider(provider);
+            autoModeModel.setModelName("auto");
+            autoModeModel.setDisplayName("Auto Mode");
+            autoModeModel.setAutoMode(true);
+            autoModeModel.setStatus(true);
+            autoModeModel.setSupportsStream(true);
+            autoModeModel = modelRepository.save(autoModeModel);
+        }
+
+        return autoModeModel;
     }
 
     @DeleteMapping("/subscriptions/{id}")

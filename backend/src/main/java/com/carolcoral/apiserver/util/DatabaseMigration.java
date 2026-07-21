@@ -127,6 +127,7 @@ public class DatabaseMigration implements CommandLineRunner {
             "cooldown_until DATETIME," +
             "consecutive_failures INTEGER NOT NULL DEFAULT 0," +
             "avg_latency_ms BIGINT," +
+            "auto_mode BOOLEAN NOT NULL DEFAULT 0," +
             "status BOOLEAN NOT NULL DEFAULT 1," +
             "create_time DATETIME NOT NULL," +
             "update_time DATETIME NOT NULL," +
@@ -211,6 +212,9 @@ public class DatabaseMigration implements CommandLineRunner {
 
         // 添加timeout字段到t_ai_config表
         safeAlter("ALTER TABLE t_ai_config ADD COLUMN timeout INTEGER DEFAULT 120", "timeout");
+
+        // t_ai_model 新增 auto_mode 字段
+        safeAlter("ALTER TABLE t_ai_model ADD COLUMN auto_mode BOOLEAN DEFAULT 0", "auto_mode");
 
         // 请求录制与回放 - t_request_log 新增字段
         safeAlter("ALTER TABLE t_request_log ADD COLUMN request_headers TEXT", "request_headers");
@@ -359,6 +363,7 @@ public class DatabaseMigration implements CommandLineRunner {
             "cooldown_until " + dialect.dateTimeType() + "," +
             "consecutive_failures INTEGER NOT NULL DEFAULT 0," +
             "avg_latency_ms BIGINT," +
+            "auto_mode " + dialect.booleanType() + " NOT NULL DEFAULT " + dialect.booleanLiteral(false) + "," +
             "status " + dialect.booleanType() + " NOT NULL DEFAULT " + dialect.booleanLiteral(true) + "," +
             "create_time " + dialect.dateTimeType() + " NOT NULL," +
             "update_time " + dialect.dateTimeType() + " NOT NULL," +

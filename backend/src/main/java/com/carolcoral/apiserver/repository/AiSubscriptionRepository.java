@@ -31,4 +31,15 @@ public interface AiSubscriptionRepository extends JpaRepository<AiSubscription, 
     boolean existsByUserIdAndModelId(Long userId, Long modelId);
 
     List<AiSubscription> findByStatusTrue();
+
+    List<AiSubscription> findByProviderId(Long providerId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM AiSubscription s JOIN FETCH s.model m JOIN FETCH s.provider WHERE s.status = true")
+    List<AiSubscription> findByStatusTrueWithModelAndProvider();
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM AiSubscription s JOIN FETCH s.model m JOIN FETCH s.provider WHERE s.user.id = :userId AND s.status = true")
+    List<AiSubscription> findByUserIdAndStatusTrueWithModelAndProvider(Long userId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM AiSubscription s JOIN FETCH s.model m JOIN FETCH s.provider WHERE s.user.id = :userId AND s.status = true AND s.fallbackEnabled = true")
+    List<AiSubscription> findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(Long userId);
 }

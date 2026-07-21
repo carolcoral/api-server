@@ -77,6 +77,32 @@ public class AiUsageService {
     }
 
     /**
+     * 记录流式调用成功（SSE 无 ChatCompletionResponse，记录解析/估算后的 token）。
+     * 不使用独立事务，避免与调用方事务冲突（SQLite 单连接限制）。
+     */
+    @Transactional
+    public void logStreamSuccess(User user, AiProvider provider, AiModel model,
+                                  String requestBody, int promptTokens, int completionTokens,
+                                  int totalTokens, long latencyMs, double cost) {
+        try {
+            AiUsageLog logEntry = new AiUsageLog();
+            logEntry.setUser(user);
+            logEntry.setProvider(provider);
+            logEntry.setModel(model);
+            logEntry.setRequestBody(truncate(requestBody));
+            logEntry.setStatusCode(200);
+            logEntry.setLatencyMs(latencyMs);
+            logEntry.setPromptTokens(promptTokens);
+            logEntry.setCompletionTokens(completionTokens);
+            logEntry.setTotalTokens(totalTokens);
+            logEntry.setCost(cost);
+            usageLogRepository.save(logEntry);
+        } catch (Exception e) {
+            log.error("记录流式 AI 调用日志失败: {}", e.getMessage());
+        }
+    }
+
+    /**
      * 记录失败调用
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)

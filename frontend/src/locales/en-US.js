@@ -1404,7 +1404,10 @@ export default {
     createKey: 'Create API Key',
     createTime: 'Created At',
     deleteKeyConfirm: 'Are you sure you want to delete this API Key? This cannot be undone.',
-    deleteKeySuccess: 'API Key deleted'
+    deleteKeySuccess: 'API Key deleted',
+    availableServices: 'Available Services',
+    availableProviders: 'Providers',
+    availableModelsList: 'Available Models'
   },
 
   // AI Service Management
@@ -1415,6 +1418,7 @@ export default {
     totalSubscriptions: 'Total Subscriptions',
     totalApiKeys: 'API Keys',
     todayCalls: 'Today Calls',
+    totalCalls: 'Total Calls',
     providers: 'Providers',
     models: 'Models',
     subscriptions: 'Subscriptions',
@@ -1454,6 +1458,12 @@ export default {
     outputPrice: 'Output Price',
     maxTokens: 'Max Tokens',
     stream: 'Stream',
+    autoMode: 'Auto Mode',
+    autoModeDesc: 'Auto Mode: The system will intelligently select the best model from all your subscriptions and automatically switch on failure',
+    autoModeExclusive: 'Auto Mode is mutually exclusive with specific models',
+    autoModeExclusiveDesc: 'You have subscribed to Auto Mode and cannot subscribe to specific models. Please unsubscribe from Auto Mode first.',
+    specificModelExclusive: 'Specific models already subscribed',
+    specificModelExclusiveDesc: 'You have subscribed to specific models and cannot subscribe to Auto Mode. Please unsubscribe from all specific models first.',
     health: 'Health',
     online: 'Online',
     offline: 'Offline',

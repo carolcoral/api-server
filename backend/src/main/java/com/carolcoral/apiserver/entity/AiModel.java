@@ -58,6 +58,9 @@ public class AiModel {
     private Long avgLatencyMs;
 
     @Column(nullable = false)
+    private Boolean autoMode = false;
+
+    @Column(nullable = false)
     private Boolean status = true;
 
     @Column(nullable = false, updatable = false)
@@ -96,6 +99,8 @@ public class AiModel {
     public void setMaxTokens(Integer maxTokens) { this.maxTokens = maxTokens; }
     public Boolean getSupportsStream() { return supportsStream; }
     public void setSupportsStream(Boolean supportsStream) { this.supportsStream = supportsStream; }
+    public Boolean getAutoMode() { return autoMode; }
+    public void setAutoMode(Boolean autoMode) { this.autoMode = autoMode; }
     public String getHealthStatus() { return healthStatus; }
     public void setHealthStatus(String healthStatus) { this.healthStatus = healthStatus; }
     public LocalDateTime getLastHealthCheck() { return lastHealthCheck; }

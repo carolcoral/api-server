@@ -13,6 +13,7 @@ import com.carolcoral.apiserver.repository.AiModelRepository;
 import com.carolcoral.apiserver.repository.AiSubscriptionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -58,10 +59,10 @@ public class AiModelSelector {
     }
 
     /**
-     * 获取所有启用状态的订阅（不检查健康状态，用于内部路由）
+     * 获取所有启用状态的订阅（不检查健康状态，用于内部路由，JOIN FETCH 避免 LAZY 问题）
      */
     public List<AiSubscription> getAllEnabledSubscriptionsIgnoreHealth() {
-        return subscriptionRepository.findByStatusTrue();
+        return subscriptionRepository.findByStatusTrueWithModelAndProvider();
     }
 
     /**
@@ -72,13 +73,40 @@ public class AiModelSelector {
      * @return 排序后的候选模型列表（排第一的为推荐模型）
      */
     public List<AiSubscription> selectModels(Long userId, String fallbackStrategy) {
-        List<AiSubscription> subscriptions = subscriptionRepository
-                .findByUserIdAndStatusTrueAndFallbackEnabledTrue(userId);
+        // 检查用户是否订阅了自动模式（使用 JOIN FETCH 加载 model 和 provider）
+        List<AiSubscription> userSubs = subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(userId);
+        boolean hasAutoMode = userSubs.stream()
+                .anyMatch(sub -> sub.getModel().getAutoMode() != null && sub.getModel().getAutoMode());
 
-        // 过滤不可用模型
-        subscriptions = subscriptions.stream()
-                .filter(sub -> isModelAvailable(sub.getModel()))
-                .collect(Collectors.toList());
+        List<AiSubscription> subscriptions;
+
+        if (hasAutoMode) {
+            // 自动模式：从所有可用模型中选择（全局）
+            List<AiModel> allModels = modelRepository.findByStatusTrueWithProvider();
+            subscriptions = allModels.stream()
+                    .filter(this::isModelAvailable)
+                    .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
+                    .map(m -> {
+                        AiSubscription virtualSub = new AiSubscription();
+                        virtualSub.setModel(m);
+                        virtualSub.setProvider(m.getProvider());
+                        virtualSub.setPriority(0);
+                        virtualSub.setWeight(1);
+                        virtualSub.setFallbackEnabled(true);
+                        return virtualSub;
+                    })
+                    .collect(Collectors.toList());
+        } else {
+            // 普通模式：从用户订阅中选择（使用 JOIN FETCH 加载 model 和 provider）
+            subscriptions = subscriptionRepository
+                    .findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(userId);
+
+            // 过滤不可用模型 和 autoMode 模型（自动模式本身不应作为候选）
+            subscriptions = subscriptions.stream()
+                    .filter(sub -> isModelAvailable(sub.getModel()))
+                    .filter(sub -> sub.getModel().getAutoMode() == null || !sub.getModel().getAutoMode())
+                    .collect(Collectors.toList());
+        }
 
         if (subscriptions.isEmpty()) {
             log.warn("用户 {} 没有可用的 AI 模型", userId);
@@ -101,6 +129,7 @@ public class AiModelSelector {
                 break;
             case "priority":
             default:
+                // 普通模式下按优先级排序，自动模式下所有虚拟订阅优先级相同
                 subscriptions.sort(Comparator.comparingInt(AiSubscription::getPriority));
                 break;
         }
@@ -109,11 +138,11 @@ public class AiModelSelector {
     }
 
     /**
-     * 根据模型名查找订阅
+     * 根据模型名查找订阅（使用 JOIN FETCH 加载 model 和 provider）
      */
     public Optional<AiSubscription> findSubscription(Long userId, String modelName) {
         List<AiSubscription> subs = subscriptionRepository
-                .findByUserIdAndStatusTrue(userId);
+                .findByUserIdAndStatusTrueWithModelAndProvider(userId);
         return subs.stream()
                 .filter(sub -> sub.getModel().getModelName().equals(modelName)
                         && sub.getModel().getStatus())
@@ -146,9 +175,26 @@ public class AiModelSelector {
     }
 
     /**
-     * 标记模型调用失败
+     * 标记模型调用失败（同步版本，兼容旧代码）
      */
     public void markModelFailure(AiModel model) {
+        markModelFailureAsync(model.getId());
+    }
+
+    /**
+     * 标记模型调用成功（同步版本，兼容旧代码）
+     */
+    public void markModelSuccess(AiModel model, long latencyMs) {
+        markModelSuccessAsync(model.getId(), latencyMs);
+    }
+
+    /**
+     * 异步标记模型调用失败，避免流式请求事务中写库导致 SQLITE_BUSY
+     */
+    @Async("taskExecutor")
+    public void markModelFailureAsync(Long modelId) {
+        AiModel model = modelRepository.findById(modelId).orElse(null);
+        if (model == null) return;
         int failures = model.getConsecutiveFailures() + 1;
         model.setConsecutiveFailures(failures);
         model.setHealthStatus("degraded");
@@ -162,9 +208,12 @@ public class AiModelSelector {
     }
 
     /**
-     * 标记模型调用成功
+     * 异步标记模型调用成功，避免流式请求事务中写库导致 SQLITE_BUSY
      */
-    public void markModelSuccess(AiModel model, long latencyMs) {
+    @Async("taskExecutor")
+    public void markModelSuccessAsync(Long modelId, long latencyMs) {
+        AiModel model = modelRepository.findById(modelId).orElse(null);
+        if (model == null) return;
         model.setConsecutiveFailures(0);
         model.setHealthStatus("online");
         model.setCooldownUntil(null);

@@ -31,6 +31,7 @@ public class AiModelDTO {
     private Double outputPrice;
     private Integer maxTokens;
     private Boolean supportsStream = true;
+    private Boolean autoMode = false;
     private Boolean status = true;
 
     public Long getId() { return id; }
@@ -49,6 +50,8 @@ public class AiModelDTO {
     public void setMaxTokens(Integer maxTokens) { this.maxTokens = maxTokens; }
     public Boolean getSupportsStream() { return supportsStream; }
     public void setSupportsStream(Boolean supportsStream) { this.supportsStream = supportsStream; }
+    public Boolean getAutoMode() { return autoMode; }
+    public void setAutoMode(Boolean autoMode) { this.autoMode = autoMode; }
     public Boolean getStatus() { return status; }
     public void setStatus(Boolean status) { this.status = status; }
 }

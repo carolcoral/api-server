@@ -1435,7 +1435,10 @@ export default {
     createKey: '创建 API Key',
     createTime: '创建时间',
     deleteKeyConfirm: '确定要删除此 API Key 吗？删除后无法恢复',
-    deleteKeySuccess: 'API Key 已删除'
+    deleteKeySuccess: 'API Key 已删除',
+    availableServices: '可用服务',
+    availableProviders: '服务商',
+    availableModelsList: '可用模型'
   },
 
   // AI 服务管理
@@ -1447,6 +1450,7 @@ export default {
     totalSubscriptions: '订阅总数',
     totalApiKeys: 'API Key 数',
     todayCalls: '今日调用',
+    totalCalls: '总调用次数',
     // Tab
     providers: '服务商',
     models: '模型',
@@ -1490,6 +1494,12 @@ export default {
     outputPrice: '输出价格',
     maxTokens: '支持上下文',
     stream: '流式',
+    autoMode: '自动模式',
+    autoModeDesc: '自动模式：订阅后将自动从您所有已订阅的模型中智能选择最优模型调用，并支持故障自动切换',
+    autoModeExclusive: '自动模式与指定模型互斥',
+    autoModeExclusiveDesc: '您已订阅自动模式，无法再订阅指定模型。如需订阅指定模型，请先取消自动模式订阅。',
+    specificModelExclusive: '已订阅指定模型',
+    specificModelExclusiveDesc: '您已订阅指定模型，无法再订阅自动模式。如需使用自动模式，请先取消所有指定模型订阅。',
     health: '健康状态',
     online: '在线',
     offline: '离线',
