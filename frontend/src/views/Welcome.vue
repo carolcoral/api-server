@@ -163,16 +163,13 @@ import {
   ArrowRight,
   Connection,
   EditPen,
-  TrendCharts,
   Upload,
-  Document,
   UserFilled,
   ChatDotSquare,
   MagicStick,
   Cpu,
   DataAnalysis,
-  DocumentCopy,
-  Monitor
+  VideoCamera
 } from '@element-plus/icons-vue'
 
 const { t, locale } = useI18n()
@@ -214,7 +211,7 @@ const welcomeBadge = computed(() => {
 // ========== 核心数据 ==========
 const stats = computed(() => [
   { value: 9, suffix: '', label: t('welcome.ms_statsItem1') },
-  { value: 30, suffix: '+', label: t('welcome.ms_statsItem2') },
+  { value: 60, suffix: '+', label: t('welcome.ms_statsItem2') },
   { value: 3, suffix: '', label: t('welcome.ms_statsItem3') },
   { value: 12, suffix: '+', label: t('welcome.ms_statsItem4') },
 ])
@@ -244,37 +241,37 @@ const features = [
     bg: 'linear-gradient(135deg, #667eea, #764ba2)'
   },
   {
-    icon: EditPen, titleKey: 'welcome.ms_feature2Title', descKey: 'welcome.ms_feature2Desc',
+    icon: ChatDotSquare, titleKey: 'welcome.ms_feature2Title', descKey: 'welcome.ms_feature2Desc',
     bg: 'linear-gradient(135deg, #f093fb, #f5576c)'
   },
   {
-    icon: MagicStick, titleKey: 'welcome.ms_feature3Title', descKey: 'welcome.ms_feature3Desc',
+    icon: Cpu, titleKey: 'welcome.ms_feature3Title', descKey: 'welcome.ms_feature3Desc',
+    bg: 'linear-gradient(135deg, #a18cd1, #fbc2eb)'
+  },
+  {
+    icon: VideoCamera, titleKey: 'welcome.ms_feature4Title', descKey: 'welcome.ms_feature4Desc',
+    bg: 'linear-gradient(135deg, #4facfe, #00f2fe)'
+  },
+  {
+    icon: MagicStick, titleKey: 'welcome.ms_feature5Title', descKey: 'welcome.ms_feature5Desc',
     descParams: { open: '{{', close: '}}' },
     bg: 'linear-gradient(135deg, #f6d365, #fda085)'
   },
   {
-    icon: Upload, titleKey: 'welcome.ms_feature4Title', descKey: 'welcome.ms_feature4Desc',
-    bg: 'linear-gradient(135deg, #4facfe, #00f2fe)'
-  },
-  {
-    icon: DocumentCopy, titleKey: 'welcome.ms_feature5Title', descKey: 'welcome.ms_feature5Desc',
+    icon: Upload, titleKey: 'welcome.ms_feature6Title', descKey: 'welcome.ms_feature6Desc',
     bg: 'linear-gradient(135deg, #43e97b, #38f9d7)'
   },
   {
-    icon: Cpu, titleKey: 'welcome.ms_feature6Title', descKey: 'welcome.ms_feature6Desc',
-    bg: 'linear-gradient(135deg, #a18cd1, #fbc2eb)'
+    icon: EditPen, titleKey: 'welcome.ms_feature7Title', descKey: 'welcome.ms_feature7Desc',
+    bg: 'linear-gradient(135deg, #fa709a, #fee140)'
   },
   {
-    icon: UserFilled, titleKey: 'welcome.ms_feature7Title', descKey: 'welcome.ms_feature7Desc',
+    icon: UserFilled, titleKey: 'welcome.ms_feature8Title', descKey: 'welcome.ms_feature8Desc',
     bg: 'linear-gradient(135deg, #ff9a9e, #fecfef)'
   },
   {
-    icon: TrendCharts, titleKey: 'welcome.ms_feature8Title', descKey: 'welcome.ms_feature8Desc',
-    bg: 'linear-gradient(135deg, #89f7fe, #66a6ff)'
-  },
-  {
     icon: DataAnalysis, titleKey: 'welcome.ms_feature9Title', descKey: 'welcome.ms_feature9Desc',
-    bg: 'linear-gradient(135deg, #fa709a, #fee140)'
+    bg: 'linear-gradient(135deg, #89f7fe, #66a6ff)'
   },
 ]
 

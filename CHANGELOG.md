@@ -210,6 +210,7 @@ DELETE FROM t_ai_model WHERE provider_id NOT IN (SELECT id FROM t_ai_provider);
 > 💡 MySQL 用户：`INSERT OR IGNORE` → `INSERT IGNORE`，`datetime('now')` → `NOW()`
 > PostgreSQL 用户：`INSERT OR IGNORE` → `INSERT ... ON CONFLICT DO NOTHING`，`datetime('now')` → `NOW()`
 
+## v2.3.3（2026-07-10）
 > Mock 调试面板 · 多 AI 配置切换 · 权限体系全覆盖 · 运维监控 · 权限定义管理 · Actuator 安全加固 · 移动端适配。
 
 ### 🔍 Mock 调试面板
