@@ -9,3 +9,5 @@ branch:
       - name: 同步到 GitHub
         event: web_trigger_sync_to_github
         description: 手动推送当前分支代码到 GitHub 镜像仓库
+        permissions:
+          roles: [owner]
