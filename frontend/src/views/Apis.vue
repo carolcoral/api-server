@@ -714,6 +714,9 @@ const { t } = useI18n()
 const route = useRoute()
 const userStore = useUserStore()
 
+// 基础 URL（协议 + 域名 + 端口），用于生成完整的接口路径
+const baseUrl = window.location.origin
+
 // 权限控制
 const canCreateApi = computed(() => userStore.hasPermission('api:create'))
 const canEditApi = computed(() => userStore.hasPermission('api:edit'))
@@ -1801,7 +1804,7 @@ const handleDelete = async (row) => {
 
 // 复制接口路径（兼容 Chrome 140+ 及非 HTTPS 环境）
 const handleCopyPath = async (row) => {
-  const path = `/api/api-server/${row.project?.code}${row.path}`
+  const path = `${baseUrl}/api/api-server/${row.project?.code}${row.path}`
   try {
     // 优先使用现代 Clipboard API（HTTPS 环境）
     await navigator.clipboard.writeText(path)
