@@ -120,6 +120,29 @@
                   :placeholder="$t('settings.ipWhitelistPlaceholder')"
                 />
               </el-form-item>
+
+              <!-- iframe 嵌入控制（保存后即时生效，无需重启） -->
+              <el-divider content-position="left">
+                <el-tag size="small" type="info">iframe</el-tag>
+                {{ $t('settings.iframeEmbedding') }}
+              </el-divider>
+              <el-form-item :label="$t('settings.iframeEmbedding')">
+                <el-radio-group v-model="securitySettings.iframeMode">
+                  <el-radio value="disable">{{ $t('settings.iframeModeDisable') }}</el-radio>
+                  <el-radio value="whitelist">{{ $t('settings.iframeModeWhitelist') }}</el-radio>
+                  <el-radio value="allowAll">{{ $t('settings.iframeModeAllowAll') }}</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item v-if="securitySettings.iframeMode === 'whitelist'" :label="$t('settings.iframeAllowedOrigins')">
+                <el-input
+                  v-model="securitySettings.iframeAllowedOrigins"
+                  type="textarea"
+                  :rows="4"
+                  :placeholder="$t('settings.iframeAllowedOriginsPlaceholder')"
+                />
+                <div class="iframe-hint">{{ $t('settings.iframeHint') }}</div>
+              </el-form-item>
+
               <el-form-item>
                 <el-button type="primary" @click="saveSecuritySettings" :loading="saving">{{ $t('settings.saveSettings') }}</el-button>
                 <el-button @click="resetSecuritySettings">{{ $t('settings.resetSettings') }}</el-button>
@@ -713,7 +736,10 @@ const securitySettings = reactive({
   maxLoginAttempts: 5,
   lockoutDuration: 15,
   enableIpWhitelist: false,
-  ipWhitelist: ''
+  ipWhitelist: '',
+  // iframe 嵌入控制：disable 禁止 / whitelist 仅放行指定来源 / allowAll 全部放行
+  iframeMode: 'disable',
+  iframeAllowedOrigins: ''
 })
 
 // JWT配置
@@ -863,6 +889,8 @@ const handleMenuSelect = (index) => {
   activeMenu.value = index
   if (index === 'basic') {
     loadBasicConfig()
+  } else if (index === 'security') {
+    loadSecuritySettings()
   } else if (index === 'system') {
     fetchSystemInfo()
     startAutoRefresh()
@@ -906,11 +934,40 @@ const resetBasicSettings = () => {
   ElMessage.info('已重置为默认值')
 }
 
+// 加载安全配置（iframe 嵌入白名单等）
+const loadSecuritySettings = async () => {
+  try {
+    const response = await request.get('/system-config/iframe')
+    if (response.code === 200 && response.data) {
+      const origins = (response.data.iframeAllowedOrigins || '').trim()
+      if (origins === '') {
+        securitySettings.iframeMode = 'disable'
+        securitySettings.iframeAllowedOrigins = ''
+      } else if (origins === '*') {
+        securitySettings.iframeMode = 'allowAll'
+        securitySettings.iframeAllowedOrigins = ''
+      } else {
+        securitySettings.iframeMode = 'whitelist'
+        securitySettings.iframeAllowedOrigins = origins
+      }
+    }
+  } catch (error) {
+    console.error('加载 iframe 白名单配置失败:', error)
+  }
+}
+
 // 保存安全配置
 const saveSecuritySettings = async () => {
   saving.value = true
   try {
-    // TODO: 调用API保存设置
+    // 保存 iframe 嵌入白名单（保存后即时生效，无需重启）
+    const iframeValue = securitySettings.iframeMode === 'allowAll'
+      ? '*'
+      : (securitySettings.iframeMode === 'whitelist'
+          ? (securitySettings.iframeAllowedOrigins || '').trim()
+          : '')
+    await request.post('/system-config/iframe', { iframeAllowedOrigins: iframeValue })
+    // TODO: 调用API保存其他安全设置（密码强度、登录锁定等）
     await new Promise(resolve => setTimeout(resolve, 500))
     ElMessage.success(t('settings.settingsSaved'))
   } catch (error) {
@@ -932,6 +989,8 @@ const resetSecuritySettings = () => {
   securitySettings.lockoutDuration = 15
   securitySettings.enableIpWhitelist = false
   securitySettings.ipWhitelist = ''
+  securitySettings.iframeMode = 'disable'
+  securitySettings.iframeAllowedOrigins = ''
   ElMessage.info(t('settings.settingsReset'))
 }
 
@@ -1668,6 +1727,13 @@ h2 {
   width: 28px;
   height: 28px;
   display: block;
+}
+
+.iframe-hint {
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.6;
 }
 </style>
 

@@ -13,6 +13,10 @@
           <Refresh :width="'1em'" :height="'1em'" />
           {{ $t('api.refresh') }}
         </el-button>
+        <el-button @click="handleExportMarkdown" :disabled="selectedApis.length === 0" style="margin-right: 10px">
+          <Document :width="'1em'" :height="'1em'" />
+          {{ $t('api.exportMarkdown') }}
+        </el-button>
         <el-button type="primary" @click="handleCreate" v-if="canCreateApi">
           <Plus :width="'1em'" :height="'1em'" />
           {{ $t('api.createApi') }}
@@ -67,7 +71,9 @@
         border
         style="width: 100%"
         :header-cell-style="{ background: '#f5f7fa' }"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" fixed />
         <el-table-column prop="id" label="ID" width="80" fixed />
         <el-table-column prop="project.name" :label="$t('api.project')" min-width="120" show-overflow-tooltip fixed />
         <el-table-column prop="name" :label="$t('api.apiName')" min-width="150" fixed />
@@ -691,6 +697,39 @@
     <el-dialog v-model="templatePreviewDialogVisible" :title="$t('api.previewResult')" width="700px">
       <pre style="margin: 0; background: #f5f7fa; padding: 16px; border-radius: 4px; overflow-x: auto; font-family: monospace; font-size: 13px; line-height: 1.6;" v-text="templatePreviewFormattedResult"></pre>
     </el-dialog>
+
+    <!-- 导出 Markdown 弹窗 -->
+    <el-dialog v-model="exportDialogVisible" :title="$t('api.exportMarkdown')" width="560px" @close="handleExportDialogClose">
+      <div class="export-dialog-body">
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          :title="$t('api.exportMarkdownHint', { count: selectedApis.length })"
+          style="margin-bottom: 16px;"
+        />
+        <el-alert
+          type="info"
+          :closable="false"
+          :title="$t('api.exportMultiResponseHint')"
+          style="margin-bottom: 16px;"
+        />
+        <el-form label-width="100px">
+          <el-form-item :label="$t('api.aiEnhance')">
+            <el-switch v-model="exportAiEnhance" />
+          </el-form-item>
+          <el-form-item v-if="exportAiEnhance">
+            <div class="ai-enhance-tip">{{ $t('api.aiEnhanceTip') }}</div>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="exportDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="exportLoading" @click="handleExportConfirm">
+          {{ exportLoading ? $t('api.exporting') : $t('api.exportConfirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -705,6 +744,7 @@ import { useRoute } from 'vue-router'
 import { getAccessibleProjects, getAllAccessibleProjects } from '@/api/project'
 import { getEnabledTemplatesByProjectId } from '@/api/codeTemplate'
 import { generateMockResponse, generateApiDescriptionStream } from '@/api/ai'
+import { exportMockApisMarkdown } from '@/api/mockApi'
 import { getTemplateFunctions, previewTemplate } from '@/api/mockTemplate'
 import { defineAsyncComponent } from 'vue'
 
@@ -1205,9 +1245,64 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-// 编辑接口
+// 导出 Markdown 相关
+const selectedApis = ref([])
+const exportDialogVisible = ref(false)
+const exportAiEnhance = ref(false)
+const exportLoading = ref(false)
 
-// 编辑接口
+// 表格多选变化
+const handleSelectionChange = (rows) => {
+  selectedApis.value = rows
+}
+
+// 打开导出 Markdown 对话框
+const handleExportMarkdown = () => {
+  if (selectedApis.value.length === 0) {
+    ElMessage.warning(t('api.selectApisFirst'))
+    return
+  }
+  exportAiEnhance.value = false
+  exportDialogVisible.value = true
+}
+
+// 关闭导出对话框
+const handleExportDialogClose = () => {
+  exportLoading.value = false
+}
+
+// 确认导出 Markdown（支持手动控制是否进行 AI 增强）
+const handleExportConfirm = async () => {
+  if (selectedApis.value.length === 0) {
+    ElMessage.warning(t('api.selectApisFirst'))
+    return
+  }
+  const apiIds = selectedApis.value.map(row => row.id)
+  exportLoading.value = true
+  try {
+    const warnings = await exportMockApisMarkdown(apiIds, exportAiEnhance.value)
+    ElMessage.success(t('api.exportSuccess'))
+    exportDialogVisible.value = false
+    // AI 增强存在异常（如 AI 服务不可用、输出不合规）时友好提示，不影响已生成的文档
+    if (warnings && warnings.length > 0) {
+      ElMessageBox.alert(
+        warnings.map(w => `• ${w}`).join('<br/>'),
+        t('api.exportWarningsTitle'),
+        {
+          dangerouslyUseHTMLString: true,
+          type: 'warning',
+          confirmButtonText: t('common.confirm')
+        }
+      )
+    }
+  } catch (error) {
+    console.error('导出 Markdown 失败:', error)
+    ElMessage.error(t('api.exportFailed'))
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 // 下拉菜单操作分发
 const handleApiAction = (command, row) => {
   switch (command) {
@@ -1990,6 +2085,26 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 导出 Markdown 弹窗样式 */
+.export-dialog-body {
+  padding: 4px 0;
+}
+
+.export-dialog-body .el-form-item {
+  margin-bottom: 8px;
+}
+
+.ai-enhance-tip {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.6;
+  background: #f5f7fa;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+  width: 100%;
 }
 
 /* 状态码行背景色 */

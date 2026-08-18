@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  阿里云 Maven 镜像配置
+  用途：解决 Maven Central / spring-release / sonatype 等官方仓库访问被限制（403/401/超时）时的依赖下载问题
+  用法：
+    方式一（推荐，全局生效）：复制到 ~/.m2/settings.xml
+    方式二（仅本次构建）：mvn -s maven-settings.xml clean package -DskipTests -U
+  说明：
+    - 镜像按声明顺序匹配，spring-release/spring-snapshot 走阿里云 Spring 镜像，
+      其余仓库（central/jcenter/sonatype 等）统一走阿里云 public 镜像
+    - 构建时建议加 -U 强制刷新，避免本地残留的失败缓存（.lastUpdated）导致误判
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <mirrors>
+    <!-- 阿里云 Spring 仓库镜像（对应 repo.spring.io/release 与 snapshot） -->
+    <mirror>
+      <id>aliyunspring</id>
+      <name>Aliyun Spring Repository</name>
+      <url>https://maven.aliyun.com/repository/spring</url>
+      <mirrorOf>spring-release,spring-snapshot</mirrorOf>
+    </mirror>
+
+    <!-- 阿里云公共仓库镜像（聚合 Maven Central / JCenter / 部分 Spring Release） -->
+    <mirror>
+      <id>aliyunmaven</id>
+      <name>Aliyun Public Repository</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+
+</settings>

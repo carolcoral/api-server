@@ -7,6 +7,7 @@
 package com.carolcoral.apiserver.config;
 
 import com.carolcoral.apiserver.dto.ApiResponse;
+import com.carolcoral.apiserver.filter.FrameOptionsHeaderFilter;
 import com.carolcoral.apiserver.service.MockService;
 import com.carolcoral.apiserver.service.SystemConfigService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,6 +72,42 @@ public class SystemConfigController {
         config.setSiteBaseUrl(systemConfigService.getConfig("siteBaseUrl"));
         log.info("获取系统配置 - siteBaseUrl={}", config.getSiteBaseUrl());
         return ApiResponse.success(config);
+    }
+
+    /**
+     * 获取 iframe 嵌入白名单配置
+     * <p>返回允许被 iframe 嵌入的来源配置。空值表示禁止嵌入，* 表示允许所有来源，
+     * 其它为逗号分隔的 Origin 列表。</p>
+     *
+     * @return iframe 白名单配置
+     */
+    @GetMapping("/iframe")
+    @Operation(summary = "获取 iframe 嵌入白名单配置")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:security')")
+    public ApiResponse<Map<String, Object>> getIframeConfig() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("iframeAllowedOrigins", systemConfigService.getConfig(FrameOptionsHeaderFilter.CONFIG_KEY_IFRAME_ALLOWED_ORIGINS));
+        log.info("获取 iframe 白名单配置: {}", result.get("iframeAllowedOrigins"));
+        return ApiResponse.success(result);
+    }
+
+    /**
+     * 保存 iframe 嵌入白名单配置
+     * <p>需要管理员权限。保存后即时生效，无需重启：空值禁止嵌入，* 允许所有来源，
+     * 其它为逗号分隔的允许嵌入的来源（Origin）。</p>
+     *
+     * @param dto iframe 配置DTO，包含 {@code iframeAllowedOrigins} 字段
+     * @return 操作结果
+     */
+    @PostMapping("/iframe")
+    @Operation(summary = "保存 iframe 嵌入白名单配置")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:security')")
+    public ApiResponse<Void> saveIframeConfig(@RequestBody IframeConfigDTO dto) {
+        String value = dto.getIframeAllowedOrigins() != null ? dto.getIframeAllowedOrigins().trim() : "";
+        systemConfigService.saveConfig(FrameOptionsHeaderFilter.CONFIG_KEY_IFRAME_ALLOWED_ORIGINS,
+                value, "允许被 iframe 嵌入的来源（逗号分隔，* 表示全部，空表示禁止）");
+        log.info("管理员更新 iframe 白名单配置: {}", value);
+        return ApiResponse.success();
     }
 
     /**
@@ -438,6 +475,17 @@ class RegistrationConfigDTO {
 
     public String getSiteBaseUrl() { return siteBaseUrl; }
     public void setSiteBaseUrl(String siteBaseUrl) { this.siteBaseUrl = siteBaseUrl; }
+}
+
+/**
+ * iframe 嵌入白名单配置DTO
+ */
+class IframeConfigDTO {
+    /** 允许被 iframe 嵌入的来源（逗号分隔，* 表示全部，空表示禁止） */
+    private String iframeAllowedOrigins;
+
+    public String getIframeAllowedOrigins() { return iframeAllowedOrigins; }
+    public void setIframeAllowedOrigins(String iframeAllowedOrigins) { this.iframeAllowedOrigins = iframeAllowedOrigins; }
 }
 
 /**

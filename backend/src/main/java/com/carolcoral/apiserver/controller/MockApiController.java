@@ -10,12 +10,18 @@ import com.carolcoral.apiserver.dto.ApiResponse;
 import com.carolcoral.apiserver.entity.MockApi;
 import com.carolcoral.apiserver.entity.MockResponse;
 import com.carolcoral.apiserver.plugin.TransformerRegistry;
+import com.carolcoral.apiserver.service.ExportResult;
+import com.carolcoral.apiserver.service.MockApiMarkdownService;
 import com.carolcoral.apiserver.service.MockApiService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +34,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * 自定义接口控制器
@@ -44,13 +53,18 @@ public class MockApiController {
     /**
      * 构造器
      */
-    public MockApiController(MockApiService mockApiService, TransformerRegistry transformerRegistry) {
+    public MockApiController(MockApiService mockApiService, TransformerRegistry transformerRegistry,
+                             MockApiMarkdownService mockApiMarkdownService, ObjectMapper objectMapper) {
         this.mockApiService = mockApiService;
         this.transformerRegistry = transformerRegistry;
+        this.mockApiMarkdownService = mockApiMarkdownService;
+        this.objectMapper = objectMapper;
     }
 
     private final MockApiService mockApiService;
     private final TransformerRegistry transformerRegistry;
+    private final MockApiMarkdownService mockApiMarkdownService;
+    private final ObjectMapper objectMapper;
 
     /**
      * 创建接口
@@ -176,6 +190,63 @@ public class MockApiController {
         log.info("查询所有接口请求: name={}, path={}, method={}, projectId={}, enabled={}, page={}, size={}",
             name, path, method, projectId, enabled, page, size);
         return mockApiService.searchMockApis(name, path, method, projectId, enabled, page, size);
+    }
+
+    /**
+     * 导出接口为 Markdown 文档
+     * <p>
+     * 支持多选接口导出，可通过 aiEnhance 手动控制是否进行 AI 增强；
+     * 无论是否启用 AI 增强，生成内容均严格遵循规定的 Markdown 格式约束。
+     *
+     * @param body { "apiIds": [1, 2, 3], "aiEnhance": true }
+     * @return Markdown 文件流
+     */
+    @Operation(summary = "导出接口为Markdown文档", description = "将选中的多个接口导出为 Markdown 文档，支持手动控制是否进行 AI 增强")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('api:view')")
+    @PostMapping("/export-markdown")
+    public ResponseEntity<byte[]> exportMarkdown(
+            @Parameter(description = "导出请求体，包含 apiIds 接口ID列表和 aiEnhance 是否AI增强") @RequestBody java.util.Map<String, Object> body) {
+        log.info("导出接口 Markdown 请求: {}", body);
+        try {
+            @SuppressWarnings("unchecked")
+            List<Number> apiIdNumbers = (List<Number>) body.get("apiIds");
+            boolean aiEnhance = Boolean.TRUE.equals(body.get("aiEnhance"));
+
+            if (apiIdNumbers == null || apiIdNumbers.isEmpty()) {
+                throw new IllegalArgumentException("请至少选择一个接口");
+            }
+            List<Long> apiIds = new java.util.ArrayList<>();
+            for (Number n : apiIdNumbers) {
+                apiIds.add(n.longValue());
+            }
+
+            ExportResult result = mockApiMarkdownService.exportMarkdown(apiIds, aiEnhance);
+            byte[] bytes = result.getMarkdown().getBytes(StandardCharsets.UTF_8);
+
+            String filename = aiEnhance ? "api-docs-ai-enhanced.md" : "api-docs.md";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("text/markdown; charset=UTF-8"));
+            headers.setContentDispositionFormData("attachment", URLEncoder.encode(filename, StandardCharsets.UTF_8));
+
+            // 将导出过程中产生的警告（如 AI 增强调用异常、输出不合规）通过响应头传递，
+            // 前端可据此弹出友好提示；下载文件的 blob 流程保持不变
+            if (!result.getWarnings().isEmpty()) {
+                try {
+                    String warningsJson = objectMapper.writeValueAsString(result.getWarnings());
+                    headers.add("X-Export-Warnings", URLEncoder.encode(warningsJson, StandardCharsets.UTF_8));
+                } catch (Exception e) {
+                    log.warn("序列化导出警告信息失败: {}", e.getMessage());
+                }
+            }
+
+            return ResponseEntity.ok().headers(headers).body(bytes);
+        } catch (IllegalArgumentException e) {
+            log.warn("导出接口 Markdown 参数错误: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("导出接口 Markdown 失败: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     /**

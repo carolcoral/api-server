@@ -40,7 +40,8 @@ service.interceptors.request.use(
       config.url.includes('/ai/generate-') ||
       config.url.includes('/ai/chat') ||
       config.url.includes('/ai/chat-suggestions') ||
-      config.url.includes('/ai-config/test-connectivity')
+      config.url.includes('/ai-config/test-connectivity') ||
+      config.url.includes('/mock-apis/export-markdown')
     )) {
       config.timeout = getAiTimeout()
     }

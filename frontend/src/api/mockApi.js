@@ -7,6 +7,22 @@
 import request from '@/utils/request'
 
 /**
+ * 触发浏览器下载 blob 数据
+ * @param {Blob} blob 数据
+ * @param {String} filename 文件名
+ */
+function downloadBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+/**
  * 获取接口列表
  * @returns {Promise}
  */
@@ -128,4 +144,35 @@ export function deleteApiResponse(responseId) {
     url: `/mock-apis/responses/${responseId}`,
     method: 'delete'
   })
+}
+
+/**
+ * 导出多个接口为 Markdown 文档
+ * @param {Array<Number>} apiIds 接口ID列表
+ * @param {Boolean} aiEnhance 是否启用 AI 增强（手动控制）
+ * @returns {Promise<Array<String>>} 导出过程中的警告信息列表（如 AI 增强异常提示）
+ */
+export async function exportMockApisMarkdown(apiIds, aiEnhance = false) {
+  const response = await request({
+    url: '/mock-apis/export-markdown',
+    method: 'post',
+    data: { apiIds, aiEnhance },
+    responseType: 'blob'
+  })
+  const blob = response.data || response
+  const filename = aiEnhance ? 'api-docs-ai-enhanced.md' : 'api-docs.md'
+  downloadBlob(blob, filename)
+
+  // 解析后端通过响应头返回的导出警告（如 AI 增强调用异常、输出不合规时的友好提示）
+  let warnings = []
+  try {
+    const headers = response.headers || {}
+    const raw = headers['x-export-warnings']
+    if (raw) {
+      warnings = JSON.parse(decodeURIComponent(raw))
+    }
+  } catch (error) {
+    console.error('解析导出警告信息失败:', error)
+  }
+  return Array.isArray(warnings) ? warnings : []
 }

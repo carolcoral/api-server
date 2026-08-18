@@ -796,7 +796,16 @@ print_info "=========================================="
 cd "$BACKEND_DIR"
 
 print_info "执行 mvn clean package..."
-mvn clean package -DskipTests
+# 使用阿里云镜像（maven-settings.xml）并强制刷新依赖，避免官方仓库 403/401 及本地失败缓存
+MAVEN_SETTINGS="$PROJECT_ROOT/maven-settings.xml"
+MVN_OPTS=""
+if [ -f "$MAVEN_SETTINGS" ]; then
+    MVN_OPTS="-s $MAVEN_SETTINGS"
+    print_info "使用 Maven 镜像配置: $MAVEN_SETTINGS"
+else
+    print_warning "未找到 $MAVEN_SETTINGS，使用默认仓库配置"
+fi
+mvn $MVN_OPTS clean package -DskipTests -U
 
 if [ $? -ne 0 ]; then
     print_error "Maven 打包失败"

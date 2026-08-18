@@ -165,6 +165,75 @@ public class AiService {
     }
 
     /**
+     * AI 增强接口 Markdown 文档（严格遵循规定的格式约束）
+     * <p>
+     * 提示词中明确约束输出必须包含规定的章节标题，且不允许添加额外章节；
+     * 调用方（MockApiMarkdownService）还会对输出做二次格式校验，不符合约束时回退基础模板。
+     * </p>
+     *
+     * @param apiContext 接口信息与基础 Markdown 文档
+     * @return AI 增强后的 Markdown 文档
+     */
+    public String enhanceApiMarkdown(String apiContext) {
+        AiConfig config = aiConfigService.getEnabledConfig();
+        if (config == null) {
+            throw new RuntimeException("未启用任何 AI 服务商，请在 AI 设置中配置并启用");
+        }
+        if (config.getApiUrl() == null || config.getApiUrl().isBlank()) {
+            throw new RuntimeException("AI 服务商 API 地址未配置");
+        }
+        if (config.getApiKey() == null || config.getApiKey().isBlank()) {
+            throw new RuntimeException("AI 服务商 API Key 未配置");
+        }
+
+        String prompt = "你是一名资深的 API 接口文档专家。请对给定的接口文档进行 AI 增强：完善接口描述、" +
+                "补充参数/Header/响应字段的说明，并完善响应示例（保持与原始响应数据结构一致）。\n\n" +
+                "【重要约束 - 必须严格遵守】\n" +
+                "1. 输出必须是 Markdown 格式，且必须严格包含以下章节标题（标题文字不能改动）：\n" +
+                "   - `# 接口名称`（一级标题，内容为接口名称）\n" +
+                "   - `## 请求方式`\n" +
+                "   - `## 接口地址`\n" +
+                "   - `## Header`（Markdown 表格，表头：名称 | 说明 | 是否必须 | 数据类型 | 默认值）\n" +
+                "   - `## 请求参数`（Markdown 表格，表头：名称 | 说明 | 是否必须 | 数据类型 | 默认值）\n" +
+                "   - `## 响应数据`（Markdown 表格，表头：名称 | 说明 | 是否必须 | 数据类型）\n" +
+                "   - `### 响应示例`（JSON 代码块）\n" +
+                "2. 请求方式、接口地址等客观信息必须与输入保持一致，不得虚构或篡改。\n" +
+                "3. 不得在输出中添加上述章节以外的 Markdown 标题。\n" +
+                "4. 直接输出 Markdown 内容，不要包裹在 ```markdown 代码块中，不要包含任何解释性文字。\n\n" +
+                "接口信息与当前文档：\n" + apiContext;
+
+        try {
+            String responseJson = callAiApi(config, prompt);
+            String content = extractTextContent(responseJson);
+            return cleanMarkdownBlock(content);
+        } catch (Exception e) {
+            log.error("AI 增强接口文档失败: {}", e.getMessage(), e);
+            throw new RuntimeException("AI 增强失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 清理 AI 输出中的 markdown 代码块包裹标记（支持 ```markdown / ```md / ```）
+     */
+    private String cleanMarkdownBlock(String content) {
+        if (content == null || content.isBlank()) {
+            return content;
+        }
+        content = content.trim();
+        if (content.startsWith("```markdown")) {
+            content = content.substring("```markdown".length());
+        } else if (content.startsWith("```md")) {
+            content = content.substring("```md".length());
+        } else if (content.startsWith("```")) {
+            content = content.substring(3);
+        }
+        if (content.endsWith("```")) {
+            content = content.substring(0, content.length() - 3);
+        }
+        return content.trim();
+    }
+
+    /**
      * 调用 AI 生成接口描述（流式 SSE）
      */
     public java.io.BufferedReader generateApiDescriptionStream(String apiMethod, String apiPath, String apiName) throws Exception {

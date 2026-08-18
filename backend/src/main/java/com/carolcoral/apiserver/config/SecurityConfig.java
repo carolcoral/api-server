@@ -6,7 +6,9 @@
 
 package com.carolcoral.apiserver.config;
 
+import com.carolcoral.apiserver.filter.FrameOptionsHeaderFilter;
 import com.carolcoral.apiserver.filter.JwtAuthenticationFilter;
+import com.carolcoral.apiserver.service.SystemConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +50,7 @@ import java.util.Map;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final FrameOptionsHeaderFilter frameOptionsHeaderFilter;
     private final ObjectMapper objectMapper;
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SecurityConfig.class);
 
@@ -55,9 +58,12 @@ public class SecurityConfig {
      * 构造器
      */
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          SystemConfigService systemConfigService) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.objectMapper = objectMapper;
+        // iframe 嵌入来源由系统配置（安全设置页）动态控制
+        this.frameOptionsHeaderFilter = new FrameOptionsHeaderFilter(systemConfigService);
     }
 
     /**
@@ -76,7 +82,10 @@ public class SecurityConfig {
                     cors.configurationSource(corsConfigurationSource());
                 })
                 .csrf(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny))
+                // 关闭 X-Frame-Options（该头无法表达"允许特定来源"），
+                // iframe 嵌入来源改为由 FrameOptionsHeaderFilter 根据系统配置
+                // （系统设置-安全配置-iframe 白名单）动态生成 CSP frame-ancestors 控制
+                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         // 允许所有OPTIONS预检请求（必须放在最前面，确保CORS预检不被后续权限规则拦截）
@@ -192,6 +201,8 @@ public class SecurityConfig {
                         // 其他所有请求需要认证
                         .anyRequest().authenticated()
                 )
+                // iframe 嵌入来源控制过滤器（动态读取系统配置生成 CSP frame-ancestors 头）
+                .addFilterAfter(frameOptionsHeaderFilter, UsernamePasswordAuthenticationFilter.class)
                 // JWT过滤器 - 只拦截需要认证的请求
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // 自定义异常处理 - 返回JSON格式错误
@@ -231,10 +242,12 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(Arrays.asList("*"));
         
         // 暴露的响应头
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Export-Warnings"));
         
-        // 禁用凭据支持，避免CORS问题
-        configuration.setAllowCredentials(false);
+        // 允许携带凭据（Cookie）的跨域请求
+        // 配合 allowedOriginPatterns("*") 使用：Spring 会回显实际 Origin，
+        // 从而兼容浏览器对"凭据 + 通配符 Origin"的限制，支持外部地址跨域调用本系统 API
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
