@@ -1,5 +1,53 @@
 # 版本变更说明
 
+## v2.4.1 (2026-08-18)
+
+> 接口 Markdown 文档导出 · AI 增强导出 · iframe 嵌入白名单 · 跨域凭据支持 · 导出超时优化。
+
+### 📄 接口 Markdown 文档导出
+
+- **多选导出**：接口管理页支持多选接口一键导出为 Markdown 文档，按规范格式组织接口名、描述、请求方式、接口地址、Header、请求参数、响应数据与响应示例
+- **AI 增强导出**：可选 AI 智能润色，将接口信息交由大模型生成更完整的文档；AI 输出严格校验必需章节（请求方式/接口地址/Header/请求参数/响应数据/响应示例），缺失时自动回退基础模板并提示
+- **警告透传**：导出过程产生的警告信息通过 `X-Export-Warnings` 响应头返回，前端弹窗展示，不阻塞文档下载
+- **导出超时优化**：导出接口纳入 AI 超时体系（最长 15 分钟）；后端多接口 AI 增强改为 `parallelStream()` 并行调用，N 个接口耗时从「串行累加」降至「单接口量级」，大幅提升多接口导出速度
+
+### 🖼️ iframe 嵌入白名单
+
+- **动态配置**：系统设置 → 安全配置新增 iframe 嵌入控制，支持三种模式：禁止嵌入（默认，最安全）/ 白名单（仅同源 + 指定 Origin）/ 全部允许
+- **CSP 动态生成**：新增 `FrameOptionsHeaderFilter`，根据配置动态生成 `Content-Security-Policy: frame-ancestors` 响应头，替代无法表达"允许特定来源"的 `X-Frame-Options`
+- **即时生效**：配置保存后实时生效，无需重启；读取异常时自动回退为禁止策略，保证安全兜底
+
+### 🌐 跨域能力增强
+
+- **凭据跨域**：CORS 允许携带 Cookie 等凭据，配合 `allowedOriginPatterns("*")` 回显实际 Origin，支持外部地址跨域调用本系统 API
+- **响应头暴露**：新增 `X-Export-Warnings` 至暴露头列表，供前端读取导出警告
+
+### 🐛 修复
+
+- **接口路径复制**：复制接口路径时包含完整基础 URL，粘贴即可直接调用，修复仅复制相对路径的问题
+- **AI 增强导出超时**：前端 Axios 拦截器将 `/mock-apis/export-markdown` 纳入 AI 超时逻辑（默认 15 分钟），修复使用默认 30 秒超时导致导出失败的问题
+- **CORS 凭据校验**：修复外部地址跨域调用被拒绝的问题（`Allow-Credentials` + 通配符 Origin 冲突）
+
+### ⚙️ 构建优化
+
+- **Maven 镜像加速**：新增 `maven-settings.xml` 配置阿里云 Maven 中央仓库镜像，加速依赖下载
+- 构建脚本同步优化，内网/离线环境构建更稳定
+
+### 📝 升级说明
+
+> ⚠️ **v2.4.0 → v2.4.1 数据库变更**：本版本**无表结构变更**。iframe 白名单配置存储在既有 `t_system_config` 表中，首次保存时自动创建记录。如需手动预置默认配置，请执行：
+
+```sql
+-- ============================================
+-- 从 v2.4.0 升级到 v2.4.1（可选，首次保存时自动创建）
+-- ============================================
+INSERT OR IGNORE INTO t_system_config (config_key, config_value, description, create_time, update_time)
+VALUES ('iframeAllowedOrigins', '', '允许被 iframe 嵌入的来源（逗号分隔，* 表示全部，空表示禁止）', datetime('now'), datetime('now'));
+```
+
+> 💡 MySQL 用户：`INSERT OR IGNORE` → `INSERT IGNORE`，`datetime('now')` → `NOW()`
+> PostgreSQL 用户：`INSERT OR IGNORE` → `INSERT ... ON CONFLICT DO NOTHING`，`datetime('now')` → `NOW()`
+
 ## v2.4.0 (2026-07-21)
 
 > AI 服务管理 · 用户自助订阅 · 代理请求录制回放 · 权限扫描增强 · 项目品牌升级 · 性能优化。

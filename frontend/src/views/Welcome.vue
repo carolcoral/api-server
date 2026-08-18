@@ -73,7 +73,7 @@
         </div>
       </section>
 
-      <!-- 特性卡片 9 个 -->
+      <!-- 特性卡片 12 个 -->
       <section class="features-section">
         <div class="section-header">
           <h2 class="section-title">{{ $t('welcome.ms_featuresTitle') }}</h2>
@@ -169,7 +169,10 @@ import {
   MagicStick,
   Cpu,
   DataAnalysis,
-  VideoCamera
+  VideoCamera,
+  Document,
+  Lock,
+  Link
 } from '@element-plus/icons-vue'
 
 const { t, locale } = useI18n()
@@ -210,7 +213,7 @@ const welcomeBadge = computed(() => {
 
 // ========== 核心数据 ==========
 const stats = computed(() => [
-  { value: 9, suffix: '', label: t('welcome.ms_statsItem1') },
+  { value: 12, suffix: '+', label: t('welcome.ms_statsItem1') },
   { value: 60, suffix: '+', label: t('welcome.ms_statsItem2') },
   { value: 3, suffix: '', label: t('welcome.ms_statsItem3') },
   { value: 12, suffix: '+', label: t('welcome.ms_statsItem4') },
@@ -272,6 +275,18 @@ const features = [
   {
     icon: DataAnalysis, titleKey: 'welcome.ms_feature9Title', descKey: 'welcome.ms_feature9Desc',
     bg: 'linear-gradient(135deg, #89f7fe, #66a6ff)'
+  },
+  {
+    icon: Document, titleKey: 'welcome.ms_feature10Title', descKey: 'welcome.ms_feature10Desc',
+    bg: 'linear-gradient(135deg, #fccb90, #d57eeb)'
+  },
+  {
+    icon: Lock, titleKey: 'welcome.ms_feature11Title', descKey: 'welcome.ms_feature11Desc',
+    bg: 'linear-gradient(135deg, #2af598, #009efd)'
+  },
+  {
+    icon: Link, titleKey: 'welcome.ms_feature12Title', descKey: 'welcome.ms_feature12Desc',
+    bg: 'linear-gradient(135deg, #f83600, #f9d423)'
   },
 ]
 

@@ -120,7 +120,7 @@ public class SystemBackupService {
      */
     public String createBackup() {
         JSONObject backup = new JSONObject();
-        backup.put("version", "2.4.0");
+        backup.put("version", "2.4.1");
         backup.put("backupTime", LocalDateTime.now().format(DTF));
         backup.put("type", "full");
         backup.put("description", "API Server 全量配置备份");

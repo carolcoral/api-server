@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.4.0-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Version-2.4.1-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/License-Apache%202.0-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/JDK-21-red?style=flat-square&logo=openjdk" alt="JDK">
   <img src="https://img.shields.io/badge/Node.js-18+-green?style=flat-square&logo=nodedotjs" alt="Node">
@@ -11,7 +11,7 @@
 <p align="center">Spring Boot + Vue 3 · 全功能 API 模拟与 AI 服务管理平台</p>
 
 <p align="center">
-  接口模拟 · 模板引擎 · AI 对话 · AI 服务管理 · 用户自助 · 录制回放 · Swagger 生态 · RBAC 权限 · 调试面板 · 运维监控 · 多数据库 · 多语言
+  接口模拟 · 模板引擎 · AI 对话 · AI 服务管理 · 用户自助 · 录制回放 · Markdown 文档导出 · Swagger 生态 · RBAC 权限 · 调试面板 · 运维监控 · 多数据库 · 多语言
 </p>
 
 ---
@@ -28,6 +28,7 @@
 | 📝 | 模板引擎 | Faker.js 风格随机数据生成 `{{name()}}` `{{phone()}}`，模板面板一键预览 |
 | 🔍 | 调试面板 | 实时请求日志追踪 · 延迟分布可视化 · 请求/响应详情 · 搜索与分页 |
 | 📥 | Swagger 生态 | 2.0 / OpenAPI 3.x 导入导出，递归 `$ref` 解析，冲突检测 |
+| 📤 | 文档导出 | 接口多选一键导出 Markdown · AI 智能增强润色 · 章节合规校验自动回退 |
 | 📦 | 项目管理 | 多项目隔离 · 成员权限 · JSON/Swagger 导入导出 |
 | 🧬 | 动态代码 | Monaco Editor 编译验证 · 6 种转换器 · 热加载即时生效 |
 | 🔐 | 权限管理 | RBAC 体系 · 60+ 项细粒度权限 · 权限扫描 · 子权限自动同步 |
@@ -62,7 +63,7 @@ git clone https://github.com/carolcoral/api-server.git && cd api-server
 
 # 手动构建
 ./build-all-in-one.sh
-java -jar backend/target/api-server-2.4.0.jar
+java -jar backend/target/api-server-2.4.1.jar
 
 # 开发模式
 cd backend && mvn spring-boot:run          # 终端 1
@@ -119,6 +120,7 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 | 🔍 | 知识检索 | RAG 增强，实时检索项目文档注入上下文，未命中回退通用知识 |
 | 🎨 | 内容生成 | 一键生成响应数据 · Java 代码模板 · HTML 邮件 · 接口描述 |
 | 🔌 | 多模型 | 12+ LLM 预设 + 自定义兼容（OpenAI / Gemini / Claude / DeepSeek / 通义千问 等） |
+| 📄 | 文档增强 | 接口 Markdown 导出 AI 润色 · 并行增强 · 缺失章节自动回退基础模板 |
 | 📊 | 调用统计 | 多用户趋势折线图 · 年/月/日粒度 · 成功率追踪 |
 
 ---
@@ -211,7 +213,8 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 | 强密码策略 | 大小写 + 数字 + 特殊字符，最少 8 位 |
 | 登录锁定 | 多次失败后临时锁定 |
 | IP 白名单 | 限制管理接口来源 |
-| CORS | 跨域白名单控制 |
+| CORS | 跨域白名单控制 · 凭据跨域 · 外部地址直接调用 |
+| iframe 白名单 | CSP `frame-ancestors` 动态控制，禁止 / 白名单 / 全部三种模式，默认禁止 |
 | 防注入 | SQL 参数化 · XSS 过滤 · CSRF 防护 |
 | RBAC | 角色-权限体系，页面/按钮级控制，动态菜单显隐 |
 | Actuator 安全 | 监控端点需登录认证，杜绝信息泄露 |
