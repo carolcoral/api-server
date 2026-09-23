@@ -109,4 +109,22 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
      */
     @Operation(summary = "判断邮箱是否存在")
     boolean existsByEmail(String email);
+
+    /**
+     * 根据 OIDC 主体标识查找用户
+     *
+     * @param oidcSub OIDC sub 声明
+     * @return 用户Optional
+     */
+    @Operation(summary = "根据 OIDC 主体标识查找用户")
+    Optional<User> findByOidcSub(String oidcSub);
+
+    /**
+     * 判断 OIDC 主体标识是否存在
+     *
+     * @param oidcSub OIDC sub 声明
+     * @return 是否存在
+     */
+    @Operation(summary = "判断 OIDC 主体标识是否存在")
+    boolean existsByOidcSub(String oidcSub);
 }

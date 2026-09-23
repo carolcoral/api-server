@@ -1,5 +1,30 @@
 # 版本变更说明
 
+## Unreleased
+
+> TDP OIDC 单点登录 · 账号自动绑定 · 后台可视化配置。
+
+### 🔐 TDP OIDC 登录
+
+- **标准 OIDC 接入**：基于 OpenID Connect Authorization Code Flow（含 PKCE S256），支持以 TDP（`https://tdp.fan/oidc`）作为登录方式，参考 [TDP OIDC 接入指南](https://cnb.cool/tdp/docs/-/blob/docs/zh/oidc.md)
+- **后台可视化配置**：系统设置 → 安全配置新增 OIDC 配置区，可开关登录、配置 Issuer / Client ID / Client Secret / 回调地址 / Scope / 登录按钮名称 / 自动建号 / PKCE
+- **Discovery 自动发现**：服务端自动拉取并缓存 OIDC Discovery 文档，无需手填各端点地址
+- **登录页入口**：登录页按公开配置动态展示「使用 TDP 登录」按钮，点击后跳转 TDP 授权页，授权完成后自动回调登录
+- **账号绑定策略**：优先按 OIDC `sub` 匹配已绑定账号；首次登录时若邮箱已存在则自动绑定，否则按配置自动创建本地账号（默认角色、默认 AI 额度与本地注册保持一致）
+- **安全设计**：`state` 防 CSRF、PKCE 防授权码拦截、回调重定向携带 JWT；`client_secret` 不回显原文，留空表示保持原值；ID Token 校验 `iss` / `exp`
+- **配置即时生效**：保存后无需重启，`t_system_config` 存储配置，`t_user` 新增 `oidc_sub` / `oidc_provider` / `oidc_account` 字段
+
+### 📝 升级说明
+
+> ⚠️ **本版本数据库变更**：`t_user` 表新增 3 个 OIDC 相关字段（`oidc_sub`、`oidc_provider`、`oidc_account`），由 JPA 自动建表/更新（`ddl-auto=update`）。如使用手动建表，请补充：
+
+```sql
+ALTER TABLE t_user ADD COLUMN oidc_sub VARCHAR(128);
+ALTER TABLE t_user ADD COLUMN oidc_provider VARCHAR(50);
+ALTER TABLE t_user ADD COLUMN oidc_account BOOLEAN DEFAULT FALSE NOT NULL;
+```
+
+
 ## v2.4.1 (2026-08-18)
 
 > 接口 Markdown 文档导出 · AI 增强导出 · iframe 嵌入白名单 · 跨域凭据支持 · 导出超时优化。

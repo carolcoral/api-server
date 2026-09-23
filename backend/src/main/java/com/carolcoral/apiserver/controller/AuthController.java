@@ -52,7 +52,8 @@ public class AuthController {
         EmailService emailService,
         EmailConfigRepository emailConfigRepository,
         UserRepository userRepository,
-        PermissionService permissionService) {
+        PermissionService permissionService,
+        com.carolcoral.apiserver.service.OidcService oidcService) {
         this.userService = userService;
         this.jwtTokenUtil = jwtTokenUtil;
         this.systemConfigService = systemConfigService;
@@ -60,6 +61,7 @@ public class AuthController {
         this.emailConfigRepository = emailConfigRepository;
         this.userRepository = userRepository;
         this.permissionService = permissionService;
+        this.oidcService = oidcService;
     }
 
     private final UserService userService;
@@ -69,6 +71,7 @@ public class AuthController {
     private final EmailConfigRepository emailConfigRepository;
     private final UserRepository userRepository;
     private final PermissionService permissionService;
+    private final com.carolcoral.apiserver.service.OidcService oidcService;
 
     /**
      * 用户登录
@@ -346,6 +349,100 @@ public class AuthController {
         } else {
             return ApiResponse.error("邮件发送失败，请检查邮箱配置或联系管理员");
         }
+    }
+
+    /**
+     * 发起 OIDC 登录：生成授权跳转地址
+     * <p>前端调用后跳转到返回的 authorizationUrl，完成 TDP 账号授权。</p>
+     *
+     * @param request HTTP 请求（用于推导回调基础地址）
+     * @return 授权跳转地址
+     */
+    @Operation(summary = "发起 OIDC 登录", description = "生成 TDP OIDC 授权跳转地址")
+    @GetMapping("/oidc/authorize")
+    public ApiResponse<Map<String, String>> oidcAuthorize(jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            if (!oidcService.isEnabledAndConfigured()) {
+                return ApiResponse.error("OIDC 登录未启用或配置不完整");
+            }
+            String baseUrl = resolveBaseUrl(request);
+            String authorizationUrl = oidcService.buildAuthorizationUrl(baseUrl);
+            Map<String, String> data = new java.util.HashMap<>();
+            data.put("authorizationUrl", authorizationUrl);
+            return ApiResponse.success(data);
+        } catch (Exception e) {
+            log.error("发起 OIDC 登录失败: {}", e.getMessage(), e);
+            return ApiResponse.error("发起 OIDC 登录失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * OIDC 回调处理
+     * <p>接收授权码并完成登录，成功后重定向回前端登录页，附带 token 或错误信息。</p>
+     *
+     * @param code  授权码
+     * @param state 状态参数
+     * @return 重定向响应
+     */
+    @Operation(summary = "OIDC 回调", description = "处理 TDP OIDC 授权回调并完成登录")
+    @GetMapping("/oidc/callback")
+    public org.springframework.http.ResponseEntity<Void> oidcCallback(
+            @RequestParam(value = "code", required = false) String code,
+            @RequestParam(value = "state", required = false) String state,
+            @RequestParam(value = "error", required = false) String error,
+            @RequestParam(value = "error_description", required = false) String errorDescription) {
+        String frontendCallback = "/login";
+        try {
+            if (error != null && !error.isEmpty()) {
+                log.warn("OIDC 授权返回错误: {} - {}", error, errorDescription);
+                return redirectToFrontend(frontendCallback + "?oidc_error=" + urlEncode(errorDescription != null ? errorDescription : error));
+            }
+            ApiResponse<LoginResponse> result = oidcService.handleCallback(code, state);
+            if (result.getCode() != null && result.getCode() == 200 && result.getData() != null) {
+                String token = result.getData().getToken();
+                return redirectToFrontend(frontendCallback + "?oidc_token=" + urlEncode(token));
+            }
+            String msg = result.getMessage() != null ? result.getMessage() : "OIDC 登录失败";
+            log.warn("OIDC 登录失败: {}", msg);
+            return redirectToFrontend(frontendCallback + "?oidc_error=" + urlEncode(msg));
+        } catch (Exception e) {
+            log.error("OIDC 回调处理失败: {}", e.getMessage(), e);
+            return redirectToFrontend(frontendCallback + "?oidc_error=" + urlEncode("OIDC 登录失败：" + e.getMessage()));
+        }
+    }
+
+    /**
+     * 构造重定向响应
+     */
+    private org.springframework.http.ResponseEntity<Void> redirectToFrontend(String location) {
+        return org.springframework.http.ResponseEntity.status(org.springframework.http.HttpStatus.FOUND)
+                .header(org.springframework.http.HttpHeaders.LOCATION, location)
+                .build();
+    }
+
+    /**
+     * URL 编码（用于重定向参数）
+     */
+    private String urlEncode(String value) {
+        if (value == null) {
+            return "";
+        }
+        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 从请求推导站点基础地址（scheme://host[:port]）
+     */
+    private String resolveBaseUrl(jakarta.servlet.http.HttpServletRequest request) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(request.getScheme()).append("://").append(request.getServerName());
+        int port = request.getServerPort();
+        boolean defaultPort = ("http".equals(request.getScheme()) && port == 80)
+                || ("https".equals(request.getScheme()) && port == 443);
+        if (!defaultPort) {
+            sb.append(":").append(port);
+        }
+        return sb.toString();
     }
 
     /**

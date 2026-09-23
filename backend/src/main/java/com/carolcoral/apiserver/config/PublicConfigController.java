@@ -33,9 +33,13 @@ public class PublicConfigController {
 
     private final SystemConfigService systemConfigService;
 
-    public PublicConfigController(SystemConfigService systemConfigService) {
+    public PublicConfigController(SystemConfigService systemConfigService,
+                                  com.carolcoral.apiserver.service.OidcService oidcService) {
         this.systemConfigService = systemConfigService;
+        this.oidcService = oidcService;
     }
+
+    private final com.carolcoral.apiserver.service.OidcService oidcService;
 
     /**
      * 获取公开系统配置（无需认证）
@@ -49,6 +53,11 @@ public class PublicConfigController {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("enableRegistration", parseBooleanConfig("enableRegistration", false));
         config.put("enableEmailVerification", parseBooleanConfig("enableEmailVerification", false));
+        // OIDC（TDP）登录公开配置，供登录页判断是否展示登录入口
+        com.carolcoral.apiserver.dto.oidc.OidcPublicConfigDTO oidc = oidcService.getPublicConfig();
+        config.put("oidcEnabled", oidc.getEnabled());
+        config.put("oidcProvider", oidc.getProvider());
+        config.put("oidcButtonLabel", oidc.getButtonLabel());
         return ApiResponse.success(config);
     }
 

@@ -37,13 +37,47 @@ public class SystemConfigController {
 
     private final SystemConfigService systemConfigService;
     private final MockService mockService;
+    private final com.carolcoral.apiserver.service.OidcService oidcService;
 
     /**
      * 构造器
      */
-    public SystemConfigController(SystemConfigService systemConfigService, MockService mockService) {
+    public SystemConfigController(SystemConfigService systemConfigService,
+                                  MockService mockService,
+                                  com.carolcoral.apiserver.service.OidcService oidcService) {
         this.systemConfigService = systemConfigService;
         this.mockService = mockService;
+        this.oidcService = oidcService;
+    }
+
+    /**
+     * 获取 OIDC 登录配置
+     * <p>需要管理员权限。返回 TDP OIDC 登录相关配置，客户端密钥不回显原文。</p>
+     *
+     * @return OIDC 配置
+     */
+    @GetMapping("/oidc")
+    @Operation(summary = "获取 OIDC 登录配置")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:security')")
+    public ApiResponse<com.carolcoral.apiserver.dto.oidc.OidcConfigDTO> getOidcConfig() {
+        return ApiResponse.success(oidcService.getConfig());
+    }
+
+    /**
+     * 保存 OIDC 登录配置
+     * <p>需要管理员权限。保存后即时生效，无需重启。clientSecret 留空表示保持原值不变。</p>
+     *
+     * @param dto OIDC 配置DTO
+     * @return 操作结果
+     */
+    @PostMapping("/oidc")
+    @Operation(summary = "保存 OIDC 登录配置")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:security')")
+    public ApiResponse<Void> saveOidcConfig(@RequestBody com.carolcoral.apiserver.dto.oidc.OidcConfigDTO dto) {
+        oidcService.saveConfig(dto);
+        log.info("管理员更新 OIDC 登录配置: enabled={}, issuer={}, clientId={}",
+                dto.getEnabled(), dto.getIssuerUri(), dto.getClientId());
+        return ApiResponse.success();
     }
 
     /**

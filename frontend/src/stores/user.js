@@ -48,35 +48,76 @@ export const useUserStore = defineStore('user', () => {
     return permCodes.some(code => permissions.value.includes(code))
   }
 
+  // 保存登录结果到本地（供密码登录与 OIDC 登录复用）
+  const applyLoginData = (data) => {
+    const { token: userToken, userId, username: name, role, roleId, roleName, roleCode, email, language, permissions: perms } = data
+
+    // 保存token
+    token.value = userToken
+    localStorage.setItem('token', userToken)
+
+    // 保存用户信息（含角色完整信息，供右上角铭牌展示，避免再调受权限控制的 role 接口）
+    userInfo.value = { id: userId, username: name, role, roleId, roleName, roleCode, email, language }
+    localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
+
+    // 保存权限列表
+    if (perms && Array.isArray(perms)) {
+      permissions.value = perms
+      localStorage.setItem('permissions', JSON.stringify(perms))
+    } else {
+      permissions.value = []
+      localStorage.setItem('permissions', '[]')
+    }
+  }
+
   // 登录
   const login = async (username, password) => {
     try {
       const response = await loginApi({ username, password })
       if (response.code === 200) {
-        const { token: userToken, userId, username: name, role, roleId, roleName, roleCode, email, language, permissions: perms } = response.data
-
-        // 保存token
-        token.value = userToken
-        localStorage.setItem('token', userToken)
-
-        // 保存用户信息（含角色完整信息，供右上角铭牌展示，避免再调受权限控制的 role 接口）
-        userInfo.value = { id: userId, username: name, role, roleId, roleName, roleCode, email, language }
-        localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
-
-        // 保存权限列表
-        if (perms && Array.isArray(perms)) {
-          permissions.value = perms
-          localStorage.setItem('permissions', JSON.stringify(perms))
-        } else {
-          permissions.value = []
-          localStorage.setItem('permissions', '[]')
-        }
-
+        applyLoginData(response.data)
         return { success: true }
       } else {
         return { success: false, message: response.message }
       }
     } catch (error) {
+      return { success: false, message: error.message }
+    }
+  }
+
+  // OIDC 登录：直接使用回调返回的 token 拉取用户信息并落地
+  const loginWithToken = async (userToken) => {
+    try {
+      token.value = userToken
+      localStorage.setItem('token', userToken)
+      const request = (await import('@/utils/request')).default
+      // 复用权限接口校验 token 有效性，同时获取权限列表
+      const response = await request.get('/auth/permissions')
+      if (response.code !== 200) {
+        token.value = ''
+        localStorage.removeItem('token')
+        return { success: false, message: response.message || 'OIDC 登录失败' }
+      }
+      permissions.value = Array.isArray(response.data) ? response.data : []
+      localStorage.setItem('permissions', JSON.stringify(permissions.value))
+      // 拉取用户资料补全信息
+      try {
+        const profile = await request.get('/users/profile')
+        if (profile.code === 200 && profile.data) {
+          const p = profile.data
+          userInfo.value = {
+            id: p.id, username: p.username, role: p.role, roleId: p.roleId,
+            roleName: p.roleName, roleCode: p.roleCode, email: p.email, language: p.language
+          }
+          localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
+        }
+      } catch {
+        // 资料获取失败不影响登录，仅保留空信息
+      }
+      return { success: true }
+    } catch (error) {
+      token.value = ''
+      localStorage.removeItem('token')
       return { success: false, message: error.message }
     }
   }
@@ -122,6 +163,7 @@ export const useUserStore = defineStore('user', () => {
     hasPermission,
     hasAnyPermission,
     login,
+    loginWithToken,
     logout,
     setToken,
     refreshPermissions

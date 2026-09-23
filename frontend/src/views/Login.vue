@@ -72,6 +72,26 @@
         </el-form-item>
       </el-form>
 
+      <!-- OIDC（TDP）登录入口 -->
+      <div v-if="oidcEnabled" class="oidc-section">
+        <div class="oidc-divider">
+          <span>{{ $t('login.orDivider') }}</span>
+        </div>
+        <el-button
+          class="oidc-button"
+          size="large"
+          :loading="oidcLoading"
+          @click="handleOidcLogin"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a10 10 0 1 0 10 10"/>
+            <path d="M12 6v6l4 2"/>
+            <path d="M21 3l-6 6"/>
+          </svg>
+          <span>{{ oidcButtonLabel }}</span>
+        </el-button>
+      </div>
+
       <div class="login-footer-links">
         <router-link to="/forgot-password" class="footer-link">{{ $t('login.forgotPassword') }}</router-link>
         <router-link v-if="registrationEnabled" to="/register" class="footer-link">{{ $t('login.registerLink') }}</router-link>
@@ -85,22 +105,29 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { oidcAuthorize } from '@/api/auth'
 import { useBingBackground } from '@/composables/useBingBackground'
 import GuideDialog from '@/components/GuideDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const loginFormRef = ref()
 const loading = ref(false)
 const registrationEnabled = ref(false)
 const showGuide = ref(false)
+
+// OIDC（TDP）登录
+const oidcEnabled = ref(false)
+const oidcButtonLabel = ref(t('login.oidcButtonDefault'))
+const oidcLoading = ref(false)
 
 const { bgImage, fetchBingBg } = useBingBackground()
 
@@ -155,15 +182,57 @@ const handleLogin = async () => {
   }
 }
 
-// 获取注册开关状态
+// 获取公开配置（注册开关、OIDC 登录开关）
 const fetchRegistrationConfig = async () => {
   try {
     const response = await axios.get('/api/public/system-config')
     if (response.data && response.data.code === 200 && response.data.data) {
-      registrationEnabled.value = response.data.data.enableRegistration || false
+      const data = response.data.data
+      registrationEnabled.value = data.enableRegistration || false
+      oidcEnabled.value = data.oidcEnabled || false
+      if (data.oidcButtonLabel) {
+        oidcButtonLabel.value = data.oidcButtonLabel
+      }
     }
   } catch {
-    // 静默失败，默认不显示注册入口
+    // 静默失败，默认不显示注册/OIDC 入口
+  }
+}
+
+// 点击 OIDC 登录：获取授权地址并跳转
+const handleOidcLogin = async () => {
+  oidcLoading.value = true
+  try {
+    const response = await oidcAuthorize()
+    if (response.code === 200 && response.data && response.data.authorizationUrl) {
+      window.location.href = response.data.authorizationUrl
+    } else {
+      ElMessage.error(response.message || t('login.oidcFailed'))
+      oidcLoading.value = false
+    }
+  } catch (error) {
+    ElMessage.error(error.message || t('login.oidcFailed'))
+    oidcLoading.value = false
+  }
+}
+
+// 处理 OIDC 回调（回调地址重定向回登录页并携带 token 或错误）
+const handleOidcCallback = async () => {
+  const { oidc_token: oidcToken, oidc_error: oidcError } = route.query
+  if (oidcError) {
+    ElMessage.error(decodeURIComponent(oidcError))
+    router.replace({ path: '/login' })
+    return
+  }
+  if (oidcToken) {
+    const result = await userStore.loginWithToken(oidcToken)
+    if (result.success) {
+      ElMessage.success(t('login.loginSuccess'))
+      router.replace({ name: 'Home' })
+    } else {
+      ElMessage.error(result.message || t('login.oidcFailed'))
+      router.replace({ path: '/login' })
+    }
   }
 }
 
@@ -171,6 +240,7 @@ const fetchRegistrationConfig = async () => {
 onMounted(() => {
   fetchBingBg()
   fetchRegistrationConfig()
+  handleOidcCallback()
 })
 </script>
 
@@ -345,6 +415,53 @@ onMounted(() => {
 .footer-link:hover {
   color: #764ba2;
   text-decoration: underline;
+}
+
+/* OIDC 登录区块 */
+.oidc-section {
+  margin-bottom: 24px;
+}
+
+.oidc-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #c0c4cc;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.oidc-divider::before,
+.oidc-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #ebeef5;
+}
+
+.oidc-divider span {
+  padding: 0 12px;
+}
+
+.oidc-button {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  color: #303133;
+  transition: all 0.3s ease;
+}
+
+.oidc-button:hover {
+  border-color: #667eea;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
 }
 
 @media (max-width: 480px) {

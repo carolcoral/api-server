@@ -204,6 +204,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
 
+        // OIDC 登录相关接口（发起 + 回调）- 无需 JWT
+        if (requestUri.equals("/api/auth/oidc/authorize") || requestUri.equals("/auth/oidc/authorize")
+                || requestUri.equals("/api/auth/oidc/callback") || requestUri.equals("/auth/oidc/callback")) {
+            return true;
+        }
+
         // API 公开接口
         return AUTH_LOGIN_PATH.equals(requestUri) ||
                ("/api" + AUTH_LOGIN_PATH).equals(requestUri) ||

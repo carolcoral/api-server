@@ -143,6 +143,52 @@
                 <div class="iframe-hint">{{ $t('settings.iframeHint') }}</div>
               </el-form-item>
 
+              <!-- OIDC（TDP）单点登录 -->
+              <el-divider content-position="left">
+                <el-tag size="small" type="success">OIDC</el-tag>
+                {{ $t('settings.oidcLogin') }}
+              </el-divider>
+              <el-alert :title="$t('settings.oidcHint')" type="info" :closable="false" show-icon />
+              <br />
+              <el-form-item :label="$t('settings.oidcEnabled')">
+                <el-switch v-model="oidcSettings.enabled" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcProvider')">
+                <el-input v-model="oidcSettings.provider" placeholder="tdp" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcIssuerUri')">
+                <el-input v-model="oidcSettings.issuerUri" placeholder="https://tdp.fan/oidc" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcClientId')">
+                <el-input v-model="oidcSettings.clientId" :placeholder="$t('settings.oidcClientIdPlaceholder')" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcClientSecret')">
+                <el-input
+                  v-model="oidcSettings.clientSecret"
+                  type="password"
+                  show-password
+                  :placeholder="oidcSecretConfigured ? $t('settings.oidcSecretKeep') : $t('settings.oidcClientSecretPlaceholder')"
+                />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcRedirectUri')">
+                <el-input v-model="oidcSettings.redirectUri" :placeholder="$t('settings.oidcRedirectUriPlaceholder')" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcScope')">
+                <el-input v-model="oidcSettings.scope" placeholder="openid profile email tdp:role" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcButtonLabel')">
+                <el-input v-model="oidcSettings.buttonLabel" :placeholder="$t('settings.oidcButtonLabelPlaceholder')" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcAutoCreateUser')">
+                <el-switch v-model="oidcSettings.autoCreateUser" />
+              </el-form-item>
+              <el-form-item :label="$t('settings.oidcUsePkce')">
+                <el-switch v-model="oidcSettings.usePkce" />
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="saveOidcSettings" :loading="saving">{{ $t('settings.saveOidcSettings') }}</el-button>
+              </el-form-item>
+
               <el-form-item>
                 <el-button type="primary" @click="saveSecuritySettings" :loading="saving">{{ $t('settings.saveSettings') }}</el-button>
                 <el-button @click="resetSecuritySettings">{{ $t('settings.resetSettings') }}</el-button>
@@ -742,6 +788,22 @@ const securitySettings = reactive({
   iframeAllowedOrigins: ''
 })
 
+// OIDC（TDP）单点登录配置
+const oidcSettings = reactive({
+  enabled: false,
+  provider: 'tdp',
+  issuerUri: 'https://tdp.fan/oidc',
+  clientId: '',
+  clientSecret: '',
+  redirectUri: '',
+  scope: 'openid profile email tdp:role',
+  buttonLabel: '使用 TDP 登录',
+  autoCreateUser: true,
+  usePkce: true
+})
+// 标记服务端是否已配置客户端密钥（密钥不回显）
+const oidcSecretConfigured = ref(false)
+
 // JWT配置
 const jwtSettings = reactive({
   tokenExpiration: 1800, // 30分钟
@@ -953,6 +1015,49 @@ const loadSecuritySettings = async () => {
     }
   } catch (error) {
     console.error('加载 iframe 白名单配置失败:', error)
+  }
+  // 加载 OIDC 配置
+  try {
+    const oidcResp = await request.get('/system-config/oidc')
+    if (oidcResp.code === 200 && oidcResp.data) {
+      const d = oidcResp.data
+      oidcSettings.enabled = !!d.enabled
+      oidcSettings.provider = d.provider || 'tdp'
+      oidcSettings.issuerUri = d.issuerUri || 'https://tdp.fan/oidc'
+      oidcSettings.clientId = d.clientId || ''
+      oidcSettings.clientSecret = ''
+      oidcSettings.redirectUri = d.redirectUri || ''
+      oidcSettings.scope = d.scope || 'openid profile email tdp:role'
+      oidcSettings.buttonLabel = d.buttonLabel || '使用 TDP 登录'
+      oidcSettings.autoCreateUser = d.autoCreateUser !== false
+      oidcSettings.usePkce = d.usePkce !== false
+      oidcSecretConfigured.value = oidcSettings.clientId !== ''
+    }
+  } catch (error) {
+    console.error('加载 OIDC 配置失败:', error)
+  }
+}
+
+// 保存 OIDC 配置
+const saveOidcSettings = async () => {
+  saving.value = true
+  try {
+    const payload = { ...oidcSettings }
+    // clientSecret 为空表示保持原值不变，避免误清空
+    if (!payload.clientSecret) {
+      delete payload.clientSecret
+    }
+    await request.post('/system-config/oidc', payload)
+    if (payload.clientSecret) {
+      oidcSecretConfigured.value = true
+      oidcSettings.clientSecret = ''
+    }
+    ElMessage.success(t('settings.settingsSaved'))
+  } catch (error) {
+    console.error('保存 OIDC 配置失败:', error)
+    ElMessage.error(t('common.error'))
+  } finally {
+    saving.value = false
   }
 }
 
