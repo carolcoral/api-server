@@ -58,6 +58,20 @@ ALTER TABLE t_user ADD COLUMN oidc_account BOOLEAN DEFAULT FALSE NOT NULL;
 - **新增依赖**：`@vitest/coverage-v8`、`@vue/test-utils`、`jsdom`
 - **新增脚本**：`npm run test:run`（单次跑测）、`npm run test:coverage`（含覆盖率门禁）、`npm run lint:fix`
 
+### 🔒 逐模块覆盖率上锁（progressive enforcement）
+
+- **问题**：初版门禁在 `staged` 期只对后端整体设「不倒退」底线，本 Issue 新增的 OIDC 代码（`OidcService` 369 行、`AuthController` OIDC 端点、前端 `stores/user.js` 的 `loginWithToken`）自身却 **0% 覆盖**——新代码没有红线约束，门禁对「本次改动」等同空转
+- **做法**：改为「**补齐一个模块、就锁一个模块**」——模块单测达到 75% / 80% 后，加入 `backend/pom.xml` → `jacoco check` 的 `CLASS` 级 `includes` 名单，该模块随即按全局红线强制，跌破即构建失败
+- **本次补齐**：
+  - 后端新增 `OidcServiceTest`（48 例）：配置读写、授权 URL 生成（PKCE 开关、回调地址推导、Discovery 失败）、回调换 token、UserInfo 回退 ID Token、`iss` / `exp` 校验、按 `sub`/邮箱绑定、自动建号、用户名去重与截断、state 复用等分支；HTTP 交互以 JDK 内置 `HttpServer` 起本地桩服务，覆盖真实请求构造与响应解析
+  - 后端新增 `AuthControllerOidcTest`（10 例）：`/oidc/authorize` 与 `/oidc/callback` 的成功、禁用、授权方报错、异常兜底与重定向
+  - 前端新增 7 例 `stores/user.js` 的 `loginWithToken`（OIDC 回调登录）测试
+- **成效**：
+  - `service.OidcService` 覆盖率 **0% → 行 94.9% / 分支 78.8%**，已入列按红线强制
+  - 后端整体 **行 6.3% → 10.2%、分支 3.9% → 7.5%**；单测 107 → 165
+  - 前端 `stores/user.js` **77.8% → 100%**；整体 **行 96.1% → 99.2%、分支 96.6% → 96.8%**；单测 88 → 95
+- **规则同步**：`docs/ENGINEERING-RULES.md` 新增「逐模块上锁」流程与已入列模块表；`.cnb/quality-gate.yml` 的 `coverage.scope.backend.enforced_modules` 登记入列模块
+
 ### ✅ 每次提交的强制检查
 
 - **稳定性**：后端单测全绿 + 前端单测全绿 + 前后端构建通过（禁止 `-DskipTests` 绕过）

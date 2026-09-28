@@ -43,8 +43,12 @@ coverage:
       branch: 75
       line: 80
       must: true          # 后端必须加分支覆盖率门禁
-      # 后端存量代码体量大，测试按模块分批补齐后才可切换为 enforced
+      # 后端存量代码体量大：整体暂为 staged，但已达标模块按红线强制（逐模块上锁）
+      # 入列模块见 backend/pom.xml → jacoco check 的 CLASS 级 includes
       enforced: false
+      # 已按红线强制的模块（每补齐一个模块的单测即加入此名单）
+      enforced_modules:
+        - com.carolcoral.apiserver.service.OidcService*   # 94.9% 行 / 78.8% 分支
     frontend:
       branch: 75
       line: 80

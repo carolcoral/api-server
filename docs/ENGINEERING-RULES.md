@@ -25,21 +25,41 @@
 `staged` 期间的**真实约束**（不是空转）：
 
 - **前端**：`vitest.config.js` 的 `thresholds` 已按 75% / 80% 强制，未达标即失败（前端逻辑层已达标）
-- **后端**：JaCoCo `check` 仍开启，阈值设为一组「不倒退底线」，覆盖率跌破底线即构建失败
-  （改坏了已有覆盖会立刻暴露），底线值见 `backend/pom.xml` 的 `coverage.*.minimum`
+- **后端（整体）**：JaCoCo `check` 仍开启，`BUNDLE` 级阈值设为一组「不倒退底线」，
+  覆盖率跌破底线即构建失败（改坏了已有覆盖会立刻暴露），底线值见 `backend/pom.xml` 的 `coverage.*.minimum`
+- **后端（已达标模块）**：对已补齐单测、达到红线的类，按 **`CLASS` 级规则以 75% / 80% 红线强制**
+  （当前名单见 `backend/pom.xml` 的 `jacoco check` → `element=CLASS` 的 `includes`）。
+  即 **逐步补测、逐步上锁**：每补齐一个模块，就把它加进名单，红线随即对该模块生效
 - **CI**：`testing:coverage` 在两个阶段都上报全量 + 增量覆盖率数据与徽章，曲线可见、趋势可查
 
 ### 1. 覆盖率红线（最终目标）
 
 | 范围 | 分支覆盖率 | 单元（行）覆盖率 | 说明 | 当前状态 |
 | --- | --- | --- | --- | --- |
-| **后端** `backend/` | **≥ 75%** | **≥ 80%** | 分支覆盖率门禁**后端必须执行** | ⏳ staged，待分批补测 |
+| **后端** `backend/` | **≥ 75%** | **≥ 80%** | 分支覆盖率门禁**后端必须执行** | ⏳ staged（整体）；已达标模块按红线强制 |
+| ↳ `service.OidcService` | ≥ 75% | ≥ 80% | 首个达标模块（94.9% 行 / 78.8% 分支） | ✅ 已按红线强制 |
 | 前端 `frontend/` | ≥ 75% | ≥ 80% | 同标准执行，统计范围为可单测逻辑层 | ✅ 已强制生效 |
 
 - **达到 `enforced` 后低于红线即阻断**，不允许 waive、不允许 `-DskipTests` 绕过。
 - 后端由 JaCoCo `check` 在 `mvn verify` 阶段强制校验。
 - 前端由 Vitest coverage `thresholds` 强制校验。
 - CI 侧由 CNB 内置任务 `testing:coverage` 解析报告、上报徽章；`enforced` 时设 `lines` / `diffLines` 阈值阻断。
+
+**逐模块上锁（progressive enforcement）**
+
+后端存量代码量大，改用「**补一个模块、锁一个模块**」的推进方式，避免长期停留在只看不卡：
+
+1. 选一个模块（优先级：service → controller → filter → handler），补齐单测
+2. 确认该模块 `mvn verify` 后行 ≥ 80% / 分支 ≥ 75%
+3. 把该模块（或其类）加入 `backend/pom.xml` → `jacoco check` 的 `CLASS` 级 `includes` 名单
+4. 模块一旦入列，**后续任何改动跌破红线都会立刻构建失败**
+5. 全部模块入列后，按下一节流程把整体切到 `enforced`，移除分模块名单（整体红线即覆盖全部）
+
+已入列模块：
+
+| 模块 | 行覆盖 | 分支覆盖 | 入列版本 |
+| --- | --- | --- | --- |
+| `service.OidcService`（含内部类） | 94.9% | 78.8% | Unreleased |
 
 后端覆盖率统计范围（`backend/pom.xml` 的 JaCoCo `excludes`）：
 `**/dto/**`、`**/entity/**`、`**/plugin/**`、`**/config/**`、`*Application`。

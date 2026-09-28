@@ -286,6 +286,7 @@
                         <configuration>
                             <haltOnFailure>true</haltOnFailure>
                             <rules>
+                                <!-- 存量整体（staged）：不倒退底线，避免分批推进期全量阻断 -->
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
@@ -298,6 +299,29 @@
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
                                             <minimum>${coverage.line.minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <!--
+                                  已达标模块：按全局红线强制执行（分支 75% / 行 80%）。
+                                  每补齐一个模块的单测，就把对应类加入下方名单——
+                                  即「逐步补充所有覆盖率和门禁指标」的落地方式。
+                                -->
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes>
+                                        <include>com.carolcoral.apiserver.service.OidcService*</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.branch.target}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.line.target}</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

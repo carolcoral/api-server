@@ -104,6 +104,90 @@ describe('stores/user', () => {
     expect(res.message).toBe('network down')
   })
 
+  describe('loginWithToken（OIDC 回调登录）', () => {
+    it('成功：写入 token、权限与用户资料', async () => {
+      get.mockImplementation((url) => {
+        if (url === '/auth/permissions') return Promise.resolve({ code: 200, data: ['p1', 'p2'] })
+        if (url === '/users/profile') {
+          return Promise.resolve({
+            code: 200,
+            data: { id: 9, username: 'oidcuser', role: 'USER', roleId: 2, roleName: '普通用户', roleCode: 'ROLE_USER', email: 'o@tdp.fan', language: 'zh-CN' }
+          })
+        }
+        return Promise.resolve({ code: 200, data: null })
+      })
+      const store = useUserStore()
+      const res = await store.loginWithToken('tok-oidc')
+      expect(res.success).toBe(true)
+      expect(store.token).toBe('tok-oidc')
+      expect(localStorage.getItem('token')).toBe('tok-oidc')
+      expect(store.permissions).toEqual(['p1', 'p2'])
+      expect(store.username).toBe('oidcuser')
+      expect(store.isLoggedIn).toBe(true)
+    })
+
+    it('权限接口返回非 200：清理 token 并返回失败', async () => {
+      get.mockResolvedValue({ code: 401, message: 'token 无效' })
+      const store = useUserStore()
+      const res = await store.loginWithToken('bad-token')
+      expect(res).toEqual({ success: false, message: 'token 无效' })
+      expect(store.token).toBe('')
+      expect(localStorage.getItem('token')).toBeNull()
+    })
+
+    it('权限接口非 200 且无 message：使用默认提示', async () => {
+      get.mockResolvedValue({ code: 500 })
+      const store = useUserStore()
+      const res = await store.loginWithToken('bad-token')
+      expect(res.success).toBe(false)
+      expect(res.message).toBe('OIDC 登录失败')
+    })
+
+    it('权限非数组时置为空数组', async () => {
+      get.mockImplementation((url) => {
+        if (url === '/auth/permissions') return Promise.resolve({ code: 200, data: 'oops' })
+        return Promise.resolve({ code: 200, data: null })
+      })
+      const store = useUserStore()
+      const res = await store.loginWithToken('tok')
+      expect(res.success).toBe(true)
+      expect(store.permissions).toEqual([])
+      expect(localStorage.getItem('permissions')).toBe('[]')
+    })
+
+    it('资料接口异常不影响登录成功', async () => {
+      get.mockImplementation((url) => {
+        if (url === '/auth/permissions') return Promise.resolve({ code: 200, data: ['p'] })
+        return Promise.reject(new Error('profile down'))
+      })
+      const store = useUserStore()
+      const res = await store.loginWithToken('tok')
+      expect(res.success).toBe(true)
+      expect(store.permissions).toEqual(['p'])
+    })
+
+    it('资料接口返回非 200 时保留空用户信息', async () => {
+      get.mockImplementation((url) => {
+        if (url === '/auth/permissions') return Promise.resolve({ code: 200, data: ['p'] })
+        return Promise.resolve({ code: 404, message: 'not found' })
+      })
+      const store = useUserStore()
+      const res = await store.loginWithToken('tok')
+      expect(res.success).toBe(true)
+      expect(store.userInfo).toEqual({})
+    })
+
+    it('请求抛异常：清理 token 并返回失败', async () => {
+      get.mockRejectedValue(new Error('network down'))
+      const store = useUserStore()
+      const res = await store.loginWithToken('tok')
+      expect(res.success).toBe(false)
+      expect(res.message).toBe('network down')
+      expect(store.token).toBe('')
+      expect(localStorage.getItem('token')).toBeNull()
+    })
+  })
+
   it('登出清理全部登录态', async () => {
     loginApi.mockResolvedValue({ code: 200, data: adminInfo })
     const store = useUserStore()
