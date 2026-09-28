@@ -63,6 +63,16 @@ class AuthControllerOidcTest {
         when(request.getServerPort()).thenReturn(443);
     }
 
+    /**
+     * 捕获 controller 推导出的 baseUrl（OIDC 回调地址 = baseUrl + /api/auth/oidc/callback）
+     */
+    private String capturedBaseUrl() {
+        org.mockito.ArgumentCaptor<String> captor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(oidcService).buildAuthorizationUrl(
+                org.mockito.ArgumentMatchers.nullable(String.class), captor.capture());
+        return captor.getValue();
+    }
+
     @Nested
     @DisplayName("GET /api/auth/oidc/authorize")
     class Authorize {
@@ -97,6 +107,114 @@ class AuthControllerOidcTest {
             controller.oidcAuthorize("keycloak", request);
             // 通过 mock 校验 baseUrl 推导正确，且 providerId 透传
             org.mockito.Mockito.verify(oidcService).buildAuthorizationUrl("keycloak", "http://app.fan:8080");
+        }
+
+        @Test
+        @DisplayName("反向代理只透传 Host：用 Origin 协商出 https，不把站点推成 http")
+        void schemeFromOrigin() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getServerName()).thenReturn("k5lo5buaxq-8080.cnb.run");
+            when(request.getServerPort()).thenReturn(8080);
+            when(request.getHeader("Origin")).thenReturn("https://k5lo5buaxq-8080.cnb.run");
+            when(request.getHeader("Host")).thenReturn("k5lo5buaxq-8080.cnb.run");
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("https://k5lo5buaxq-8080.cnb.run", capturedBaseUrl(),
+                    "Origin 为 https 时不能推导出 http（否则 redirect_uri 与 IdP 注册值不一致 → 400）");
+        }
+
+        @Test
+        @DisplayName("Origin 协议被 X-Forwarded-Proto 校正：https 站点不会被推成 http")
+        void schemePrefersForwardedProto() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getHeader("X-Forwarded-Proto")).thenReturn("https");
+            // 网关把 https 回源成 http，Origin 里可能残留 http，但 host 仍是浏览器地址
+            when(request.getHeader("Origin")).thenReturn("http://app.fan");
+            when(request.getHeader("Host")).thenReturn("app.fan");
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("https://app.fan", capturedBaseUrl());
+        }
+
+        @Test
+        @DisplayName("Origin 已是最新的真实地址：host 与协议都取 Origin")
+        void schemeAndHostFromOrigin() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getHeader("Origin")).thenReturn("https://public.cnb.run");
+            when(request.getHeader("Host")).thenReturn("inner-8080.cnb.run");
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("https://public.cnb.run", capturedBaseUrl());
+        }
+
+        @Test
+        @DisplayName("X-Forwarded-Proto 取第一段（网关链路最靠近浏览器的一跳）")
+        void schemeFirstSegment() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getHeader("X-Forwarded-Proto")).thenReturn("https, http");
+            when(request.getHeader("Host")).thenReturn("app.fan");
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("https://app.fan", capturedBaseUrl());
+        }
+
+        @Test
+        @DisplayName("无 Origin 时用 Referer 协商协议")
+        void schemeFromReferer() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getHeader("Referer")).thenReturn("https://app.fan/login");
+            when(request.getHeader("Host")).thenReturn("app.fan");
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("https://app.fan", capturedBaseUrl());
+        }
+
+        @Test
+        @DisplayName("RFC 7239 Forwarded: proto=https 参与协商")
+        void schemeFromForwardedHeader() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getHeader("Forwarded")).thenReturn("proto=\"https\";host=app.fan");
+            when(request.getHeader("Host")).thenReturn("app.fan");
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("https://app.fan", capturedBaseUrl());
+        }
+
+        @Test
+        @DisplayName("无任何协商证据：回退容器 scheme（http 非默认端口补端口号）")
+        void schemeFallsBackToContainer() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getScheme()).thenReturn("http");
+            when(request.getServerName()).thenReturn("app.fan");
+            when(request.getServerPort()).thenReturn(8080);
+            when(request.getHeader("Host")).thenReturn(null);
+            when(request.getHeader("X-Forwarded-Host")).thenReturn(null);
+            when(request.getHeader("X-Forwarded-Server")).thenReturn(null);
+            when(request.getHeader("X-Forwarded-Proto")).thenReturn(null);
+            when(request.getHeader("Origin")).thenReturn(null);
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("http://app.fan:8080", capturedBaseUrl());
+        }
+
+        @Test
+        @DisplayName("无法识别的协议值被忽略，不污染 baseUrl")
+        void schemeIgnoresGarbage() {
+            when(oidcService.isEnabledAndConfigured()).thenReturn(true);
+            when(request.getHeader("X-Forwarded-Proto")).thenReturn("ftp");
+            when(request.getHeader("Origin")).thenReturn("null");
+            when(request.getHeader("Host")).thenReturn("app.fan");
+
+            controller.oidcAuthorize(null, request);
+
+            assertEquals("https://app.fan", capturedBaseUrl(), "非法协议应回退容器 scheme=https");
         }
 
         @Test

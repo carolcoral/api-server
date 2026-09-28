@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### 🐛 OIDC 登录 400 / 登录图标不显示（Follow-up to #36）
+
+> 上一版把 `redirect_uri` 改成「优先取浏览器实际访问地址」，但经网关访问时仍取到 `http://<内网/自有域名>`，
+> 与 IdP 注册值对不上，`/oauth2/authorize` 依旧 400；同时后台已配置的登录图标在登录页不显示。
+
+- **修复 OIDC 登录仍 400（`redirect_uri` 协议被网关改写）**：
+  网关把 `https` 站点回源成 `http`、且只透传 `Host` 时，`resolveBaseUrl` 直接用容器 `getScheme()`，
+  把回调地址推成 `http://k5lo5buaxq-8080.cnb.run/...`；实测日志中 IdP 收到的正是这个 `http` 地址，
+  而 IdP 侧注册的是 `https://...`，**协议不一致即被授权端点 400 拒绝**（并非 host 不一致那么简单）。
+  现改为**协议单独协商**：`X-Forwarded-Proto` → `Origin`/`Referer` 的协议 → RFC 7239 `Forwarded: proto=` → 容器 scheme；
+  `Origin` 的 host 保留、协议按协商值校正（`Origin=http://app.fan` + `XFP=https` ⇒ `https://app.fan`）。
+- **修复登录图标不显示（`iconUrl` 为相对路径）**：`GET /api/public/system-config` 下发的 `iconUrl`
+  原先固定为 `/api/public/oidc/{providerId}/icon`。登录页与后端**不同域**时（前端 `:5173` / 后端 `:8080`，
+  或经网关不同入口），相对路径会被解析到前端自身域下 → 图标 404 → 前端回退内置默认图标，
+  看起来就是「设置了图标没生效」。现由后端按请求地址把 `iconUrl` 补成**绝对地址**（无请求信息时回退
+  `siteBaseUrl`，仍推导不出则保留相对路径），前端无需改动即可正确加载。
+- **`GET /api/public/system-config` 新增 `HttpServletRequest` 参数**：仅用于推导站点地址以生成绝对地址，
+  响应结构完全不变，兼容既有前端与旧客户端。
+- **工程约定沉淀**：`docs/ENGINEERING-RULES.md` 新增「反向代理下的『站点地址推导』约定」一节，
+  把 `Origin` → `X-Forwarded-Host` → `Host` 的 host 推导顺序、独立的协议协商顺序、
+  以及「对外资源地址必须绝对化」固化为长期约定。
+
 > OIDC 多服务商单点登录 · 登录图标自定义 · 账号自动绑定 · 后台可视化配置。
 
 ### 🔐 OIDC 登录体验修复与增强（Issue #36）
