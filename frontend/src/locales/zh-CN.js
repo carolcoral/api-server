@@ -141,6 +141,7 @@ export default {
     forgotPassword: '忘记密码？',
     toLogin: '已有账号？返回登录',
     orDivider: '或',
+    accountLogin: '账号密码登录',
     oidcButtonDefault: '使用 TDP 登录',
     oidcFailed: 'OIDC 登录失败'
   },

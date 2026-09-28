@@ -79,6 +79,10 @@
 > `service.SystemAnnouncementService`（78.2% 行 / 63.2% 分支）、`service.EmailTemplateService`、
 > `controller.MockController`（85.6% 行 / 72.0% 分支）、`service.MockTemplateEngine`（88.3% 行 / 62.5% 分支）。
 > 这些模块达红线后追加进 `includes` 名单即可自动上锁。
+>
+> `service.UserService` / `util.DatabaseMigration` 尚无 `CLASS` 级红线（存量体量大），
+> 但已针对本次 Issue #30 的回归点补单测：`service.UserServiceLoginTest`（OIDC 账号密码登录提示分支）、
+> `util.DatabaseMigrationOidcTest`（存量 SQLite 库缺 `oidc_*` 列时的迁移）。后续按「补一个、锁一个」补齐整体后入列。
 
 后端覆盖率统计范围（`backend/pom.xml` 的 JaCoCo `excludes`）：
 `**/dto/**`、`**/entity/**`、`**/plugin/**`、`**/config/**`、`*Application`。
@@ -152,6 +156,12 @@ CI 脚本跑在容器里，**镜像是工具链的唯一来源**，不要依赖�
 
 ## 二、编码约定
 
+- **SQLite 存量库必须先改 `DatabaseMigration`，不能只加 `@Column`**：
+  Hibernate 的 `ddl-auto: update` **对 SQLite 方言不会补齐新增列**，只在新建表时生效。
+  给实体加字段后，必须在 `util/DatabaseMigration.runSqliteMigrations()` 同步 `safeAlter(...)` 补列
+  （唯一约束用 `CREATE UNIQUE INDEX IF NOT EXISTS`，SQLite 不允许 `ADD COLUMN` 带 `UNIQUE`），
+  并补一条单测（参考 `util/DatabaseMigrationOidcTest`）。否则存量库会报
+  `no such column`，且常被兜底 catch 掩盖成「密码错误」这类误导性提示。
 - **不新增依赖前先评估**：优先复用既有能力（如 OIDC 接入用 JDK 内置 `HttpClient` + Jackson）。
 - **新增业务逻辑必须同时提交单测**，单测与实现同一 PR，不留「后续补测」。
 - **纯工具类 / 服务类优先做成可注入依赖**，避免静态单例导致无法单测。

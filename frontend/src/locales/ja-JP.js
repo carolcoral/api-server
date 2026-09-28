@@ -141,6 +141,7 @@ export default {
     forgotPassword: 'パスワードをお忘れですか？',
     toLogin: 'アカウントをお持ちの方はログイン',
     orDivider: 'または',
+    accountLogin: 'アカウントログイン',
     oidcButtonDefault: 'TDP でログイン',
     oidcFailed: 'OIDC ログインに失敗しました'
   },

@@ -65,6 +65,18 @@ public class DatabaseMigration implements CommandLineRunner {
         // 添加language字段到t_user表
         safeAlter("ALTER TABLE t_user ADD COLUMN language varchar(10)", "language");
 
+        // OIDC 单点登录（TDP）相关字段。
+        // 背景：t_user 表在 OIDC 功能引入前就已存在，而 Hibernate 的 ddl-auto:update
+        // 对 SQLite 方言不会补齐新增列，导致登录查询 SELECT ... oidc_sub ... 报
+        // "no such column: u1_0.oidc_sub"，前端表现为「账号或密码错误」。
+        // 因此这里为存量库显式补列。注意 oidc_sub 上的唯一约束：SQLite 不允许
+        // ADD COLUMN 时携带 UNIQUE，这里只补列 + 建唯一索引；
+        // 且唯一索引允许多个 NULL，不会影响历史用户（其 oidc_sub 均为 NULL）。
+        safeAlter("ALTER TABLE t_user ADD COLUMN oidc_sub VARCHAR(128)", "oidc_sub");
+        safeAlter("ALTER TABLE t_user ADD COLUMN oidc_provider VARCHAR(50)", "oidc_provider");
+        safeAlter("ALTER TABLE t_user ADD COLUMN oidc_account BOOLEAN DEFAULT 0", "oidc_account");
+        safeExecute("CREATE UNIQUE INDEX IF NOT EXISTS uk_user_oidc_sub ON t_user(oidc_sub)", "uk_user_oidc_sub");
+
         // 添加custom_response_handler字段
         safeAlter("ALTER TABLE t_mock_api ADD COLUMN custom_response_handler VARCHAR(500)", "custom_response_handler");
 
