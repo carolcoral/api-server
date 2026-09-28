@@ -47,14 +47,35 @@ coverage:
       # 入列模块见 backend/pom.xml → jacoco check 的 CLASS 级 includes
       enforced: false
       # 已按红线强制的模块（每补齐一个模块的单测即加入此名单）
+      # 名单与 backend/pom.xml 的 CLASS 级 includes 必须保持一致
       enforced_modules:
-        - com.carolcoral.apiserver.service.OidcService*   # 94.9% 行 / 78.8% 分支
+        - com.carolcoral.apiserver.service.OidcService*                # 94.0% 行 / 78.8% 分支
+        - com.carolcoral.apiserver.service.MockMetricsService          # 100% 行 / 100% 分支
+        - com.carolcoral.apiserver.service.SystemConfigService         # 100% 行 / 100% 分支
+        - com.carolcoral.apiserver.service.MockResponseService         # 100% 行 / 无分支
+        - com.carolcoral.apiserver.service.AiQuotaService              # 100% 行 / 85.3% 分支
+        - com.carolcoral.apiserver.service.AiUsageService              # 93.7% 行 / 100% 分支
+        - com.carolcoral.apiserver.service.AiModelSelector             # 93.5% 行 / 80.0% 分支
+        - com.carolcoral.apiserver.service.ResponseRequestParamService # 95.5% 行 / 79.2% 分支
+        - com.carolcoral.apiserver.service.PermissionService           # 86.2% 行 / 88.9% 分支
+        - com.carolcoral.apiserver.service.RoleService                 # 81.5% 行 / 96.4% 分支
+        - com.carolcoral.apiserver.service.ProjectMemberService        # 100% 行 / 100% 分支
+        - com.carolcoral.apiserver.util.CacheUtil                      # 100% 行 / 96.2% 分支
+        - com.carolcoral.apiserver.util.DatabaseDialectProvider        # 98.5% 行 / 98.0% 分支
+        - com.carolcoral.apiserver.util.DatabaseChecker                # 100% 行 / 83.3% 分支
     frontend:
       branch: 75
       line: 80
       must: false         # 前端默认同标准执行，可按需调整
       # 前端逻辑层已达标，阈值已在 vitest.config.js 中强制
       enforced: true
+  # 后端整体「不倒退底线」（staged 期间生效）：低于即构建失败，
+  # 与 backend/pom.xml 的 coverage.branch.minimum / coverage.line.minimum 对应。
+  baseline:
+    applied_only_when_staged: true
+    backend:
+      branch: 12
+      line: 17
   # 本地闸门（不受 mode 影响，始终生效）
   local:
     backend:

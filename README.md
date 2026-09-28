@@ -153,16 +153,17 @@ new WebSocket('ws://localhost:8080/api/ws/mock/{projectCode}/{path}')
 > 全局设置：**分支覆盖率 ≥ 75%、单元（行）覆盖率 ≥ 80%**。
 > 阈值单一来源见 [`.cnb/quality-gate.yml`](.cnb/quality-gate.yml)，工程约定见 [工程铁律](docs/ENGINEERING-RULES.md)。
 >
-> **当前状态：`staged`（分批推进期）**——门禁脚手架与 195 个单测已就位，
+> **当前状态：`staged`（分批推进期）**——门禁脚手架与 330 个单测已就位，
 > 但后端存量代码覆盖率距红线尚有差距，若立即卡死会阻断所有 PR。
-> staged 期间：前端已按红线强制；后端保留「不倒退」底线并持续上报覆盖率；
+> staged 期间：前端已按红线强制；后端按「不倒退」底线强制 + **14 个已达标模块按红线强制**
+> （逐模块上锁，清单见 [工程铁律](docs/ENGINEERING-RULES.md)），并持续上报覆盖率；
 > 达标后按 [工程铁律第三节](docs/ENGINEERING-RULES.md) 切换为 `enforced`（未达标即阻断）。
 
 ![后端覆盖率](/-/badge/git/latest/testing/unit/coverage?branch=main)
 
 |   | 检查项 | 命令 | 要求 |
 |---|--------|------|------|
-| 🧪 | 后端单测 | `cd backend && mvn verify` | 全绿（107 个用例），覆盖率持续上报 |
+| 🧪 | 后端单测 | `cd backend && mvn verify` | 全绿（330 个用例），覆盖率持续上报 |
 | 🧪 | 前端单测 + 覆盖率 | `cd frontend && npm run test:coverage` | 全绿，分支 ≥ 75% / 行 ≥ 80%（已强制） |
 | 🏗️ | 稳定性构建 | `npm run build` · `mvn -DskipTests package` | 前后端构建通过 |
 | 🧹 | 一致性 Lint | `cd frontend && npm run lint` | 0 error |

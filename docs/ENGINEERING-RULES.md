@@ -4,7 +4,7 @@
 > 机器可读的阈值配置见 [`.cnb/quality-gate.yml`](../.cnb/quality-gate.yml)（单一事实来源）。
 > 变更本文件或门禁阈值等同于变更**全局设置**，必须走 PR 并说明理由。
 
-最后更新：2026-09-28
+最后更新：2026-09-28（补全门禁指标：逐模块上锁 1 → 14 个模块）
 
 ---
 
@@ -16,7 +16,7 @@
 
 | 状态 | 含义 | 是否存在阻断 |
 | --- | --- | --- |
-| `staged`（当前） | 脚手架 + 单测骨架就位，存量覆盖率尚未达标，先只上报数据 | 前端强制；后端只设「不倒退」底线 |
+| `staged`（当前） | 脚手架 + 单测骨架就位，存量覆盖率尚未达标，先只上报数据 | 前端强制；后端按「不倒退」底线 + **14 个已达标模块按红线强制** |
 | `enforced` | 全部红线正式生效 | 全部阻断，未达标不允许合并 |
 
 为什么先用 `staged`：后端存量代码约 1.6 万行、约 800 个业务分支，覆盖率约 3.9% 分支 / 6.3% 行，
@@ -27,6 +27,7 @@
 - **前端**：`vitest.config.js` 的 `thresholds` 已按 75% / 80% 强制，未达标即失败（前端逻辑层已达标）
 - **后端（整体）**：JaCoCo `check` 仍开启，`BUNDLE` 级阈值设为一组「不倒退底线」，
   覆盖率跌破底线即构建失败（改坏了已有覆盖会立刻暴露），底线值见 `backend/pom.xml` 的 `coverage.*.minimum`
+  （当前 分支 12% / 行 17%，与 `.cnb/quality-gate.yml` 的 `coverage.baseline.backend` 一致）
 - **后端（已达标模块）**：对已补齐单测、达到红线的类，按 **`CLASS` 级规则以 75% / 80% 红线强制**
   （当前名单见 `backend/pom.xml` 的 `jacoco check` → `element=CLASS` 的 `includes`）。
   即 **逐步补测、逐步上锁**：每补齐一个模块，就把它加进名单，红线随即对该模块生效
@@ -37,7 +38,7 @@
 | 范围 | 分支覆盖率 | 单元（行）覆盖率 | 说明 | 当前状态 |
 | --- | --- | --- | --- | --- |
 | **后端** `backend/` | **≥ 75%** | **≥ 80%** | 分支覆盖率门禁**后端必须执行** | ⏳ staged（整体）；已达标模块按红线强制 |
-| ↳ `service.OidcService` | ≥ 75% | ≥ 80% | 首个达标模块（94.9% 行 / 78.8% 分支） | ✅ 已按红线强制 |
+| ↳ 14 个已达标模块 | ≥ 75% | ≥ 80% | service + util 逐模块上锁，明细见下表 | ✅ 已按红线强制 |
 | 前端 `frontend/` | ≥ 75% | ≥ 80% | 同标准执行，统计范围为可单测逻辑层 | ✅ 已强制生效 |
 
 - **达到 `enforced` 后低于红线即阻断**，不允许 waive、不允许 `-DskipTests` 绕过。
@@ -55,11 +56,29 @@
 4. 模块一旦入列，**后续任何改动跌破红线都会立刻构建失败**
 5. 全部模块入列后，按下一节流程把整体切到 `enforced`，移除分模块名单（整体红线即覆盖全部）
 
-已入列模块：
+已入列模块（与 `backend/pom.xml` → `jacoco check` 的 `CLASS` 级 `includes`、`.cnb/quality-gate.yml` 的 `enforced_modules` **三方保持一致**）：
 
 | 模块 | 行覆盖 | 分支覆盖 | 入列版本 |
 | --- | --- | --- | --- |
-| `service.OidcService`（含内部类） | 94.9% | 78.8% | Unreleased |
+| `service.OidcService`（含内部类） | 94.0% | 78.8% | Unreleased |
+| `service.MockMetricsService` | 100% | 100% | Unreleased |
+| `service.SystemConfigService` | 100% | 100% | Unreleased |
+| `service.MockResponseService` | 100% | 无分支 | Unreleased |
+| `service.AiQuotaService` | 100% | 85.3% | Unreleased |
+| `service.AiUsageService` | 93.7% | 100% | Unreleased |
+| `service.AiModelSelector` | 93.5% | 80.0% | Unreleased |
+| `service.ResponseRequestParamService` | 95.5% | 79.2% | Unreleased |
+| `service.PermissionService` | 86.2% | 88.9% | Unreleased |
+| `service.RoleService` | 81.5% | 96.4% | Unreleased |
+| `service.ProjectMemberService` | 100% | 100% | Unreleased |
+| `util.CacheUtil` | 100% | 96.2% | Unreleased |
+| `util.DatabaseDialectProvider` | 98.5% | 98.0% | Unreleased |
+| `util.DatabaseChecker` | 100% | 83.3% | Unreleased |
+
+> 未入列但已补齐单测、暂未达红线的模块（下一批候选）：
+> `service.SystemAnnouncementService`（78.2% 行 / 63.2% 分支）、`service.EmailTemplateService`、
+> `controller.MockController`（85.6% 行 / 72.0% 分支）、`service.MockTemplateEngine`（88.3% 行 / 62.5% 分支）。
+> 这些模块达红线后追加进 `includes` 名单即可自动上锁。
 
 后端覆盖率统计范围（`backend/pom.xml` 的 JaCoCo `excludes`）：
 `**/dto/**`、`**/entity/**`、`**/plugin/**`、`**/config/**`、`*Application`。
