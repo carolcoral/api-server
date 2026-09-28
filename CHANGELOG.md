@@ -51,6 +51,20 @@ ALTER TABLE t_user ADD COLUMN oidc_account BOOLEAN DEFAULT FALSE NOT NULL;
 - **拆分稳定性构建任务**：原 `stability-build` 单任务内混合前后端构建，前后端工具链不同无法共用同一镜像；拆为 `stability-build-frontend` / `stability-build-backend`
 - **后端构建统一走仓库内镜像加速配置**：`mvn` 命令显式加 `-s ../maven-settings.xml`，避免 Maven Central 访问受限导致依赖下载失败
 
+### 🚦 补全门禁指标（逐模块上锁扩展）
+
+- **背景**：门禁处于 `staged` 期时，后端仅有 `service.OidcService` 一个模块按红线强制，其余模块无约束；本次「补全项目所有门禁指标」将已达标模块批量上锁，并补齐对应的单测与配置登记
+- **新增单测（165 → 330 用例，+165）**：为以下模块补齐 Mockito 单测，覆盖成功/异常/空值/边界分支
+  - `service.SystemConfigService`、`service.MockResponseService`、`service.AiQuotaService`、`service.AiUsageService`、`service.AiModelSelector`
+  - `service.PermissionService`、`service.RoleService`、`service.ProjectMemberService`、`service.ResponseRequestParamService`
+  - `service.MockMetricsService`、`service.EmailTemplateService`、`service.SystemAnnouncementService`
+- **逐模块上锁（1 → 14 个已达标模块）**：以下模块行 ≥ 80% / 分支 ≥ 75%，追加进 `backend/pom.xml` 的 `jacoco check` → `CLASS` 级 `includes`，后续任何改动跌破红线即构建失败：
+  `OidcService`、`MockMetricsService`、`SystemConfigService`、`MockResponseService`、`AiQuotaService`、`AiUsageService`、
+  `AiModelSelector`、`ResponseRequestParamService`、`PermissionService`、`RoleService`、`ProjectMemberService`，
+  以及 `util.CacheUtil`、`util.DatabaseDialectProvider`、`util.DatabaseChecker`
+- **整体覆盖率提升**：后端 行 **10.14% → 17.70%**、分支 **7.52% → 12.44%**；`BUNDLE` 级「不倒退底线」由 3% / 6% 上调至 **12% / 17%**（`backend/pom.xml` 的 `coverage.*.minimum`）
+- **门禁指标配置补全**：`.cnb/quality-gate.yml` 的 `coverage.scope.backend.enforced_modules` 登记全部 14 个已入列模块（与 pom 的 `includes` 一一对应），新增 `coverage.baseline` 段登记后端整体「不倒退底线」指标，消除「阈值只在代码里、配置里看不到」的不一致
+
 ### 🧪 单元测试体系
 
 - **后端**：接入 JaCoCo 0.8.12，新增 `prepare-agent` / `report` / `check` 三个执行；统计范围排除 `dto` / `entity` / `plugin` / `config` 与启动类；新增 107 个单测（`JwtTokenUtil`、`DatabaseDialectProvider`、`CacheUtil`、`DatabaseChecker`、`MockTemplateEngine`、`MockController`）

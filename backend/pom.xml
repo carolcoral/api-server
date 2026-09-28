@@ -38,8 +38,8 @@
           并把下面两个值改为与 *.target 一致（流程见 docs/ENGINEERING-RULES.md 第三节）。
           定位提示：check 失败时到 backend/target/site/jacoco/index.html 查看未覆盖清单。
         -->
-        <coverage.branch.minimum>0.03</coverage.branch.minimum>
-        <coverage.line.minimum>0.06</coverage.line.minimum>
+        <coverage.branch.minimum>0.12</coverage.branch.minimum>
+        <coverage.line.minimum>0.17</coverage.line.minimum>
     </properties>
 
     <dependencies>
@@ -310,7 +310,23 @@
                                 <rule>
                                     <element>CLASS</element>
                                     <includes>
+                                        <!-- 已达标模块名单（每补齐一个模块的单测即追加，红线随即对该模块生效） -->
+                                        <!-- service -->
                                         <include>com.carolcoral.apiserver.service.OidcService*</include>
+                                        <include>com.carolcoral.apiserver.service.MockMetricsService</include>
+                                        <include>com.carolcoral.apiserver.service.SystemConfigService</include>
+                                        <include>com.carolcoral.apiserver.service.MockResponseService</include>
+                                        <include>com.carolcoral.apiserver.service.AiQuotaService</include>
+                                        <include>com.carolcoral.apiserver.service.AiUsageService</include>
+                                        <include>com.carolcoral.apiserver.service.AiModelSelector</include>
+                                        <include>com.carolcoral.apiserver.service.ResponseRequestParamService</include>
+                                        <include>com.carolcoral.apiserver.service.PermissionService</include>
+                                        <include>com.carolcoral.apiserver.service.RoleService</include>
+                                        <include>com.carolcoral.apiserver.service.ProjectMemberService</include>
+                                        <!-- util -->
+                                        <include>com.carolcoral.apiserver.util.CacheUtil</include>
+                                        <include>com.carolcoral.apiserver.util.DatabaseDialectProvider</include>
+                                        <include>com.carolcoral.apiserver.util.DatabaseChecker</include>
                                     </includes>
                                     <limits>
                                         <limit>

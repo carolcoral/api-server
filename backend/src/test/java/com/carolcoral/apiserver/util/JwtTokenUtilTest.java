@@ -125,4 +125,25 @@ class JwtTokenUtilTest {
         String expired = jwtTokenUtil.generateToken(userDetails("alice"), 1L, "USER");
         assertThrows(ExpiredJwtException.class, () -> jwtTokenUtil.refreshToken(expired));
     }
+
+    @Test
+    @DisplayName("非法令牌解析用户ID返回 null 而非抛异常")
+    void getUserIdFromInvalidTokenReturnsNull() {
+        assertNull(jwtTokenUtil.getUserIdFromToken("not-a-jwt"));
+    }
+
+    @Test
+    @DisplayName("非法令牌解析用户角色返回 null 而非抛异常")
+    void getUserRoleFromInvalidTokenReturnsNull() {
+        assertNull(jwtTokenUtil.getUserRoleFromToken("not-a-jwt"));
+    }
+
+    @Test
+    @DisplayName("双参数校验时非法令牌解析失败，用户名取到 null 会抛出 NPE")
+    void validateInvalidTokenWithUserDetails() {
+        // validateToken(token, userDetails) 未做 null 兜底，非法令牌会经 getUsernameFromToken 返回 null 触发 NPE；
+        // 记录现状以免误用，后续若要改成返回 false 需同步调整本用例
+        assertThrows(NullPointerException.class,
+                () -> jwtTokenUtil.validateToken("not-a-jwt", userDetails("alice")));
+    }
 }
