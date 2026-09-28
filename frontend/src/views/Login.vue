@@ -31,7 +31,11 @@
         </h1>
         <p>{{ $t('login.subtitle') }}</p>
       </div>
-      
+
+      <!-- 本地账号密码登录（默认入口）。
+           TDP（OIDC）为可选入口：需后台管理员在「系统设置」中开启并配置后才显示。 -->
+      <div class="login-mode-title">{{ $t('login.accountLogin') }}</div>
+
       <el-form
         ref="loginFormRef"
         :model="loginForm"
@@ -378,6 +382,14 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   color: #909399;
+}
+
+.login-mode-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 14px;
+  text-align: center;
 }
 
 .login-form {

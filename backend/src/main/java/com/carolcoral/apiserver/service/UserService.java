@@ -91,6 +91,13 @@ public class UserService {
             if (!userOpt.isPresent()) {
                 return ApiResponse.error(401, "用户名或密码错误");
             }
+
+            // OIDC（TDP）账号没有可用的本地密码，走本地登录必然失败。
+            // 直接给出明确指引，避免用户误以为是账号或密码错误。
+            if (Boolean.TRUE.equals(userOpt.get().getOidcAccount())) {
+                log.warn("OIDC 账号尝试使用密码登录: {}", account);
+                return ApiResponse.error(400, "该账号由 TDP 单点登录创建，请使用登录页的 TDP 入口登录");
+            }
             
             User user = userOpt.get();
             

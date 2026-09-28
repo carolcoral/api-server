@@ -14,6 +14,35 @@
 - **安全设计**：`state` 防 CSRF、PKCE 防授权码拦截、回调重定向携带 JWT；`client_secret` 不回显原文，留空表示保持原值；ID Token 校验 `iss` / `exp`
 - **配置即时生效**：保存后无需重启，`t_system_config` 存储配置，`t_user` 新增 `oidc_sub` / `oidc_provider` / `oidc_account` 字段
 
+### 🐛 修复（TDP OIDC 登录相关）
+
+- **修复存量数据库登录报「账号密码错误」，实为 `oidc_sub` 列缺失**（Issue #30）：
+  `./build-all-in-one.sh && ./run.sh` 后用 `.env` 中的管理员账号登录，前端提示「用户名或密码错误」，
+  后端日志为 `[SQLITE_ERROR] SQL error or missing database (no such column: u1_0.oidc_sub)`。
+  根因：`t_user` 表在 OIDC 功能引入前就已存在，而 **Hibernate 的 `ddl-auto: update` 对 SQLite 方言
+  不会补齐新增列**，`DatabaseMigration` 也未包含 OIDC 字段迁移；登录查询 `SELECT ... oidc_sub ...`
+  直接抛异常，被 `UserService.login` 的兜底 catch 转成「登录失败」，前端只能看到密码错误。
+  现于 `DatabaseMigration.runSqliteMigrations()` 显式补列 `oidc_sub` / `oidc_provider` / `oidc_account`
+  （SQLite 不允许 `ADD COLUMN` 携带 UNIQUE，改为建唯一索引 `uk_user_oidc_sub`；
+  唯一索引允许多个 NULL，历史用户不受影响），**存量库升级后无需重建数据库**。
+
+  > 手动升级（可选，程序启动时也会自动执行）：
+
+  ```sql
+  ALTER TABLE t_user ADD COLUMN oidc_sub VARCHAR(128);
+  ALTER TABLE t_user ADD COLUMN oidc_provider VARCHAR(50);
+  ALTER TABLE t_user ADD COLUMN oidc_account BOOLEAN DEFAULT 0;
+  CREATE UNIQUE INDEX IF NOT EXISTS uk_user_oidc_sub ON t_user(oidc_sub);
+  ```
+
+- **TDP 登录入口确定为「独立入口」，不是默认登录方式**：TDP（OIDC）仍需后台管理员在
+  「系统设置 → 安全配置 → OIDC」中开启并配齐 Issuer / Client ID / Client Secret 后，
+  登录页才显示「使用 TDP 登录」按钮；未配置时按钮不显示，默认走本地账号密码登录。
+  登录页新增「账号密码登录」分组标题，与 TDP 入口在视觉上明确区分。
+- **OIDC 账号不再误报「用户名或密码错误」**：由 TDP 自动创建、无本地密码的账号（`oidc_account=true`）
+  若尝试用账号密码登录，现直接返回「该账号由 TDP 单点登录创建，请使用登录页的 TDP 入口登录」，
+  避免用户误判为密码记错。
+
 ### 📝 升级说明
 
 > ⚠️ **本版本数据库变更**：`t_user` 表新增 3 个 OIDC 相关字段（`oidc_sub`、`oidc_provider`、`oidc_account`），由 JPA 自动建表/更新（`ddl-auto=update`）。如使用手动建表，请补充：
@@ -22,7 +51,11 @@
 ALTER TABLE t_user ADD COLUMN oidc_sub VARCHAR(128);
 ALTER TABLE t_user ADD COLUMN oidc_provider VARCHAR(50);
 ALTER TABLE t_user ADD COLUMN oidc_account BOOLEAN DEFAULT FALSE NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uk_user_oidc_sub ON t_user(oidc_sub);
 ```
+
+> SQLite 存量库另见下方「修复」节的说明：Hibernate 在 SQLite 上不会自动补列，
+> 由 `DatabaseMigration` 在启动时自动完成，无需手工执行。
 
 > 全局质量门禁 · 单测覆盖率红线（分支 75% / 行 80%）· 稳定性与一致性检查 · 工程铁律记忆体。
 

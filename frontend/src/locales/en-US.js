@@ -141,6 +141,7 @@ export default {
     forgotPassword: 'Forgot password?',
     toLogin: 'Already have an account? Back to login',
     orDivider: 'or',
+    accountLogin: 'Account Login',
     oidcButtonDefault: 'Sign in with TDP',
     oidcFailed: 'OIDC login failed'
   },
