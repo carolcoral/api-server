@@ -60,6 +60,21 @@ cd frontend && npm run lint
 
 两项都通过后再推送，避免占用流水线资源。
 
+### 4. 流水线运行环境（镜像必须自带工具链）
+
+CI 脚本跑在容器里，**镜像是工具链的唯一来源**，不要依赖运行时现装：
+
+| 任务 | 镜像 | 理由 |
+| --- | --- | --- |
+| 后端（测试 / 覆盖率 / 构建） | `maven:3.9-eclipse-temurin-21` | 自带 Maven + JDK 21，匹配 `backend/pom.xml` 的 Java 21 |
+| 前端（测试 / 覆盖率 / lint / 构建） | `node:20` | 自带 Node.js / npm |
+
+- **禁止**用 `cnbcool/default-dev-env` 跑 CI 脚本：它是云原生**开发**镜像，PATH 中**没有 `mvn`**，
+  直接执行会以 `mvn: not found`（返回码 127）失败（历史上已踩坑）。
+- 未显式声明 `image` 时使用缺省构建镜像，同样不保证含 Maven，因此**必须显式声明**。
+- 不同镜像的任务容器之间**只共享 `CNB_BUILD_WORKSPACE`（/workspace）**，
+  覆盖率报告等产物必须落在该目录内，否则后续 `testing:coverage` 任务读不到。
+
 ---
 
 ## 二、编码约定

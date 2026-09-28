@@ -40,17 +40,22 @@ $:
         - 5173  # Vite 前端开发服务器
 
   # ---- 质量门禁流水线（全局设置，阈值见 .cnb/quality-gate.yml）----
+  # 镜像策略：CNB 未显式声明 image 时使用缺省构建镜像，但缺省镜像不含 Maven，
+  # 会导致 `mvn: not found`（返回码 127）。此处按任务所需工具链显式指定镜像：
+  #   - 后端任务（Maven + JDK 21）→ maven:3.9-eclipse-temurin-21
+  #   - 前端任务（Node.js）      → node:20
+  # 任务级 image 的容器之间仅共享 CNB_BUILD_WORKSPACE（/workspace），
+  # 覆盖率报告均落在此目录下，可被后续 testing:coverage 任务读取。
   pull_request:
     - name: quality-gate
-      docker:
-        image: cnbcool/default-dev-env
       stages:
         # ---------- 后端：单元测试 + 覆盖率门禁（分支 75% / 行 80%） ----------
         - name: backend-test
+          image: maven:3.9-eclipse-temurin-21
           script: |
             set -e
             cd backend
-            mvn -B -ntp verify
+            mvn -B -ntp -s ../maven-settings.xml verify
             echo "✓ 后端单元测试通过，Jacoco 覆盖率门禁达标（分支 ≥ 75% / 行 ≥ 80%）"
         - name: backend-coverage
           type: testing:coverage
@@ -63,6 +68,7 @@ $:
             breakIfNoCoverage: true
         # ---------- 前端：单元测试 + 覆盖率门禁（分支 75% / 行 80%） ----------
         - name: frontend-test
+          image: node:20
           script: |
             set -e
             cd frontend
@@ -79,17 +85,29 @@ $:
             diffLines: 80
             breakIfNoCoverage: true
         # ---------- 稳定性检查：前后端构建必须通过 ----------
-        - name: stability-build
-          script: |
-            set -e
-            cd frontend && npm run build
-            cd ../backend && mvn -B -ntp -DskipTests package
-            echo "✓ 稳定性检查通过：前后端构建成功"
-        # ---------- 一致性检查：Lint / 提交信息规范 ----------
-        - name: consistency-check
+        # 前后端工具链不同，拆为两个任务各自使用对应镜像
+        - name: stability-build-frontend
+          image: node:20
           script: |
             set -e
             cd frontend
+            npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+            npm run build
+            echo "✓ 稳定性检查通过：前端构建成功"
+        - name: stability-build-backend
+          image: maven:3.9-eclipse-temurin-21
+          script: |
+            set -e
+            cd backend
+            mvn -B -ntp -s ../maven-settings.xml -DskipTests package
+            echo "✓ 稳定性检查通过：后端构建成功"
+        # ---------- 一致性检查：Lint / 提交信息规范 ----------
+        - name: consistency-check
+          image: node:20
+          script: |
+            set -e
+            cd frontend
+            npm ci --no-audit --no-fund || npm install --no-audit --no-fund
             npm run lint || { echo "✗ 一致性检查失败：ESLint 未通过"; exit 1; }
             cd ..
             MSG=$(git log -1 --pretty=%s)
@@ -100,14 +118,13 @@ $:
 
   push:
     - name: quality-gate
-      docker:
-        image: cnbcool/default-dev-env
       stages:
         - name: backend-test
+          image: maven:3.9-eclipse-temurin-21
           script: |
             set -e
             cd backend
-            mvn -B -ntp verify
+            mvn -B -ntp -s ../maven-settings.xml verify
         - name: backend-coverage
           type: testing:coverage
           options:
@@ -117,6 +134,7 @@ $:
             lines: 80
             breakIfNoCoverage: true
         - name: frontend-test
+          image: node:20
           script: |
             set -e
             cd frontend
@@ -130,7 +148,6 @@ $:
             pattern: frontend/coverage/coverage-final.json
             lines: 80
             breakIfNoCoverage: true
-
 
 # ========================================
 # 质量门禁（Quality Gate）
