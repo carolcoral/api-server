@@ -55,6 +55,9 @@ build/
 *.test.js.snap
 .coverage/
 .nyc_output/
+# 单测覆盖率报告（由 npm run test:coverage / mvn verify 生成）
+frontend/coverage/
+backend/target/
 
 # 编辑器
 *.sublime-project

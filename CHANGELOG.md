@@ -1,5 +1,48 @@
 # 版本变更说明
 
+## Unreleased
+
+> 全局质量门禁 · 单测覆盖率红线（分支 75% / 行 80%）· 稳定性与一致性检查 · 工程铁律记忆体。
+
+### 🚦 全局质量门禁（Quality Gate）
+
+- **覆盖率红线**：新增全局门禁，**分支覆盖率 ≥ 75%、单元（行）覆盖率 ≥ 80%**，低于红线直接阻断流水线与合并；**后端必须执行分支覆盖率门禁**
+- **单一事实来源**：门禁阈值统一收敛到 `.cnb/quality-gate.yml`，机器可读、可直接被流水线引用，禁止在别处另立阈值
+- **CI 落地**：`.cnb.yml` 新增 `quality-gate` 流水线（`pull_request` / `push` 事件），串行执行「后端单测 → 后端覆盖率 → 前端单测 → 前端覆盖率 → 稳定性构建 → 一致性检查」；覆盖率经 CNB 内置任务 `testing:coverage` 解析上报，生成覆盖率徽章
+- **双重把关**：本地命令即已强制红线（`mvn verify` 的 JaCoCo `check`、`vitest --coverage` 的 `thresholds`），不依赖 CI 才有约束
+
+### 🧪 单元测试体系
+
+- **后端**：接入 JaCoCo 0.8.12，新增 `prepare-agent` / `report` / `check` 三个执行；统计范围排除 `dto` / `entity` / `plugin` / `config` 与启动类；新增 107 个单测（`JwtTokenUtil`、`DatabaseDialectProvider`、`CacheUtil`、`DatabaseChecker`、`MockTemplateEngine`、`MockController`）
+- **前端**：新增 `vitest.config.js`（含覆盖率阈值）与 `vitest.setup.js`（补齐 jsdom 缺失的 `matchMedia` / `ResizeObserver` / `createObjectURL`）；新增 88 个单测，覆盖 `utils` / `stores` / `api` 逻辑层，行覆盖率 99.6%、分支覆盖率 96.6%
+- **新增依赖**：`@vitest/coverage-v8`、`@vue/test-utils`、`jsdom`
+- **新增脚本**：`npm run test:run`（单次跑测）、`npm run test:coverage`（含覆盖率门禁）、`npm run lint:fix`
+
+### ✅ 每次提交的强制检查
+
+- **稳定性**：后端单测全绿 + 前端单测全绿 + 前后端构建通过（禁止 `-DskipTests` 绕过）
+- **一致性**：ESLint 通过 + 覆盖率阈值达标 + 提交信息遵循 Conventional Commits + 保护分支状态检查必须 success
+
+### 🧹 代码一致性
+
+- **修复 ESLint 配置缺失**：仓库此前无任何 ESLint 配置，`npm run lint` 会直接报错退出；新增 `.eslintrc.cjs`（`eslint:recommended` + `plugin:vue/vue3-recommended`）与 `.eslintignore`，并修正 `lint` 脚本误指向不存在的 `.gitignore` 的问题
+- **规则分层**：会直接导致线上故障的规则（如 `no-dupe-keys`）为 `error`，历史存量告警（未使用变量、空块、模板风格等）先降级为 `warn`，后续分批收敛
+- **修复 i18n 重复键**：清理 `zh-CN` / `en-US` / `ja-JP` 中 7 处重复定义的语言键（含 `pleaseSelectFile`、`daily`、`description`），后定义会静默覆盖前值，属真实缺陷
+
+### 🧠 工程铁律记忆体
+
+- **新增 `docs/ENGINEERING-RULES.md`**：NPC 与协作者的长期记忆体，记录门禁红线、每次提交的强制检查、本地自检命令、编码约定与门禁变更流程
+- **新增 `.cnb/quality-gate.yml`**：机器可读的门禁配置，作为阈值唯一来源
+- **持续生效**：两份文件随仓库存在，NPC 每次任务都会读取，门禁规则无需在每次对话中重复声明
+
+### 📝 升级说明
+
+> ⚠️ **无数据库变更**。本版本仅新增/调整工程配置与测试代码，不影响运行时行为与既有接口。
+>
+> 门禁生效后，**存量未覆盖模块的改动需同步补齐单测**。当前后端存在大量仅由框架初始化路径覆盖的代码，全量达到 80% 依赖分层测试策略的落地；门禁已就位，测试补齐按模块分批推进。
+
+---
+
 ## v2.4.1 (2026-08-18)
 
 > 接口 Markdown 文档导出 · AI 增强导出 · iframe 嵌入白名单 · 跨域凭据支持 · 导出超时优化。

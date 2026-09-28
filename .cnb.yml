@@ -39,6 +39,112 @@ $:
         - 8080  # Spring Boot 后端
         - 5173  # Vite 前端开发服务器
 
+  # ---- 质量门禁流水线（全局设置，阈值见 .cnb/quality-gate.yml）----
+  pull_request:
+    - name: quality-gate
+      docker:
+        image: cnbcool/default-dev-env
+      stages:
+        # ---------- 后端：单元测试 + 覆盖率门禁（分支 75% / 行 80%） ----------
+        - name: backend-test
+          script: |
+            set -e
+            cd backend
+            mvn -B -ntp verify
+            echo "✓ 后端单元测试通过，Jacoco 覆盖率门禁达标（分支 ≥ 75% / 行 ≥ 80%）"
+        - name: backend-coverage
+          type: testing:coverage
+          options:
+            key: backend
+            name: 后端覆盖率
+            pattern: backend/target/site/jacoco/jacoco.xml
+            lines: 80
+            diffLines: 80
+            breakIfNoCoverage: true
+        # ---------- 前端：单元测试 + 覆盖率门禁（分支 75% / 行 80%） ----------
+        - name: frontend-test
+          script: |
+            set -e
+            cd frontend
+            npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+            npm run test:coverage
+            echo "✓ 前端单元测试通过，覆盖率门禁达标（分支 ≥ 75% / 行 ≥ 80%）"
+        - name: frontend-coverage
+          type: testing:coverage
+          options:
+            key: frontend
+            name: 前端覆盖率
+            pattern: frontend/coverage/coverage-final.json
+            lines: 80
+            diffLines: 80
+            breakIfNoCoverage: true
+        # ---------- 稳定性检查：前后端构建必须通过 ----------
+        - name: stability-build
+          script: |
+            set -e
+            cd frontend && npm run build
+            cd ../backend && mvn -B -ntp -DskipTests package
+            echo "✓ 稳定性检查通过：前后端构建成功"
+        # ---------- 一致性检查：Lint / 提交信息规范 ----------
+        - name: consistency-check
+          script: |
+            set -e
+            cd frontend
+            npm run lint || { echo "✗ 一致性检查失败：ESLint 未通过"; exit 1; }
+            cd ..
+            MSG=$(git log -1 --pretty=%s)
+            echo "最新提交信息：$MSG"
+            echo "$MSG" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+' \
+              || { echo "✗ 一致性检查失败：提交信息需遵循 Conventional Commits"; exit 1; }
+            echo "✓ 一致性检查通过"
+
+  push:
+    - name: quality-gate
+      docker:
+        image: cnbcool/default-dev-env
+      stages:
+        - name: backend-test
+          script: |
+            set -e
+            cd backend
+            mvn -B -ntp verify
+        - name: backend-coverage
+          type: testing:coverage
+          options:
+            key: backend
+            name: 后端覆盖率
+            pattern: backend/target/site/jacoco/jacoco.xml
+            lines: 80
+            breakIfNoCoverage: true
+        - name: frontend-test
+          script: |
+            set -e
+            cd frontend
+            npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+            npm run test:coverage
+        - name: frontend-coverage
+          type: testing:coverage
+          options:
+            key: frontend
+            name: 前端覆盖率
+            pattern: frontend/coverage/coverage-final.json
+            lines: 80
+            breakIfNoCoverage: true
+
+
+# ========================================
+# 质量门禁（Quality Gate）
+# ========================================
+# 全局设置：分支覆盖率 ≥ 75%、单元（行）覆盖率 ≥ 80%，每次提交必须通过
+# 稳定性与一致性检查。阈值单一来源见 .cnb/quality-gate.yml。
+#
+# 说明：
+# - 后端（含分支覆盖率门禁，见 Issue 要求「后端才需要加上这句话」）
+# - 前端（同标准执行，统计范围为可单测逻辑层 src/{utils,stores,api,composables}）
+# - 覆盖率红线由本地测试命令与 testing:coverage 双重把关：
+#     本地：mvn verify（jacoco check 失败即断）/ vitest --coverage（阈值失败即断）
+#     CI  ：testing:coverage 内置任务解析报告并上报徽章，低于红线阻断流水线
+# ========================================
 # ========================================
 # 自动同步到 GitHub
 # ========================================
