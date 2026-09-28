@@ -11,6 +11,12 @@
 - **CI 落地**：`.cnb.yml` 新增 `quality-gate` 流水线（`pull_request` / `push` 事件），串行执行「后端单测 → 后端覆盖率 → 前端单测 → 前端覆盖率 → 稳定性构建 → 一致性检查」；覆盖率经 CNB 内置任务 `testing:coverage` 解析上报，生成覆盖率徽章
 - **双重把关**：本地命令即已强制红线（`mvn verify` 的 JaCoCo `check`、`vitest --coverage` 的 `thresholds`），不依赖 CI 才有约束
 
+### 🐛 修复
+
+- **修复流水线镜像缺少 Maven 导致 CI 失败**：`quality-gate` 流水线此前统一使用云原生开发镜像 `cnbcool/default-dev-env` 作为运行环境，该镜像 PATH 中没有 `mvn`，后端任务直接以 `mvn: not found`（返回码 127）失败；现按任务工具链显式指定镜像——后端任务用 `maven:3.9-eclipse-temurin-21`（Maven + JDK 21），前端任务用 `node:20`
+- **拆分稳定性构建任务**：原 `stability-build` 单任务内混合前后端构建，前后端工具链不同无法共用同一镜像；拆为 `stability-build-frontend` / `stability-build-backend`
+- **后端构建统一走仓库内镜像加速配置**：`mvn` 命令显式加 `-s ../maven-settings.xml`，避免 Maven Central 访问受限导致依赖下载失败
+
 ### 🧪 单元测试体系
 
 - **后端**：接入 JaCoCo 0.8.12，新增 `prepare-agent` / `report` / `check` 三个执行；统计范围排除 `dto` / `entity` / `plugin` / `config` 与启动类；新增 107 个单测（`JwtTokenUtil`、`DatabaseDialectProvider`、`CacheUtil`、`DatabaseChecker`、`MockTemplateEngine`、`MockController`）
