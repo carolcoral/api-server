@@ -255,14 +255,48 @@ public class OidcService {
      */
     @Operation(summary = "获取 OIDC 公开配置")
     public OidcPublicConfigDTO getPublicConfig() {
+        return getPublicConfig(null);
+    }
+
+    /**
+     * 获取 OIDC 公开配置（登录页使用），并按访问地址补全图标绝对地址
+     * <p>图标走独立读取接口，前端必须以<b>绝对地址</b>加载：登录页可能部署在与后端不同的域
+     * （例如前端在 `:5173`、后端在 `:8080`），相对路径会被解析到前端自身域下而 404，
+     * 表现为「后台已配置图标、登录页仍显示默认图标」。此处统一把 {@code iconUrl}
+     * 补成 {@code 站点地址 + 读取路径}，前端无论部署在哪都能取到。</p>
+     *
+     * @param baseUrl 本次请求推导出的站点基础地址（可为空，为空时回退 {@code siteBaseUrl}）
+     * @return 公开配置
+     */
+    @Operation(summary = "获取 OIDC 公开配置")
+    public OidcPublicConfigDTO getPublicConfig(String baseUrl) {
         List<OidcPublicProviderDTO> list = new ArrayList<>();
+        String iconBase = resolveIconBaseUrl(baseUrl);
         for (OidcProviderDTO provider : getAvailableProviders()) {
             String label = provider.getButtonLabel();
             // 图标以「读取接口地址」而非内联 Base64 下发，避免撑大登录页接口响应
             list.add(new OidcPublicProviderDTO(provider.getProviderId(), provider.getName(), label,
-                    iconUrlOf(provider)));
+                    iconUrlOf(provider, iconBase)));
         }
         return new OidcPublicConfigDTO(!list.isEmpty(), list);
+    }
+
+    /**
+     * 解析图标读取接口的基础地址（用于把相对 iconUrl 补成绝对地址）
+     * <p>优先级：本次请求的实际访问地址 → 系统设置中的 {@code siteBaseUrl}；两者都拿不到时返回空串，
+     * 此时 {@code iconUrl} 仍为相对路径，由浏览器按当前页面域解析（同源部署场景可用）。</p>
+     *
+     * @param baseUrl 本次请求推导出的站点基础地址（可为空）
+     * @return 基础地址（无末尾斜杠）；无法推导时为空串
+     */
+    private String resolveIconBaseUrl(String baseUrl) {
+        String base = notBlank(baseUrl) ? baseUrl.trim()
+                : (notBlank(systemConfigService.getConfig("siteBaseUrl"))
+                        ? systemConfigService.getConfig("siteBaseUrl").trim() : "");
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base;
     }
 
     /**
@@ -420,11 +454,12 @@ public class OidcService {
      * @param provider 服务商配置
      * @return 图标访问地址
      */
-    private String iconUrlOf(OidcProviderDTO provider) {
+    private String iconUrlOf(OidcProviderDTO provider, String baseUrl) {
         if (provider == null || !notBlank(provider.getIcon())) {
             return null;
         }
-        return ICON_PATH_PREFIX + provider.getProviderId() + "/icon";
+        String path = ICON_PATH_PREFIX + provider.getProviderId() + "/icon";
+        return notBlank(baseUrl) ? baseUrl + path : path;
     }
 
     /**

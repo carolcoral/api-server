@@ -497,8 +497,40 @@ class OidcServiceTest {
             assertEquals(icon, saved.getIcon());
             assertEquals("logo.png", saved.getIconName());
             assertEquals(icon, service.getProviderIcon("tdp"));
+            // 无请求地址且未配置 siteBaseUrl：退化为相对路径（同源部署可用）
             assertEquals("/api/public/oidc/tdp/icon",
                     service.getPublicConfig().getProviders().get(0).getIconUrl());
+        }
+
+        @Test
+        @DisplayName("图标：iconUrl 按访问地址补成绝对地址（登录页与后端不同域也能加载）")
+        void iconUrlAbsolute() {
+            String icon = "data:image/png;base64," + Base64.getEncoder()
+                    .encodeToString(new byte[]{1, 2, 3, 4});
+            OidcConfigDTO dto = new OidcConfigDTO();
+            dto.setEnabled(true);
+            OidcProviderDTO p = completeProvider("tdp", true);
+            p.setIcon(icon);
+            dto.setProviders(List.of(p));
+            service.saveConfig(dto);
+
+            assertEquals("https://public-8080.cnb.run/api/public/oidc/tdp/icon",
+                    service.getPublicConfig("https://public-8080.cnb.run").getProviders().get(0).getIconUrl());
+            // 请求地址末尾带斜杠时不应出现双斜杠
+            assertEquals("https://public-8080.cnb.run/api/public/oidc/tdp/icon",
+                    service.getPublicConfig("https://public-8080.cnb.run/").getProviders().get(0).getIconUrl());
+            // 无请求地址时回退 siteBaseUrl
+            configStore.put("siteBaseUrl", "https://site.example.com/");
+            assertEquals("https://site.example.com/api/public/oidc/tdp/icon",
+                    service.getPublicConfig(null).getProviders().get(0).getIconUrl());
+        }
+
+        @Test
+        @DisplayName("图标：未配置图标时 iconUrl 为 null（前端回退内置图标）")
+        void iconUrlNullWhenAbsent() {
+            enableOidc();
+            assertNull(service.getPublicConfig("https://public-8080.cnb.run")
+                    .getProviders().get(0).getIconUrl());
         }
 
         @Test

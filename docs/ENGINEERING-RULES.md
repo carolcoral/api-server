@@ -4,7 +4,7 @@
 > 机器可读的阈值配置见 [`.cnb/quality-gate.yml`](../.cnb/quality-gate.yml)（单一事实来源）。
 > 变更本文件或门禁阈值等同于变更**全局设置**，必须走 PR 并说明理由。
 
-最后更新：2026-09-28（补全门禁指标：逐模块上锁 1 → 15 个模块；同期补充资源存储约定，见第四节）
+最后更新：2026-09-28（补全门禁指标：逐模块上锁 1 → 15 个模块；补充资源存储约定与「反向代理下站点地址推导」约定）
 
 ---
 
@@ -60,7 +60,7 @@
 
 | 模块 | 行覆盖 | 分支覆盖 | 入列版本 |
 | --- | --- | --- | --- |
-| `service.OidcService`（含内部类） | 100% | 100% | Unreleased |
+| `service.OidcService`（含内部类） | 96.8% | 84.4% | Unreleased |
 | `service.MockMetricsService` | 100% | 100% | Unreleased |
 | `service.SystemConfigService` | 100% | 100% | Unreleased |
 | `service.MockResponseService` | 100% | 无分支 | Unreleased |
@@ -74,7 +74,7 @@
 | `util.CacheUtil` | 100% | 96.2% | Unreleased |
 | `util.DatabaseDialectProvider` | 98.5% | 98.0% | Unreleased |
 | `util.DatabaseChecker` | 100% | 83.3% | Unreleased |
-| `util.OidcIconUtil` | 100% | 95.5% | Unreleased |
+| `util.OidcIconUtil` | 100% | 92.7% | Unreleased |
 
 > 未入列但已补齐单测、暂未达红线的模块（下一批候选）：
 > `service.SystemAnnouncementService`（78.2% 行 / 63.2% 分支）、`service.EmailTemplateService`、
@@ -185,6 +185,33 @@ CI 脚本跑在容器里，**镜像是工具链的唯一来源**，不要依赖�
 
 > 首个落地场景：OIDC 服务商登录图标（`t_system_config` 中的 `oidcProviders[].icon` + `/api/public/oidc/{providerId}/icon`）。
 > 既有已落地同类实现可参考用户头像（`api/user/avatar`），逻辑保持一致的边界与报错风格。
+
+---
+
+## 五、反向代理下的「站点地址推导」约定（全局设置）
+
+线上部署一律经反向代理 / 网关（CNB、Nginx、各类 Serverless 网关）。**能从请求推导的地址，
+不要写死配置**；推导顺序固定为下面这套，任何新接口需要「站点地址」时必须复用：
+
+- **问「本次请求实际从哪来」**（与 `AuthController.resolveBaseUrl`、`PublicConfigController.resolveBaseUrl` 同一实现）：
+  1. `Origin` / `X-Forwarded-Origin` —— 浏览器同源请求最可信；
+  2. `X-Forwarded-Host` / `X-Forwarded-Server` —— 取逗号分隔的**第一段**（最靠近浏览器的一跳）；
+  3. `Host` —— 同样取第一段；
+  4. 兜底：容器解析出的 `serverName:serverPort`。
+- **协议（scheme）单独协商，不能想当然**：`X-Forwarded-Proto` → `Origin` / `Referer` 的协议 →
+  RFC 7239 `Forwarded: proto=` → 容器 `getScheme()`。
+  **网关常常只透传 `Host`、把 `https` 回源成 `http`**，此时若直接用容器 scheme，会把 `https` 站点
+  推成 `http` —— OIDC 回调地址一旦与 IdP 注册值不一致（`http` vs `https`），授权端点直接返回 **400**。
+- **`Origin` 的 host 可用，协议要被协商值校正**：即 `Origin=http://app.fan` + `X-Forwarded-Proto=https`
+  ⇒ `https://app.fan`。
+- **`siteBaseUrl` 只是兜底**：仅在完全拿不到请求信息（如定时任务、异步线程）时才用它，且它属于
+  「历史遗留值易过期」，不作为首选。
+- **对外下发的资源地址必须是绝对地址**：登录页等**可能跨域部署**（前端 `:5173` / 后端 `:8080`）的页面，
+  后端返回的资源地址（如 OIDC 图标 `iconUrl`）要拼上站点地址；相对路径会被浏览器解析到前端自身域下而 404，
+  表现为「后台明明配了图标，登录页还是默认图标」。
+
+> 落地场景：OIDC 回调地址（`{base}/api/auth/oidc/callback`）与登录图标地址
+> （`{base}/api/public/oidc/{providerId}/icon`）。新增同类需求时直接复用这两个推导方法，不要另写一套。
 
 ---
 

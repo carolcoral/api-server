@@ -445,11 +445,12 @@ public class AuthController {
      * @return 站点基础地址
      */
     private String resolveBaseUrl(jakarta.servlet.http.HttpServletRequest request) {
-        // 1. 浏览器同源请求会带 Origin，优先使用
+        // 1. 浏览器同源请求会带 Origin，优先使用（协议按 X-Forwarded-Proto 协商后校正，
+        //    网关把 https 站点回源成 http 时，Origin 仍是 http，直接用会把回调地址推成 http）
         String origin = firstNonBlank(request.getHeader("Origin"),
                 request.getHeader("X-Forwarded-Origin"));
         if (origin != null && !"null".equalsIgnoreCase(origin)) {
-            return stripTrailingSlash(origin);
+            return withScheme(origin, resolveScheme(request));
         }
         // 2. 网关转发头：取第一个（最靠近浏览器）的 host
         String forwarded = firstNonBlank(request.getHeader("X-Forwarded-Host"),
@@ -459,20 +460,112 @@ public class AuthController {
         if (forwardedHost == null) {
             forwardedHost = firstSegment(request.getHeader("Host"));
         }
-        String scheme = firstSegment(firstNonBlank(request.getHeader("X-Forwarded-Proto"), request.getScheme()));
-        if (scheme == null || scheme.isEmpty()) {
-            scheme = request.getScheme();
-        }
+        // 4. 协商协议：X-Forwarded-Proto → Origin → Referer → RFC 7239 Forwarded → 容器 scheme
+        //    反向代理常只透传 Host（不传 X-Forwarded-Proto），若直接用容器 scheme 会把 https
+        //    站点推成 http，回调地址与 IdP 注册值不一致即被授权端点 400 拒绝。
+        String scheme = resolveScheme(request);
         if (forwardedHost != null && !forwardedHost.isEmpty()) {
             // Host 头可能已包含端口（如 example.com:8443），仅在缺失端口时才补默认端口
             return stripTrailingSlash(buildBase(scheme, forwardedHost));
         }
-        // 4. 最后回退到 Servlet 容器解析出的主机信息
+        // 5. 最后回退到 Servlet 容器解析出的主机信息
         String host = request.getServerName();
         int port = request.getServerPort();
         boolean defaultPort = ("http".equals(scheme) && port == 80)
                 || ("https".equals(scheme) && port == 443);
         return stripTrailingSlash(buildBase(scheme, defaultPort ? host : host + ":" + port));
+    }
+
+    /**
+     * 协商站点的实际协议（http / https）
+     * <p>按「最接近浏览器的证据」依次取：</p>
+     * <ol>
+     *   <li>{@code X-Forwarded-Proto}（网关链路取第一段）</li>
+     *   <li>{@code Origin} / {@code X-Forwarded-Origin} / {@code Referer} 的协议（同源请求里最可靠）</li>
+     *   <li>RFC 7239 {@code Forwarded: proto=}</li>
+     *   <li>Servlet 容器解析出的 {@code request.getScheme()}</li>
+     * </ol>
+     *
+     * @param request HTTP 请求
+     * @return 协议名（小写，兜底 http）
+     */
+    private String resolveScheme(jakarta.servlet.http.HttpServletRequest request) {
+        String forwardedProto = firstSegment(request.getHeader("X-Forwarded-Proto"));
+        String scheme = schemeOf(forwardedProto);
+        if (scheme == null) {
+            scheme = schemeOf(firstNonBlank(request.getHeader("Origin"),
+                    request.getHeader("X-Forwarded-Origin"), request.getHeader("Referer")));
+        }
+        if (scheme == null) {
+            scheme = schemeOf(forwardedProtoOf(request.getHeader("Forwarded")));
+        }
+        if (scheme == null) {
+            scheme = schemeOf(request.getScheme());
+        }
+        return scheme != null ? scheme : "http";
+    }
+
+    /**
+     * 把 URL 的协议替换为协商结果（仅当两者不同且协商值合法时）
+     * <p>用于「网关只透传 Host、把 https 回源成 http」的场景：Origin 保留了浏览器的 host，
+     * 但协议可能已被网关改写，此处以协商出的协议为准。</p>
+     *
+     * @param url    形如 {@code http://host[:port]} 的地址
+     * @param scheme 协商出的协议（http / https）
+     * @return 协议校正后的地址
+     */
+    private String withScheme(String url, String scheme) {
+        String value = firstNonBlank(url);
+        if (value == null) {
+            return null;
+        }
+        String stripped = stripTrailingSlash(value);
+        int idx = stripped.indexOf("://");
+        String normalized = idx > 0 ? stripped.substring(idx + 3) : stripped;
+        return scheme + "://" + normalized;
+    }
+
+    /**
+     * 从 URL / 协议串中提取 scheme（http / https）
+     *
+     * @param value 形如 {@code https://host}、{@code https} 的字符串
+     * @return 小写协议名；无法识别返回 null
+     */
+    private String schemeOf(String value) {
+        String v = firstNonBlank(value);
+        if (v == null) {
+            return null;
+        }
+        int idx = v.indexOf("://");
+        if (idx > 0) {
+            v = v.substring(0, idx);
+        }
+        v = v.trim().toLowerCase(java.util.Locale.ROOT);
+        return ("http".equals(v) || "https".equals(v)) ? v : null;
+    }
+
+    /**
+     * 解析 RFC 7239 {@code Forwarded} 头中的 {@code proto=} 参数
+     *
+     * @param forwarded Forwarded 头原文（如 {@code proto=https;host=example.com}）
+     * @return proto 值；不存在返回 null
+     */
+    private String forwardedProtoOf(String forwarded) {
+        String header = firstSegment(forwarded);
+        if (header == null) {
+            return null;
+        }
+        for (String part : header.split(";")) {
+            String item = part.trim();
+            int eq = item.indexOf('=');
+            if (eq <= 0) {
+                continue;
+            }
+            if ("proto".equalsIgnoreCase(item.substring(0, eq).trim())) {
+                return item.substring(eq + 1).trim().replace("\"", "");
+            }
+        }
+        return null;
     }
 
     /**
