@@ -60,28 +60,6 @@ export function healthCheckModel(id) {
   return request({ url: `${BASE}/models/${id}/health-check`, method: 'post' })
 }
 
-// ==================== 订阅 ====================
-
-export function listSubscriptions(params) {
-  return request({ url: `${BASE}/subscriptions`, method: 'get', params })
-}
-
-export function createSubscription(data) {
-  return request({ url: `${BASE}/subscriptions`, method: 'post', data })
-}
-
-export function updateSubscription(id, data) {
-  return request({ url: `${BASE}/subscriptions/${id}`, method: 'put', data })
-}
-
-export function updateSubscriptionPriority(id, data) {
-  return request({ url: `${BASE}/subscriptions/${id}/priority`, method: 'put', data })
-}
-
-export function deleteSubscription(id) {
-  return request({ url: `${BASE}/subscriptions/${id}`, method: 'delete' })
-}
-
 // ==================== 额度 ====================
 
 export function listQuotas(params) {

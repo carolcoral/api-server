@@ -21,6 +21,4 @@ import java.util.List;
 public interface AiQuotaRepository extends JpaRepository<AiQuota, Long> {
 
     List<AiQuota> findByUserIdAndStatusTrue(Long userId);
-
-    List<AiQuota> findBySubscriptionIdAndStatusTrue(Long subscriptionId);
 }

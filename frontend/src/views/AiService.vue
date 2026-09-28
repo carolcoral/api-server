@@ -34,7 +34,7 @@
     <div class="content-wrapper" v-loading="pageLoading">
       <!-- 统计卡片 -->
       <el-row :gutter="16" class="stats-row">
-        <el-col :xs="12" :sm="6" v-for="stat in statsCards" :key="stat.key">
+        <el-col :xs="12" :sm="8" v-for="stat in statsCards" :key="stat.key">
           <div class="stat-card" :class="stat.color">
             <div class="stat-icon" v-html="stat.icon"></div>
             <div class="stat-info">
@@ -53,9 +53,6 @@
           </el-tab-pane>
           <el-tab-pane :label="$t('aiService.models')" name="models">
             <ModelsPanel ref="modelsRef" @stats-changed="refreshStats" />
-          </el-tab-pane>
-          <el-tab-pane :label="$t('aiService.subscriptions')" name="subscriptions">
-            <SubscriptionsPanel ref="subscriptionsRef" />
           </el-tab-pane>
           <el-tab-pane :label="$t('aiService.quotas')" name="quotas">
             <QuotasPanel ref="quotasRef" />
@@ -78,7 +75,6 @@ import { useI18n } from 'vue-i18n'
 import { getAiStatistics } from '@/api/aiService'
 import ProvidersPanel from './aiService/ProvidersPanel.vue'
 import ModelsPanel from './aiService/ModelsPanel.vue'
-import SubscriptionsPanel from './aiService/SubscriptionsPanel.vue'
 import QuotasPanel from './aiService/QuotasPanel.vue'
 import ApiKeysPanel from './aiService/ApiKeysPanel.vue'
 import UsageLogsPanel from './aiService/UsageLogsPanel.vue'
@@ -92,7 +88,6 @@ const totalCalls = ref(0)
 // 子面板引用
 const providersRef = ref(null)
 const modelsRef = ref(null)
-const subscriptionsRef = ref(null)
 const quotasRef = ref(null)
 const apiKeysRef = ref(null)
 const usageLogsRef = ref(null)
@@ -100,7 +95,6 @@ const usageLogsRef = ref(null)
 const panelRefs = {
   providers: providersRef,
   models: modelsRef,
-  subscriptions: subscriptionsRef,
   quotas: quotasRef,
   apiKeys: apiKeysRef,
   usageLogs: usageLogsRef
@@ -116,7 +110,6 @@ function onTabChange(name) {
 // 统计
 const statsCards = ref([
   { key: 'models', value: 0, label: '', color: 'purple', icon: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>' },
-  { key: 'subscriptions', value: 0, label: '', color: 'blue', icon: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' },
   { key: 'apiKeys', value: 0, label: '', color: 'green', icon: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>' },
   { key: 'todayCalls', value: 0, label: '', color: 'orange', icon: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' }
 ])
@@ -127,14 +120,12 @@ async function loadStats() {
     if (res.code === 200 && res.data) {
       const d = res.data
       statsCards.value[0].value = d.totalModels || 0
-      statsCards.value[1].value = d.totalSubscriptions || 0
-      statsCards.value[2].value = d.totalApiKeys || 0
-      statsCards.value[3].value = d.todayCalls || 0
+      statsCards.value[1].value = d.totalApiKeys || 0
+      statsCards.value[2].value = d.todayCalls || 0
       totalCalls.value = d.totalCalls || 0
       statsCards.value[0].label = t('aiService.totalModels')
-      statsCards.value[1].label = t('aiService.totalSubscriptions')
-      statsCards.value[2].label = t('aiService.totalApiKeys')
-      statsCards.value[3].label = t('aiService.todayCalls')
+      statsCards.value[1].label = t('aiService.totalApiKeys')
+      statsCards.value[2].label = t('aiService.todayCalls')
     }
   } catch (e) {
     console.error('获取统计失败', e)

@@ -4,6 +4,15 @@
 
 > TDP OIDC 单点登录 · 账号自动绑定 · 后台可视化配置。
 
+### 🗑️ 移除 AI 订阅及相关功能
+
+- **移除用户订阅体系**：删除 `AiSubscription` 实体、仓储、DTO 与 `/api/user/ai` 自助接口（订阅 / 个人 API Key）。
+- **移除订阅页面**：删除 `AiSubscription.vue`、`SubscriptionsPanel.vue` 及对应路由、侧边栏菜单、`aiUser` API 封装。
+- **管理端同步下线**：`AiAdminController` 移除订阅 CRUD，额度 DTO/实体去除 `subscription` 关联，统计看板去掉「订阅总数」。
+- **权限与文案清理**：移除 `ai-subscription:view` / `:subscribe` / `:key-manage` 三项权限与「AI 用户自助」权限组，清理三语 i18n 订阅文案。
+- **选路改造**：`AiModelSelector` / `AiProxyService` 由「按用户订阅选路」改为「按全局启用模型选路」，保留 auto 模式与故障回落能力；智能选模默认按输入单价升序。
+- **兼容性**：存量数据库中的 `t_ai_subscription` 表不再使用，保留无副作用；`t_ai_quota.subscription_id` 列不再读写。
+
 ### 🔐 TDP OIDC 登录
 
 - **标准 OIDC 接入**：基于 OpenID Connect Authorization Code Flow（含 PKCE S256），支持以 TDP（`https://tdp.fan/oidc`）作为登录方式，参考 [TDP OIDC 接入指南](https://cnb.cool/tdp/docs/-/blob/docs/zh/oidc.md)

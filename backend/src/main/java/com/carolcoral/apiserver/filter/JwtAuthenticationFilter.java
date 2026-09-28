@@ -191,7 +191,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             requestUri.equals("/ai-settings") ||
             requestUri.equals("/ai-chat") ||
             requestUri.equals("/ai-service") ||
-            requestUri.equals("/ai-subscription") ||
             requestUri.equals("/roles") ||
             requestUri.equals("/permissions") ||
             requestUri.equals("/ops-monitor") ||

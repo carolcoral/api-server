@@ -103,12 +103,6 @@
           </el-menu-item>
         </el-sub-menu>
 
-        <!-- AI 订阅 - 根据权限显示 -->
-        <el-menu-item index="/ai-subscription" v-if="userStore.hasPermission('ai-subscription:view')">
-          <el-icon><Cpu /></el-icon>
-          <span>{{ $t('nav.aiSubscription') }}</span>
-        </el-menu-item>
-
         <!-- 系统管理 - 根据权限显示 -->
         <el-sub-menu index="sub-system" v-if="userStore.hasAnyPermission(['email-template:view', 'ai-settings:view', 'ai-service:view', 'settings:view', 'ops:view'])">
           <template #title>

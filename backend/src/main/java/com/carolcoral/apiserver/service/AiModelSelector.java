@@ -7,10 +7,7 @@
 package com.carolcoral.apiserver.service;
 
 import com.carolcoral.apiserver.entity.AiModel;
-import com.carolcoral.apiserver.entity.AiProvider;
-import com.carolcoral.apiserver.entity.AiSubscription;
 import com.carolcoral.apiserver.repository.AiModelRepository;
-import com.carolcoral.apiserver.repository.AiSubscriptionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -22,7 +19,7 @@ import java.util.stream.Collectors;
 
 /**
  * AI 模型自动选择器
- * 负责 auto 模式和 fallback 场景下的模型选择
+ * 负责 auto 模式和 fallback 场景下的模型选择（基于全局启用模型，不再依赖用户订阅）
  *
  * @author carolcoral
  */
@@ -31,7 +28,6 @@ public class AiModelSelector {
 
     private static final Logger log = LoggerFactory.getLogger(AiModelSelector.class);
 
-    private final AiSubscriptionRepository subscriptionRepository;
     private final AiModelRepository modelRepository;
 
     /** 最大 fallback 重试次数 */
@@ -43,73 +39,41 @@ public class AiModelSelector {
     /** 冷却时间（分钟） */
     private static final int COOLDOWN_MINUTES = 5;
 
-    public AiModelSelector(AiSubscriptionRepository subscriptionRepository,
-                           AiModelRepository modelRepository) {
-        this.subscriptionRepository = subscriptionRepository;
+    public AiModelSelector(AiModelRepository modelRepository) {
         this.modelRepository = modelRepository;
     }
 
     /**
-     * 获取所有启用状态的订阅（用于内部路由）
+     * 获取所有启用且可用的模型（用于内部路由）
      */
-    public List<AiSubscription> getAllEnabledSubscriptions() {
-        return subscriptionRepository.findByStatusTrue().stream()
-                .filter(sub -> isModelAvailable(sub.getModel()))
+    public List<AiModel> getAllEnabledModels() {
+        return modelRepository.findByStatusTrueWithProvider().stream()
+                .filter(this::isModelAvailable)
                 .collect(Collectors.toList());
     }
 
     /**
-     * 获取所有启用状态的订阅（不检查健康状态，用于内部路由，JOIN FETCH 避免 LAZY 问题）
+     * 获取所有启用状态的模型（不检查健康状态，用于内部路由，JOIN FETCH 避免 LAZY 问题）
      */
-    public List<AiSubscription> getAllEnabledSubscriptionsIgnoreHealth() {
-        return subscriptionRepository.findByStatusTrueWithModelAndProvider();
+    public List<AiModel> getAllEnabledModelsIgnoreHealth() {
+        return modelRepository.findByStatusTrueWithProvider();
     }
 
     /**
      * 自动选择模型（auto 模式）
      *
-     * @param userId          用户ID
      * @param fallbackStrategy 策略：priority/random/cost_first/performance_first
      * @return 排序后的候选模型列表（排第一的为推荐模型）
      */
-    public List<AiSubscription> selectModels(Long userId, String fallbackStrategy) {
-        // 检查用户是否订阅了自动模式（使用 JOIN FETCH 加载 model 和 provider）
-        List<AiSubscription> userSubs = subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(userId);
-        boolean hasAutoMode = userSubs.stream()
-                .anyMatch(sub -> sub.getModel().getAutoMode() != null && sub.getModel().getAutoMode());
+    public List<AiModel> selectModels(String fallbackStrategy) {
+        // 从所有全局启用模型中选择（排除 autoMode 虚拟模型）
+        List<AiModel> candidates = modelRepository.findByStatusTrueWithProvider().stream()
+                .filter(this::isModelAvailable)
+                .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
+                .collect(Collectors.toList());
 
-        List<AiSubscription> subscriptions;
-
-        if (hasAutoMode) {
-            // 自动模式：从所有可用模型中选择（全局）
-            List<AiModel> allModels = modelRepository.findByStatusTrueWithProvider();
-            subscriptions = allModels.stream()
-                    .filter(this::isModelAvailable)
-                    .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
-                    .map(m -> {
-                        AiSubscription virtualSub = new AiSubscription();
-                        virtualSub.setModel(m);
-                        virtualSub.setProvider(m.getProvider());
-                        virtualSub.setPriority(0);
-                        virtualSub.setWeight(1);
-                        virtualSub.setFallbackEnabled(true);
-                        return virtualSub;
-                    })
-                    .collect(Collectors.toList());
-        } else {
-            // 普通模式：从用户订阅中选择（使用 JOIN FETCH 加载 model 和 provider）
-            subscriptions = subscriptionRepository
-                    .findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(userId);
-
-            // 过滤不可用模型 和 autoMode 模型（自动模式本身不应作为候选）
-            subscriptions = subscriptions.stream()
-                    .filter(sub -> isModelAvailable(sub.getModel()))
-                    .filter(sub -> sub.getModel().getAutoMode() == null || !sub.getModel().getAutoMode())
-                    .collect(Collectors.toList());
-        }
-
-        if (subscriptions.isEmpty()) {
-            log.warn("用户 {} 没有可用的 AI 模型", userId);
+        if (candidates.isEmpty()) {
+            log.warn("没有可用的 AI 模型");
             return Collections.emptyList();
         }
 
@@ -117,35 +81,33 @@ public class AiModelSelector {
         String strategy = fallbackStrategy != null ? fallbackStrategy : "priority";
         switch (strategy) {
             case "random":
-                Collections.shuffle(subscriptions);
+                Collections.shuffle(candidates);
                 break;
             case "cost_first":
-                subscriptions.sort(Comparator.comparing(
-                        sub -> sub.getModel().getInputPrice() != null ? sub.getModel().getInputPrice() : Double.MAX_VALUE));
+                candidates.sort(Comparator.comparing(
+                        m -> m.getInputPrice() != null ? m.getInputPrice() : Double.MAX_VALUE));
                 break;
             case "performance_first":
-                subscriptions.sort(Comparator.comparing(
-                        sub -> sub.getModel().getAvgLatencyMs() != null ? sub.getModel().getAvgLatencyMs() : Long.MAX_VALUE));
+                candidates.sort(Comparator.comparing(
+                        m -> m.getAvgLatencyMs() != null ? m.getAvgLatencyMs() : Long.MAX_VALUE));
                 break;
             case "priority":
             default:
-                // 普通模式下按优先级排序，自动模式下所有虚拟订阅优先级相同
-                subscriptions.sort(Comparator.comparingInt(AiSubscription::getPriority));
+                // 无用户订阅优先级，按输入单价（越低越优先）作为稳定的默认排序
+                candidates.sort(Comparator.comparing(
+                        m -> m.getInputPrice() != null ? m.getInputPrice() : Double.MAX_VALUE));
                 break;
         }
 
-        return subscriptions;
+        return candidates;
     }
 
     /**
-     * 根据模型名查找订阅（使用 JOIN FETCH 加载 model 和 provider）
+     * 根据模型名查找启用模型（使用 JOIN FETCH 加载 provider）
      */
-    public Optional<AiSubscription> findSubscription(Long userId, String modelName) {
-        List<AiSubscription> subs = subscriptionRepository
-                .findByUserIdAndStatusTrueWithModelAndProvider(userId);
-        return subs.stream()
-                .filter(sub -> sub.getModel().getModelName().equals(modelName)
-                        && sub.getModel().getStatus())
+    public Optional<AiModel> findModel(String modelName) {
+        return modelRepository.findByStatusTrueWithProvider().stream()
+                .filter(m -> m.getModelName().equals(modelName))
                 .findFirst();
     }
 
@@ -165,11 +127,10 @@ public class AiModelSelector {
     /**
      * 获取 fallback 候选列表（排除已尝试的模型）
      */
-    public List<AiSubscription> getFallbackCandidates(Long userId, String strategy,
-                                                       Set<Long> triedModelIds) {
-        List<AiSubscription> all = selectModels(userId, strategy);
+    public List<AiModel> getFallbackCandidates(String strategy, Set<Long> triedModelIds) {
+        List<AiModel> all = selectModels(strategy);
         return all.stream()
-                .filter(sub -> !triedModelIds.contains(sub.getModel().getId()))
+                .filter(m -> !triedModelIds.contains(m.getId()))
                 .limit(MAX_FALLBACK_RETRIES)
                 .collect(Collectors.toList());
     }

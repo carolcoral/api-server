@@ -44,7 +44,6 @@ public class AiAdminController {
 
     private final AiProviderRepository providerRepository;
     private final AiModelRepository modelRepository;
-    private final AiSubscriptionRepository subscriptionRepository;
     private final AiQuotaRepository quotaRepository;
     private final AiUsageLogRepository usageLogRepository;
     private final AiApiKeyRepository apiKeyRepository;
@@ -56,7 +55,6 @@ public class AiAdminController {
 
     public AiAdminController(AiProviderRepository providerRepository,
                               AiModelRepository modelRepository,
-                              AiSubscriptionRepository subscriptionRepository,
                               AiQuotaRepository quotaRepository,
                               AiUsageLogRepository usageLogRepository,
                               AiApiKeyRepository apiKeyRepository,
@@ -64,7 +62,6 @@ public class AiAdminController {
                               UserRepository userRepository) {
         this.providerRepository = providerRepository;
         this.modelRepository = modelRepository;
-        this.subscriptionRepository = subscriptionRepository;
         this.quotaRepository = quotaRepository;
         this.usageLogRepository = usageLogRepository;
         this.apiKeyRepository = apiKeyRepository;
@@ -115,7 +112,7 @@ public class AiAdminController {
         return ApiResponse.success(providerRepository.save(provider));
     }
 
-    @Operation(summary = "删除服务商", description = "删除AI服务商及其关联的模型、订阅数据")
+    @Operation(summary = "删除服务商", description = "删除AI服务商及其关联的模型数据")
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('ai-service:delete')")
     @DeleteMapping("/providers/{id}")
     public ApiResponse<Void> deleteProvider(@PathVariable Long id) {
@@ -123,11 +120,7 @@ public class AiAdminController {
         List<AiModel> models = modelRepository.findByProviderId(id);
         modelRepository.deleteAll(models);
 
-        // 2. 删除该服务商下的所有订阅
-        List<AiSubscription> subscriptions = subscriptionRepository.findByProviderId(id);
-        subscriptionRepository.deleteAll(subscriptions);
-
-        // 3. 删除服务商本身
+        // 2. 删除服务商本身
         providerRepository.deleteById(id);
         return ApiResponse.success();
     }
@@ -319,106 +312,6 @@ public class AiAdminController {
         return ApiResponse.success(healthCheckService.checkModel(model));
     }
 
-    // ==================== 订阅管理 ====================
-
-    @GetMapping("/subscriptions")
-    public ApiResponse<List<Map<String, Object>>> listSubscriptions(
-            @RequestParam(required = false) Long userId) {
-        List<AiSubscription> subs;
-        if (userId != null) {
-            // 使用 JOIN FETCH 避免 LAZY 加载问题（模型/服务商已删除时不会崩溃）
-            subs = subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(userId);
-        } else {
-            subs = subscriptionRepository.findByStatusTrueWithModelAndProvider();
-        }
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (AiSubscription sub : subs) {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", sub.getId());
-            m.put("user", safeUserRef(sub.getUser()));
-            m.put("provider", safeProviderRef(sub.getProvider()));
-            m.put("model", safeModelRef(sub.getModel()));
-            m.put("priority", sub.getPriority());
-            m.put("weight", sub.getWeight());
-            m.put("tags", sub.getTags());
-            m.put("fallbackEnabled", sub.getFallbackEnabled());
-            m.put("maxTokensPerRequest", sub.getMaxTokensPerRequest());
-            m.put("status", sub.getStatus());
-            m.put("createTime", sub.getCreateTime());
-            result.add(m);
-        }
-        return ApiResponse.success(result);
-    }
-
-    private Map<String, Object> safeUserRef(User user) {
-        if (user == null) return Map.of("id", 0, "username", "未知");
-        return Map.of("id", user.getId(), "username", user.getUsername() != null ? user.getUsername() : "未知");
-    }
-
-    private Map<String, Object> safeProviderRef(AiProvider provider) {
-        if (provider == null) return Map.of("id", 0, "name", "已删除", "code", "");
-        return Map.of("id", provider.getId(), "name", provider.getName() != null ? provider.getName() : "", "code", provider.getCode() != null ? provider.getCode() : "");
-    }
-
-    private Map<String, Object> safeModelRef(AiModel model) {
-        if (model == null) return Map.of("id", 0, "modelName", "已删除", "displayName", "已删除");
-        return Map.of("id", model.getId(), "modelName", model.getModelName() != null ? model.getModelName() : "", "displayName", model.getDisplayName() != null ? model.getDisplayName() : "");
-    }
-
-    @PostMapping("/subscriptions")
-    public ApiResponse<AiSubscription> createSubscription(@RequestBody AiSubscriptionDTO dto) {
-        User user = userRepository.findById(dto.getUserId())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-        AiProvider provider = providerRepository.findById(dto.getProviderId())
-                .orElseThrow(() -> new RuntimeException("服务商不存在"));
-        AiModel model = modelRepository.findById(dto.getModelId())
-                .orElseThrow(() -> new RuntimeException("模型不存在"));
-
-        if (subscriptionRepository.existsByUserIdAndModelId(dto.getUserId(), dto.getModelId())) {
-            return ApiResponse.error("该用户已订阅此模型");
-        }
-
-        AiSubscription sub = new AiSubscription();
-        sub.setUser(user);
-        sub.setProvider(provider);
-        sub.setModel(model);
-        sub.setPriority(dto.getPriority());
-        sub.setWeight(dto.getWeight());
-        sub.setTags(dto.getTags());
-        sub.setFallbackEnabled(dto.getFallbackEnabled());
-        sub.setMaxTokensPerRequest(dto.getMaxTokensPerRequest());
-        sub.setStatus(dto.getStatus());
-        return ApiResponse.success(subscriptionRepository.save(sub));
-    }
-
-    @PutMapping("/subscriptions/{id}")
-    public ApiResponse<AiSubscription> updateSubscription(@PathVariable Long id, @RequestBody AiSubscriptionDTO dto) {
-        AiSubscription sub = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("订阅不存在"));
-        sub.setPriority(dto.getPriority());
-        sub.setWeight(dto.getWeight());
-        sub.setTags(dto.getTags());
-        sub.setFallbackEnabled(dto.getFallbackEnabled());
-        sub.setMaxTokensPerRequest(dto.getMaxTokensPerRequest());
-        sub.setStatus(dto.getStatus());
-        return ApiResponse.success(subscriptionRepository.save(sub));
-    }
-
-    @PutMapping("/subscriptions/{id}/priority")
-    public ApiResponse<AiSubscription> updatePriority(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
-        AiSubscription sub = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("订阅不存在"));
-        if (body.containsKey("priority")) sub.setPriority(body.get("priority"));
-        if (body.containsKey("weight")) sub.setWeight(body.get("weight"));
-        return ApiResponse.success(subscriptionRepository.save(sub));
-    }
-
-    @DeleteMapping("/subscriptions/{id}")
-    public ApiResponse<Void> deleteSubscription(@PathVariable Long id) {
-        subscriptionRepository.deleteById(id);
-        return ApiResponse.success();
-    }
-
     // ==================== 额度管理 ====================
 
     @GetMapping("/quotas")
@@ -492,10 +385,6 @@ public class AiAdminController {
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         AiQuota quota = new AiQuota();
         quota.setUser(user);
-        if (dto.getSubscriptionId() != null) {
-            quota.setSubscription(subscriptionRepository.findById(dto.getSubscriptionId())
-                    .orElseThrow(() -> new RuntimeException("订阅不存在")));
-        }
         quota.setTokenLimit(dto.getTokenLimit());
         quota.setTokenUsed(dto.getTokenUsed());
         quota.setTimeWindowSeconds(dto.getTimeWindowSeconds());
@@ -605,7 +494,6 @@ public class AiAdminController {
 
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalModels", modelRepository.countByStatusTrue());
-        stats.put("totalSubscriptions", subscriptionRepository.count());
         stats.put("totalApiKeys", apiKeyRepository.count());
         stats.put("todayCalls", usageLogRepository.countByCreateTimeBetween(todayStart, todayEnd));
         stats.put("totalCalls", usageLogRepository.count());
