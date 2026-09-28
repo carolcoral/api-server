@@ -526,7 +526,6 @@ export default {
     importDataFormat: 'Only .json files are supported',
     importDataSuccess: 'Import successful, {count} APIs imported',
     importDataFailed: 'Import failed',
-    pleaseSelectFile: 'Please select a file first'
   },
 
   // API Management
@@ -764,7 +763,6 @@ export default {
     aiCalls: 'AI Call Statistics',
     yearly: 'Yearly',
     monthly: 'Monthly',
-    daily: 'Daily',
     callCount: 'Call Count',
     totalCalls: 'Total Calls',
     aiCallsByUser: 'By User'
@@ -1393,7 +1391,6 @@ export default {
     apiName: 'API Name',
     apiNamePlaceholder: 'Enter API name',
     apiNameRequired: 'Please enter API name',
-    description: 'Description',
     descriptionPlaceholder: 'Enter API description',
     aiGenerateDesc: 'AI Generate Description',
     aiGenerateFailed: 'AI description generation failed, please check AI settings',
@@ -1456,7 +1453,6 @@ export default {
     model: 'Model',
     status: 'Status',
     actions: 'Actions',
-    description: 'Description',
     addProvider: 'Add Provider',
     editProvider: 'Edit Provider',
     providerName: 'Provider Name',
