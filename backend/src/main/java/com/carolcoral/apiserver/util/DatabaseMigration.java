@@ -145,36 +145,16 @@ public class DatabaseMigration implements CommandLineRunner {
             "update_time DATETIME NOT NULL," +
             "FOREIGN KEY (provider_id) REFERENCES t_ai_provider(id))", "t_ai_model");
 
-        safeExecute("CREATE TABLE IF NOT EXISTS t_ai_subscription (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-            "user_id BIGINT NOT NULL," +
-            "provider_id BIGINT NOT NULL," +
-            "model_id BIGINT NOT NULL," +
-            "priority INTEGER NOT NULL DEFAULT 0," +
-            "weight INTEGER NOT NULL DEFAULT 1," +
-            "tags VARCHAR(200)," +
-            "fallback_enabled BOOLEAN NOT NULL DEFAULT 1," +
-            "max_tokens_per_request INTEGER," +
-            "status BOOLEAN NOT NULL DEFAULT 1," +
-            "expire_time DATETIME," +
-            "create_time DATETIME NOT NULL," +
-            "update_time DATETIME NOT NULL," +
-            "FOREIGN KEY (user_id) REFERENCES t_user(id)," +
-            "FOREIGN KEY (provider_id) REFERENCES t_ai_provider(id)," +
-            "FOREIGN KEY (model_id) REFERENCES t_ai_model(id))", "t_ai_subscription");
-
         safeExecute("CREATE TABLE IF NOT EXISTS t_ai_quota (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT," +
             "user_id BIGINT NOT NULL," +
-            "subscription_id BIGINT," +
             "token_limit BIGINT NOT NULL," +
             "token_used BIGINT NOT NULL DEFAULT 0," +
             "time_window_seconds INTEGER NOT NULL DEFAULT 18000," +
             "window_start DATETIME," +
             "status BOOLEAN NOT NULL DEFAULT 1," +
             "create_time DATETIME NOT NULL," +
-            "FOREIGN KEY (user_id) REFERENCES t_user(id)," +
-            "FOREIGN KEY (subscription_id) REFERENCES t_ai_subscription(id))", "t_ai_quota");
+            "FOREIGN KEY (user_id) REFERENCES t_user(id))", "t_ai_quota");
 
         safeExecute("CREATE TABLE IF NOT EXISTS t_ai_usage_log (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -384,40 +364,17 @@ public class DatabaseMigration implements CommandLineRunner {
         safeExecute(dialect.createIndexIfNotExists("idx_ai_model_health", "t_ai_model", "health_status"), "idx_ai_model_health");
         safeExecute(dialect.createIndexIfNotExists("idx_ai_model_status", "t_ai_model", "status"), "idx_ai_model_status");
 
-        // t_ai_subscription - 用户订阅
-        safeExecute("CREATE TABLE IF NOT EXISTS t_ai_subscription (" +
-            dialect.idColumnDefinition() + "," +
-            "user_id BIGINT NOT NULL," +
-            "provider_id BIGINT NOT NULL," +
-            "model_id BIGINT NOT NULL," +
-            "priority INTEGER NOT NULL DEFAULT 0," +
-            "weight INTEGER NOT NULL DEFAULT 1," +
-            "tags VARCHAR(200)," +
-            "fallback_enabled " + dialect.booleanType() + " NOT NULL DEFAULT " + dialect.booleanLiteral(true) + "," +
-            "max_tokens_per_request INTEGER," +
-            "status " + dialect.booleanType() + " NOT NULL DEFAULT " + dialect.booleanLiteral(true) + "," +
-            "expire_time " + dialect.dateTimeType() + "," +
-            "create_time " + dialect.dateTimeType() + " NOT NULL," +
-            "update_time " + dialect.dateTimeType() + " NOT NULL," +
-            "FOREIGN KEY (user_id) REFERENCES t_user(id)," +
-            "FOREIGN KEY (provider_id) REFERENCES t_ai_provider(id)," +
-            "FOREIGN KEY (model_id) REFERENCES t_ai_model(id))", "t_ai_subscription");
-        safeExecute(dialect.createIndexIfNotExists("idx_ai_sub_user", "t_ai_subscription", "user_id"), "idx_ai_sub_user");
-        safeExecute(dialect.createIndexIfNotExists("idx_ai_sub_model", "t_ai_subscription", "model_id"), "idx_ai_sub_model");
-
         // t_ai_quota - 额度管理
         safeExecute("CREATE TABLE IF NOT EXISTS t_ai_quota (" +
             dialect.idColumnDefinition() + "," +
             "user_id BIGINT NOT NULL," +
-            "subscription_id BIGINT," +
             "token_limit BIGINT NOT NULL," +
             "token_used BIGINT NOT NULL DEFAULT 0," +
             "time_window_seconds INTEGER NOT NULL DEFAULT 18000," +
             "window_start " + dialect.dateTimeType() + "," +
             "status " + dialect.booleanType() + " NOT NULL DEFAULT " + dialect.booleanLiteral(true) + "," +
             "create_time " + dialect.dateTimeType() + " NOT NULL," +
-            "FOREIGN KEY (user_id) REFERENCES t_user(id)," +
-            "FOREIGN KEY (subscription_id) REFERENCES t_ai_subscription(id))", "t_ai_quota");
+            "FOREIGN KEY (user_id) REFERENCES t_user(id))", "t_ai_quota");
         safeExecute(dialect.createIndexIfNotExists("idx_ai_quota_user", "t_ai_quota", "user_id"), "idx_ai_quota_user");
 
         // t_ai_usage_log - 调用日志
@@ -640,10 +597,6 @@ public class DatabaseMigration implements CommandLineRunner {
             {"录制回放-执行回放", "record-replay:replay", "业务管理", "BUTTON", "53"},
             // AI 服务管理
             {"AI服务管理-页面访问", "ai-service:view", "系统管理", "PAGE", "54"},
-            // AI 用户自助（订阅管理）
-            {"AI订阅-页面访问", "ai-subscription:view", "AI用户自助", "PAGE", "118"},
-            {"AI订阅-订阅管理", "ai-subscription:subscribe", "AI用户自助", "BUTTON", "119"},
-            {"AI订阅-密钥管理", "ai-subscription:key-manage", "AI用户自助", "BUTTON", "120"},
         };
 
         String valuesClause = "VALUES (?, ?, ?, ?, ?, " + now + ", " + now + ")";

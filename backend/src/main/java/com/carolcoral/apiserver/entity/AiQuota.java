@@ -28,10 +28,6 @@ public class AiQuota {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subscription_id")
-    private AiSubscription subscription;
-
     @Column(nullable = false)
     private Long tokenLimit;
 
@@ -63,8 +59,6 @@ public class AiQuota {
     public void setId(Long id) { this.id = id; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
-    public AiSubscription getSubscription() { return subscription; }
-    public void setSubscription(AiSubscription subscription) { this.subscription = subscription; }
     public Long getTokenLimit() { return tokenLimit; }
     public void setTokenLimit(Long tokenLimit) { this.tokenLimit = tokenLimit; }
     public Long getTokenUsed() { return tokenUsed; }

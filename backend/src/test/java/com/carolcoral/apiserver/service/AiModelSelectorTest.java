@@ -8,20 +8,16 @@ package com.carolcoral.apiserver.service;
 
 import com.carolcoral.apiserver.entity.AiModel;
 import com.carolcoral.apiserver.entity.AiProvider;
-import com.carolcoral.apiserver.entity.AiSubscription;
 import com.carolcoral.apiserver.repository.AiModelRepository;
-import com.carolcoral.apiserver.repository.AiSubscriptionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -37,9 +33,6 @@ import static org.mockito.Mockito.*;
 class AiModelSelectorTest {
 
     @Mock
-    AiSubscriptionRepository subscriptionRepository;
-
-    @Mock
     AiModelRepository modelRepository;
 
     @InjectMocks
@@ -53,16 +46,6 @@ class AiModelSelectorTest {
         m.setHealthStatus(health);
         m.setProvider(new AiProvider());
         return m;
-    }
-
-    private AiSubscription sub(Long id, AiModel model, int priority) {
-        AiSubscription s = new AiSubscription();
-        s.setId(id);
-        s.setModel(model);
-        s.setProvider(model.getProvider());
-        s.setPriority(priority);
-        s.setStatus(true);
-        return s;
     }
 
     @Nested
@@ -104,21 +87,6 @@ class AiModelSelectorTest {
     class Select {
 
         @Test
-        @DisplayName("普通模式按 priority 升序")
-        void priorityOrder() {
-            AiModel m1 = model(1L, "a", true, "online");
-            AiModel m2 = model(2L, "b", true, "online");
-            when(subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(1L))
-                    .thenReturn(Collections.emptyList());
-            when(subscriptionRepository.findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(1L))
-                    .thenReturn(List.of(sub(subId(2L), m2, 5), sub(subId(1L), m1, 1)));
-
-            List<AiSubscription> result = selector.selectModels(1L, "priority");
-
-            assertEquals(1L, result.get(0).getModel().getId());
-        }
-
-        @Test
         @DisplayName("cost_first 按输入单价升序，null 排最后")
         void costFirst() {
             AiModel cheap = model(1L, "cheap", true, "online");
@@ -126,15 +94,13 @@ class AiModelSelectorTest {
             AiModel pricey = model(2L, "pricey", true, "online");
             pricey.setInputPrice(10.0);
             AiModel noPrice = model(3L, "nop", true, "online");
-            when(subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(1L))
-                    .thenReturn(Collections.emptyList());
-            when(subscriptionRepository.findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(1L))
-                    .thenReturn(List.of(sub(1L, noPrice, 0), sub(2L, pricey, 0), sub(3L, cheap, 0)));
+            when(modelRepository.findByStatusTrueWithProvider())
+                    .thenReturn(List.of(noPrice, pricey, cheap));
 
-            List<AiSubscription> result = selector.selectModels(1L, "cost_first");
+            List<AiModel> result = selector.selectModels("cost_first");
 
-            assertEquals(1L, result.get(0).getModel().getId());
-            assertEquals(3L, result.get(2).getModel().getId());
+            assertEquals(1L, result.get(0).getId());
+            assertEquals(3L, result.get(2).getId());
         }
 
         @Test
@@ -144,56 +110,47 @@ class AiModelSelectorTest {
             fast.setAvgLatencyMs(10L);
             AiModel slow = model(2L, "slow", true, "online");
             slow.setAvgLatencyMs(999L);
-            when(subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(1L))
-                    .thenReturn(Collections.emptyList());
-            when(subscriptionRepository.findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(1L))
-                    .thenReturn(List.of(sub(1L, slow, 0), sub(2L, fast, 0)));
+            when(modelRepository.findByStatusTrueWithProvider())
+                    .thenReturn(List.of(slow, fast));
 
-            assertEquals(1L, selector.selectModels(1L, "performance_first").get(0).getModel().getId());
+            assertEquals(1L, selector.selectModels("performance_first").get(0).getId());
         }
 
         @Test
         @DisplayName("无可用模型返回空列表")
         void empty() {
-            when(subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(1L))
-                    .thenReturn(Collections.emptyList());
-            when(subscriptionRepository.findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(1L))
-                    .thenReturn(Collections.emptyList());
+            when(modelRepository.findByStatusTrueWithProvider()).thenReturn(List.of());
 
-            assertTrue(selector.selectModels(1L, null).isEmpty());
+            assertTrue(selector.selectModels(null).isEmpty());
         }
 
         @Test
-        @DisplayName("auto 模式从全局启用模型生成虚拟订阅并排除 autoMode 模型自身")
-        void autoMode() {
+        @DisplayName("排除 autoMode 模型自身")
+        void excludesAutoMode() {
             AiModel autoModel = model(99L, "auto", true, "online");
             autoModel.setAutoMode(true);
-            when(subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(1L))
-                    .thenReturn(List.of(sub(1L, autoModel, 0)));
             when(modelRepository.findByStatusTrueWithProvider())
                     .thenReturn(List.of(autoModel, model(2L, "real", true, "online")));
 
-            List<AiSubscription> result = selector.selectModels(1L, "priority");
+            List<AiModel> result = selector.selectModels("priority");
 
             assertEquals(1, result.size());
-            assertEquals(2L, result.get(0).getModel().getId());
-            assertTrue(result.get(0).getFallbackEnabled());
+            assertEquals(2L, result.get(0).getId());
         }
     }
 
     @Nested
-    @DisplayName("findSubscription / fallback 候选")
+    @DisplayName("findModel / fallback 候选")
     class Lookup {
 
         @Test
         @DisplayName("按模型名命中启用模型")
         void found() {
-            AiSubscription s = sub(1L, model(1L, "gpt", true, "online"), 0);
-            when(subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(1L))
-                    .thenReturn(List.of(s));
+            when(modelRepository.findByStatusTrueWithProvider())
+                    .thenReturn(List.of(model(1L, "gpt", true, "online")));
 
-            assertTrue(selector.findSubscription(1L, "gpt").isPresent());
-            assertFalse(selector.findSubscription(1L, "missing").isPresent());
+            assertTrue(selector.findModel("gpt").isPresent());
+            assertFalse(selector.findModel("missing").isPresent());
         }
 
         @Test
@@ -202,15 +159,13 @@ class AiModelSelectorTest {
             AiModel m1 = model(1L, "a", true, "online");
             AiModel m2 = model(2L, "b", true, "online");
             AiModel m3 = model(3L, "c", true, "online");
-            when(subscriptionRepository.findByUserIdAndStatusTrueWithModelAndProvider(1L))
-                    .thenReturn(Collections.emptyList());
-            when(subscriptionRepository.findByUserIdAndStatusTrueAndFallbackEnabledTrueWithModelAndProvider(1L))
-                    .thenReturn(List.of(sub(1L, m1, 0), sub(2L, m2, 0), sub(3L, m3, 0)));
+            when(modelRepository.findByStatusTrueWithProvider())
+                    .thenReturn(List.of(m1, m2, m3));
 
-            List<AiSubscription> result = selector.getFallbackCandidates(1L, "priority", Set.of(1L));
+            List<AiModel> result = selector.getFallbackCandidates("priority", Set.of(1L));
 
             assertEquals(2, result.size());
-            assertTrue(result.stream().noneMatch(s -> s.getModel().getId().equals(1L)));
+            assertTrue(result.stream().noneMatch(m -> m.getId().equals(1L)));
         }
 
         @Test
@@ -288,29 +243,25 @@ class AiModelSelectorTest {
     }
 
     @Nested
-    @DisplayName("启用订阅查询")
-    class EnabledSubs {
+    @DisplayName("启用模型查询")
+    class EnabledModels {
 
         @Test
         @DisplayName("过滤不可用模型")
         void filterUnavailable() {
-            when(subscriptionRepository.findByStatusTrue()).thenReturn(List.of(
-                    sub(1L, model(1L, "a", true, "online"), 0),
-                    sub(2L, model(2L, "b", false, "online"), 0)));
+            when(modelRepository.findByStatusTrueWithProvider()).thenReturn(List.of(
+                    model(1L, "a", true, "online"),
+                    model(2L, "b", false, "online")));
 
-            assertEquals(1, selector.getAllEnabledSubscriptions().size());
+            assertEquals(1, selector.getAllEnabledModels().size());
         }
 
         @Test
         @DisplayName("忽略健康状态直接返回（用于内部路由）")
         void ignoreHealth() {
-            when(subscriptionRepository.findByStatusTrueWithModelAndProvider())
-                    .thenReturn(List.of(sub(1L, model(1L, "a", false, "offline"), 0)));
-            assertEquals(1, selector.getAllEnabledSubscriptionsIgnoreHealth().size());
+            when(modelRepository.findByStatusTrueWithProvider())
+                    .thenReturn(List.of(model(1L, "a", false, "offline")));
+            assertEquals(1, selector.getAllEnabledModelsIgnoreHealth().size());
         }
-    }
-
-    private static Long subId(Long id) {
-        return id;
     }
 }

@@ -91,41 +91,37 @@ public class AiProxyService {
         int retries = 0;
         int maxRetries = modelSelector.getMaxFallbackRetries();
 
-        AiSubscription currentSub = null;
+        AiModel currentModel;
 
-        // Auto 模式：自动选择模型（当 model=auto 或订阅的模型是 autoMode 时）
+        // Auto 模式：自动选择模型（当 model=auto 时）
         boolean isAutoMode = "auto".equals(modelName);
         if (isAutoMode) {
-            List<AiSubscription> candidates = modelSelector.selectModels(user.getId(), strategy);
+            List<AiModel> candidates = modelSelector.selectModels(strategy);
             if (candidates.isEmpty()) {
                 throw new RuntimeException("没有可用的 AI 模型");
             }
-            currentSub = candidates.get(0);
+            currentModel = candidates.get(0);
         } else {
-            // 指定模型：查找订阅，如果该模型是 autoMode 则也进入自动选择
-            Optional<AiSubscription> subOpt = modelSelector.findSubscription(user.getId(), modelName);
-            if (subOpt.isEmpty()) {
-                throw new RuntimeException("未订阅模型: " + modelName);
-            }
-            AiSubscription sub = subOpt.get();
-            if (sub.getModel().getAutoMode() != null && sub.getModel().getAutoMode()) {
-                // 订阅的是自动模式模型，从所有订阅中自动选择最优模型
-                isAutoMode = true;
-                List<AiSubscription> candidates = modelSelector.selectModels(user.getId(), strategy);
+            // 指定模型：查找启用模型
+            AiModel model = modelSelector.findModel(modelName)
+                    .orElseThrow(() -> new RuntimeException("模型不存在或未启用: " + modelName));
+            if (model.getAutoMode() != null && model.getAutoMode()) {
+                // 自动模式模型，从全局启用模型中自动选择最优模型
+                List<AiModel> candidates = modelSelector.selectModels(strategy);
                 if (candidates.isEmpty()) {
                     throw new RuntimeException("没有可用的 AI 模型");
                 }
-                currentSub = candidates.get(0);
+                currentModel = candidates.get(0);
             } else {
-                currentSub = sub;
+                currentModel = model;
             }
         }
 
         // 主调用 + fallback 重试
-        while (currentSub != null) {
-            AiModel model = currentSub.getModel();
+        while (currentModel != null) {
+            AiModel model = currentModel;
             // 重新加载 provider 完整信息（包括 apiKey），避免 LAZY 加载导致 apiKey 为空
-            Long providerId = currentSub.getProvider().getId();
+            Long providerId = model.getProvider().getId();
             AiProvider provider = providerRepository.findById(providerId)
                     .orElseThrow(() -> new RuntimeException("未找到服务商: " + providerId));
             triedModelIds.add(model.getId());
@@ -157,13 +153,12 @@ public class AiProxyService {
                 if (retries > maxRetries) break;
 
                 // Fallback 到下一个模型
-                List<AiSubscription> fallbacks = modelSelector.getFallbackCandidates(
-                        user.getId(), strategy, triedModelIds);
-                currentSub = fallbacks.isEmpty() ? null : fallbacks.get(0);
+                List<AiModel> fallbacks = modelSelector.getFallbackCandidates(strategy, triedModelIds);
+                currentModel = fallbacks.isEmpty() ? null : fallbacks.get(0);
 
-                if (currentSub != null) {
+                if (currentModel != null) {
                     log.info("Fallback 切换到: {} -> {}", model.getModelName(),
-                            currentSub.getModel().getModelName());
+                            currentModel.getModelName());
                 }
             }
         }
@@ -238,29 +233,28 @@ public class AiProxyService {
             }
         }
 
-        AiSubscription currentSub;
+        AiModel selectedModel;
         boolean isAutoMode = "auto".equals(modelName);
         if (isAutoMode) {
-            List<AiSubscription> candidates = modelSelector.selectModels(userId, strategy);
+            List<AiModel> candidates = modelSelector.selectModels(strategy);
             if (candidates.isEmpty()) throw new RuntimeException("没有可用的 AI 模型");
-            currentSub = candidates.get(0);
+            selectedModel = candidates.get(0);
         } else {
-            Optional<AiSubscription> subOpt = modelSelector.findSubscription(userId, modelName);
-            if (subOpt.isEmpty()) throw new RuntimeException("未订阅模型: " + modelName);
-            AiSubscription sub = subOpt.get();
-            if (sub.getModel().getAutoMode() != null && sub.getModel().getAutoMode()) {
+            AiModel model = modelSelector.findModel(modelName)
+                    .orElseThrow(() -> new RuntimeException("模型不存在或未启用: " + modelName));
+            if (model.getAutoMode() != null && model.getAutoMode()) {
                 isAutoMode = true;
-                List<AiSubscription> candidates = modelSelector.selectModels(userId, strategy);
+                List<AiModel> candidates = modelSelector.selectModels(strategy);
                 if (candidates.isEmpty()) throw new RuntimeException("没有可用的 AI 模型");
-                currentSub = candidates.get(0);
+                selectedModel = candidates.get(0);
             } else {
-                currentSub = sub;
+                selectedModel = model;
             }
         }
 
         // 提取 ID，通过 repository 重新加载实体
-        Long modelId = currentSub.getModel().getId();
-        Long providerId = currentSub.getProvider().getId();
+        Long modelId = selectedModel.getId();
+        Long providerId = selectedModel.getProvider().getId();
 
         AiModel model = modelRepository.findById(modelId)
                 .orElseThrow(() -> new RuntimeException("未找到模型: " + modelId));
@@ -505,42 +499,27 @@ public class AiProxyService {
      */
     public java.io.BufferedReader processStreamChatInternal(String modelName,
                                                              List<Map<String, String>> messages) throws Exception {
-        // 处理 auto 模式：优先从已启用订阅中找具体模型，没有再从全局启用模型中选择
+        // 处理 auto 模式：从全局启用模型中选择具体模型
         if ("auto".equals(modelName)) {
             AiModel selectedModel = null;
             AiProvider provider = null;
 
-            // 1. 优先从启用订阅中找具体模型（内部路由通过订阅中转，不强制要求模型状态为 true）
-            List<AiSubscription> allSubs = modelSelector.getAllEnabledSubscriptionsIgnoreHealth();
-            java.util.Optional<AiSubscription> concreteSub = allSubs.stream()
-                    .filter(s -> s.getModel().getAutoMode() == null || !s.getModel().getAutoMode())
-                    .findFirst();
-            if (concreteSub.isPresent()) {
-                selectedModel = concreteSub.get().getModel();
-                provider = concreteSub.get().getProvider();
-                log.info("AI Stream 内部路由(auto模式): 从订阅中选择 model={}, provider={}",
-                        selectedModel.getModelName(), provider.getName());
+            List<AiModel> allModels = modelRepository.findByStatusTrueWithProvider();
+            List<AiModel> candidateModels = allModels.stream()
+                    .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
+                    .collect(java.util.stream.Collectors.toList());
+
+            log.info("AI Stream 内部路由(auto模式): 全局候选模型数={}, 模型列表={}",
+                    candidateModels.size(),
+                    candidateModels.stream().map(m -> m.getModelName() + "(" + m.getHealthStatus() + ")").collect(java.util.stream.Collectors.toList()));
+
+            if (candidateModels.isEmpty()) {
+                throw new RuntimeException("auto 模式下没有可用的具体模型（共" + allModels.size() + "个启用模型，"
+                        + allModels.stream().filter(m -> m.getAutoMode() != null && m.getAutoMode()).count() + "个是auto模式标记）");
             }
 
-            // 2. 订阅中无具体模型，退而从全局启用模型中选择
-            if (selectedModel == null) {
-                List<AiModel> allModels = modelRepository.findByStatusTrueWithProvider();
-                List<AiModel> candidateModels = allModels.stream()
-                        .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
-                        .collect(java.util.stream.Collectors.toList());
-                
-                log.info("AI Stream 内部路由(auto模式): 全局候选模型数={}, 模型列表={}",
-                        candidateModels.size(),
-                        candidateModels.stream().map(m -> m.getModelName() + "(" + m.getHealthStatus() + ")").collect(java.util.stream.Collectors.toList()));
-                
-                if (candidateModels.isEmpty()) {
-                    throw new RuntimeException("auto 模式下没有可用的具体模型（共" + allModels.size() + "个启用模型，"
-                            + allModels.stream().filter(m -> m.getAutoMode() != null && m.getAutoMode()).count() + "个是auto模式标记）");
-                }
-                
-                selectedModel = candidateModels.get(0);
-                provider = selectedModel.getProvider();
-            }
+            selectedModel = candidateModels.get(0);
+            provider = selectedModel.getProvider();
 
             // 重新加载 provider 完整信息（包括 apiKey），避免 LAZY 加载导致 apiKey 为空
             Long providerId = provider.getId();
@@ -579,34 +558,29 @@ public class AiProxyService {
                     new java.io.InputStreamReader(connection.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
         }
 
-        // 从所有启用状态的订阅中查找（不检查健康状态，因为内部调用应直接转发）
-        List<AiSubscription> allSubs = modelSelector.getAllEnabledSubscriptionsIgnoreHealth();
-        AiSubscription targetSub = null;
-        for (AiSubscription sub : allSubs) {
-            if (sub.getModel().getModelName().equals(modelName) || sub.getModel().getDisplayName().equals(modelName)) {
-                targetSub = sub;
+        // 从所有启用状态的模型中查找（不检查健康状态，因为内部调用应直接转发）
+        List<AiModel> allModels = modelSelector.getAllEnabledModelsIgnoreHealth();
+        AiModel model = null;
+        for (AiModel m : allModels) {
+            if (m.getModelName().equals(modelName) || m.getDisplayName().equals(modelName)) {
+                model = m;
                 break;
             }
         }
-        if (targetSub == null) {
-            throw new RuntimeException("未找到订阅模型: " + modelName);
+        if (model == null) {
+            throw new RuntimeException("未找到模型: " + modelName);
         }
 
-        AiModel model = targetSub.getModel();
-
-        // 如果匹配到的模型是 autoMode，从所有已订阅的非 auto 模型中选择第一个
+        // 如果匹配到的模型是 autoMode，从所有非 auto 模型中选择第一个
         if (model.getAutoMode() != null && model.getAutoMode()) {
-            // 从当前用户订阅中找一个非 autoMode 的可用模型
-            AiSubscription concreteSub = allSubs.stream()
-                    .filter(s -> s.getModel().getAutoMode() == null || !s.getModel().getAutoMode())
+            model = allModels.stream()
+                    .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("auto 模式下没有可用的具体模型"));
-            model = concreteSub.getModel();
-            targetSub = concreteSub;
         }
 
         // 重新加载 provider 完整信息（包括 apiKey），避免 LAZY 加载导致 apiKey 为空
-        Long providerId = targetSub.getProvider().getId();
+        Long providerId = model.getProvider().getId();
         AiProvider provider = providerRepository.findById(providerId)
                 .orElseThrow(() -> new RuntimeException("未找到服务商: " + providerId));
         String apiUrl = buildApiUrl(provider.getBaseUrl());
@@ -672,15 +646,15 @@ public class AiProxyService {
     }
 
     /**
-     * 检查当前实例是否有可用的 AI 订阅。
-     * 用于判断是否应走内部路由：有订阅才能内部转发，无订阅则走外部 HTTP 请求。
+     * 检查当前实例是否有可用的 AI 模型。
+     * 用于判断是否应走内部路由：有启用模型才能内部转发，无模型则走外部 HTTP 请求。
      */
-    public boolean hasAvailableSubscriptions() {
+    public boolean hasAvailableModels() {
         try {
-            List<AiSubscription> subs = modelSelector.getAllEnabledSubscriptionsIgnoreHealth();
-            return subs != null && !subs.isEmpty();
+            List<AiModel> models = modelSelector.getAllEnabledModelsIgnoreHealth();
+            return models != null && !models.isEmpty();
         } catch (Exception e) {
-            log.warn("检查可用订阅失败: {}", e.getMessage());
+            log.warn("检查可用模型失败: {}", e.getMessage());
             return false;
         }
     }

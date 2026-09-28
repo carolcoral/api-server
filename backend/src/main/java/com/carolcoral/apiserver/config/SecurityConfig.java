@@ -148,7 +148,6 @@ public class SecurityConfig {
                                 "/ai-settings",
                                 "/ai-chat",
                                 "/ai-service",
-                                "/ai-subscription",
                                 "/roles",
                                 "/permissions",
                                 "/ops-monitor",

@@ -159,12 +159,6 @@ const routes = [
         name: 'AiService',
         component: () => import('@/views/AiService.vue'),
         meta: { requiresAuth: true, requiredPermission: 'ai-service:view' }
-      },
-      {
-        path: '/ai-subscription',
-        name: 'AiSubscription',
-        component: () => import('@/views/AiSubscription.vue'),
-        meta: { requiresAuth: true, requiredPermission: 'ai-subscription:view' }
       }
     ]
   }
@@ -193,7 +187,6 @@ router.beforeEach((to, from, next) => {
     if (userStore.hasPermission('email-template:view')) return '/email-templates'
     if (userStore.hasPermission('ai-settings:view')) return '/ai-settings'
     if (userStore.hasPermission('ai-service:view')) return '/ai-service'
-    if (userStore.hasPermission('ai-subscription:view')) return '/ai-subscription'
     if (userStore.hasPermission('ops:view')) return '/ops-monitor'
     if (userStore.hasPermission('record-replay:view')) return '/record-replay'
     if (userStore.hasPermission('settings:view')) return '/settings'

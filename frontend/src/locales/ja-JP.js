@@ -59,7 +59,6 @@ export default {
     permissionManagement: '権限管理',
     recordReplay: '録画と再生',
     aiService: 'AI サービス',
-    aiSubscription: 'AI サブスクリプション'
   },
 
   // ユーザー関連
@@ -1407,46 +1406,17 @@ export default {
     fetchDetailFailed: '録画詳細の取得に失敗しました'
   },
 
-  // AI ユーザーサブスクリプション
-  aiSubscription: {
-    title: 'AI サブスクリプション',
-    description: 'AIプロバイダーとモデルを購読し、独自のAPIキーを作成',
-    mySubscriptions: 'マイ購読',
-    subscribeService: '購読する',
-    selectProviderHint: 'AIプロバイダーを選択して利用可能なモデルを表示',
-    noProviders: '利用可能なAIプロバイダーはありません',
-    noModels: '利用可能なモデルはありません',
-    subscribe: '購読',
-    subscribed: '購読済み',
-    unsubscribe: '購読解除',
-    unsubscribeConfirm: 'この購読を解除してもよろしいですか？',
-    unsubscribeSuccess: '購読を解除しました',
-    subscribeSuccess: '購読しました',
-    subscriberCount: '購読者数',
-    status: '状態',
-    subscribeTime: '購読時間',
-    myApiKeys: 'マイAPIキー',
-    createKey: 'APIキー作成',
-    createTime: '作成時間',
-    deleteKeyConfirm: 'このAPIキーを削除してもよろしいですか？復元できません。',
-    deleteKeySuccess: 'APIキーが削除されました',
-    availableServices: '利用可能なサービス',
-    availableProviders: 'プロバイダー',
-    availableModelsList: '利用可能なモデル'
-  },
 
   // AI サービス管理
   aiService: {
     title: 'AI サービス管理',
-    description: 'AIプロバイダー、モデル、ユーザーサブスクリプション、クォータ、APIキーを管理',
+    description: 'AIプロバイダー、モデル、クォータ、APIキーを管理',
     totalModels: 'モデル総数',
-    totalSubscriptions: 'サブスクリプション総数',
     totalApiKeys: 'APIキー数',
     todayCalls: '本日の呼び出し',
     totalCalls: '総呼び出し回数',
     providers: 'プロバイダー',
     models: 'モデル',
-    subscriptions: 'サブスクリプション',
     quotas: 'クォータ',
     apiKeys: 'APIキー',
     usageLogs: '利用ログ',
@@ -1483,11 +1453,7 @@ export default {
     maxTokens: '最大トークン',
     stream: 'ストリーム',
     autoMode: '自動モード',
-    autoModeDesc: '自動モード：購読中の全モデルから最適なモデルを自動選択し、障害時に自動切替します',
-    autoModeExclusive: '自動モードと指定モデルは排他的です',
-    autoModeExclusiveDesc: '自動モードを購読中のため、指定モデルを購読できません。自動モードの購読を解除してください。',
-    specificModelExclusive: '指定モデルを購読中です',
-    specificModelExclusiveDesc: '指定モデルを購読中のため、自動モードを購読できません。すべての指定モデルの購読を解除してください。',
+    autoModeDesc: '自動モード：有効な全モデルから最適なモデルを自動選択し、障害時に自動切替します',
     health: 'ヘルス',
     online: 'オンライン',
     offline: 'オフライン',
@@ -1505,8 +1471,6 @@ export default {
     batchImport: '一括インポート',
     batchAdd: '一括追加 ({count})',
     manualAdd: '手動追加',
-    addSubscription: 'サブスクリプション追加',
-    editSubscription: 'サブスクリプション編集',
     priority: '優先度',
     weight: '重み',
     fallback: 'フォールバック',

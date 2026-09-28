@@ -55,7 +55,6 @@ public class PermissionService {
         "用户管理",         // 5. 权限管理 > 用户管理 /users
         "角色管理",         //    权限管理 > 角色管理 /roles
         "权限管理",         //    权限管理 > 权限管理 /permissions
-        "AI用户自助",       // 6. AI 服务 /ai-subscription
         "邮件模板管理",     // 7. 系统管理 > 邮件模板 /email-templates
         "AI配置",           //    系统管理 > AI 设置 /ai-settings
         "AI配置管理",       //    （AI设置别名，同组紧随）

@@ -1197,7 +1197,7 @@ public class AiService {
             return false;
         }
         // 只有当前实例有可用订阅时，才走内部路由；无订阅则转发给有订阅的实例
-        return aiProxyService.hasAvailableSubscriptions();
+        return aiProxyService.hasAvailableModels();
     }
 
     /**
