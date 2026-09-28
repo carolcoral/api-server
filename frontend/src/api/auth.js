@@ -66,3 +66,13 @@ export function oidcAuthorize(providerId) {
     params: providerId ? { providerId } : undefined
   })
 }
+
+/**
+ * 读取 OIDC 服务商登录图标的公开访问地址（无需认证）
+ * 未配置图标时后端返回 404，前端需回退到内置默认图标。
+ * @param {string} providerId 服务商标识
+ * @returns {string} 图标访问地址
+ */
+export function oidcIconUrl(providerId) {
+  return `/api/public/oidc/${encodeURIComponent(providerId)}/icon`
+}

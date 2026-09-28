@@ -153,12 +153,6 @@ const routes = [
         name: 'RecordReplay',
         component: () => import('@/views/RecordReplay.vue'),
         meta: { requiresAuth: true, requiredPermission: 'record-replay:view' }
-      },
-      {
-        path: '/ai-service',
-        name: 'AiService',
-        component: () => import('@/views/AiService.vue'),
-        meta: { requiresAuth: true, requiredPermission: 'ai-service:view' }
       }
     ]
   }
@@ -186,7 +180,6 @@ router.beforeEach((to, from, next) => {
     if (userStore.hasPermission('permission:view')) return '/permissions'
     if (userStore.hasPermission('email-template:view')) return '/email-templates'
     if (userStore.hasPermission('ai-settings:view')) return '/ai-settings'
-    if (userStore.hasPermission('ai-service:view')) return '/ai-service'
     if (userStore.hasPermission('ops:view')) return '/ops-monitor'
     if (userStore.hasPermission('record-replay:view')) return '/record-replay'
     if (userStore.hasPermission('settings:view')) return '/settings'

@@ -90,7 +90,24 @@
           :disabled="oidcLoading !== '' && oidcLoading !== provider.providerId"
           @click="handleOidcLogin(provider)"
         >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <img
+            v-if="provider.iconUrl && !failedIcons[provider.providerId]"
+            class="oidc-button-icon"
+            :src="provider.iconUrl"
+            :alt="provider.name || provider.providerId"
+            @error="markIconFailed(provider.providerId)"
+          />
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M12 2a10 10 0 1 0 10 10"/>
             <path d="M12 6v6l4 2"/>
             <path d="M21 3l-6 6"/>
@@ -135,6 +152,13 @@ const showGuide = ref(false)
 const oidcProviders = ref([])
 // 当前正在发起登录的服务商标识，空串表示空闲
 const oidcLoading = ref('')
+// 图标加载失败的服务商（回退到内置默认图标）
+const failedIcons = ref({})
+
+// 图标加载失败时记录，触发回退渲染
+const markIconFailed = (providerId) => {
+  failedIcons.value = { ...failedIcons.value, [providerId]: true }
+}
 
 const { bgImage, fetchBingBg } = useBingBackground()
 
@@ -198,7 +222,13 @@ const fetchRegistrationConfig = async () => {
       registrationEnabled.value = data.enableRegistration || false
       const providers = Array.isArray(data.oidcProviders) ? data.oidcProviders : []
       if (providers.length) {
-        oidcProviders.value = providers
+        // 图标以接口地址下发（iconUrl 由后端生成），加载失败自动回退到内置图标
+        oidcProviders.value = providers.map((p) => ({
+          providerId: p.providerId,
+          name: p.name,
+          buttonLabel: p.buttonLabel || p.name || p.providerId,
+          iconUrl: p.iconUrl || ''
+        }))
       } else if (data.oidcEnabled && data.oidcProvider) {
         // 兼容旧后端：仅返回单一服务商字段
         oidcProviders.value = [{
@@ -486,6 +516,14 @@ onMounted(() => {
   border-color: #667eea;
   color: #667eea;
   background: rgba(102, 126, 234, 0.05);
+}
+
+/* 服务商自定义图标（后台配置，持久化于数据库） */
+.oidc-button-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 @media (max-width: 480px) {

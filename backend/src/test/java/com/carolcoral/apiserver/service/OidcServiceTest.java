@@ -480,6 +480,107 @@ class OidcServiceTest {
             assertFalse(url.contains("code_challenge"));
         }
 
+        @Test
+        @DisplayName("图标：保存 data URI 后可读，publicConfig 下发 iconUrl")
+        void iconSaved() {
+            String icon = "data:image/png;base64," + Base64.getEncoder()
+                    .encodeToString(new byte[]{1, 2, 3, 4});
+            OidcConfigDTO dto = new OidcConfigDTO();
+            dto.setEnabled(true);
+            OidcProviderDTO p = completeProvider("tdp", true);
+            p.setIcon(icon);
+            p.setIconName("logo.png");
+            dto.setProviders(List.of(p));
+            service.saveConfig(dto);
+
+            OidcProviderDTO saved = service.getConfig().getProviders().get(0);
+            assertEquals(icon, saved.getIcon());
+            assertEquals("logo.png", saved.getIconName());
+            assertEquals(icon, service.getProviderIcon("tdp"));
+            assertEquals("/api/public/oidc/tdp/icon",
+                    service.getPublicConfig().getProviders().get(0).getIconUrl());
+        }
+
+        @Test
+        @DisplayName("图标：显式 clear 时移除已存图标")
+        void iconCleared() {
+            String icon = "data:image/svg+xml;base64," + Base64.getEncoder()
+                    .encodeToString("<svg/>".getBytes(StandardCharsets.UTF_8));
+            OidcConfigDTO dto = new OidcConfigDTO();
+            dto.setEnabled(true);
+            OidcProviderDTO p = completeProvider("tdp", true);
+            p.setIcon(icon);
+            dto.setProviders(List.of(p));
+            service.saveConfig(dto);
+            assertNotNull(service.getProviderIcon("tdp"));
+
+            OidcProviderDTO clear = completeProvider("tdp", true);
+            clear.setIconStatus("clear");
+            OidcConfigDTO clearDto = new OidcConfigDTO();
+            clearDto.setEnabled(true);
+            clearDto.setProviders(List.of(clear));
+            service.saveConfig(clearDto);
+
+            assertNull(service.getConfig().getProviders().get(0).getIcon());
+            assertNull(service.getProviderIcon("tdp"));
+            assertNull(service.getPublicConfig().getProviders().get(0).getIconUrl());
+        }
+
+        @Test
+        @DisplayName("图标：非法格式或超限被忽略，保留原图标")
+        void iconInvalidIgnored() {
+            String icon = "data:image/png;base64," + Base64.getEncoder()
+                    .encodeToString(new byte[]{1, 2, 3});
+            OidcConfigDTO dto = new OidcConfigDTO();
+            dto.setEnabled(true);
+            OidcProviderDTO p = completeProvider("tdp", true);
+            p.setIcon(icon);
+            dto.setProviders(List.of(p));
+            service.saveConfig(dto);
+
+            OidcProviderDTO bad = completeProvider("tdp", true);
+            bad.setIcon("data:image/gif;base64,R0lGOD");
+            OidcConfigDTO badDto = new OidcConfigDTO();
+            badDto.setEnabled(true);
+            badDto.setProviders(List.of(bad));
+            service.saveConfig(badDto);
+
+            assertEquals(icon, service.getConfig().getProviders().get(0).getIcon());
+        }
+
+        @Test
+        @DisplayName("图标：未配置图标时读取返回 null")
+        void iconAbsent() {
+            enableOidc();
+            assertNull(service.getProviderIcon("tdp"));
+            assertNull(service.getProviderIcon("missing"));
+            assertNull(service.getProviderIcon(null));
+        }
+
+        @Test
+        @DisplayName("回调地址：请求地址优先于系统设置的 siteBaseUrl（避免 redirect_uri mismatch 400）")
+        void redirectUriPrefersRequest() {
+            configStore.put("siteBaseUrl", "https://internal-8080.cnb.run");
+            enableOidc();
+
+            String url = service.buildAuthorizationUrl("tdp", "https://public-8080.cnb.run");
+
+            assertTrue(url.contains("redirect_uri=https%3A%2F%2Fpublic-8080.cnb.run%2Fapi%2Fauth%2Foidc%2Fcallback"),
+                    "实际: " + url);
+        }
+
+        @Test
+        @DisplayName("回调地址：无请求地址时回退到 siteBaseUrl")
+        void redirectUriFallsBackToSiteConfig() {
+            configStore.put("siteBaseUrl", "https://site.example.com/");
+            enableOidc();
+
+            String url = service.buildAuthorizationUrl("tdp", null);
+
+            assertTrue(url.contains("redirect_uri=https%3A%2F%2Fsite.example.com%2Fapi%2Fauth%2Foidc%2Fcallback"),
+                    "实际: " + url);
+        }
+
         private OidcProviderDTO completeProvider(String id, boolean enabled) {
             OidcProviderDTO p = new OidcProviderDTO();
             p.setProviderId(id);
@@ -615,11 +716,11 @@ class OidcServiceTest {
         }
 
         @Test
-        @DisplayName("无显式配置：回退 siteBaseUrl 并拼接回调路径")
+        @DisplayName("无显式配置：回退 siteBaseUrl 并拼接回调路径（无请求地址时）")
         void redirectFromSiteBaseUrl() {
             enableOidc();
             configStore.put("siteBaseUrl", "https://site.fan/");
-            String url = service.buildAuthorizationUrl("tdp", base);
+            String url = service.buildAuthorizationUrl("tdp", null);
             assertTrue(url.contains("redirect_uri=https%3A%2F%2Fsite.fan%2Fapi%2Fauth%2Foidc%2Fcallback"));
         }
 
@@ -644,25 +745,33 @@ class OidcServiceTest {
         }
 
         @Test
-        @DisplayName("Discovery 请求非 2xx 时抛异常")
+        @DisplayName("Discovery 请求非 2xx 时回退按 Issuer 推导端点")
         void discoveryFailure() throws Exception {
             server.removeContext("/.well-known/openid-configuration");
             server.createContext("/.well-known/openid-configuration",
                     ex -> respond(ex, 503, "{}"));
             enableOidc();
-            IllegalStateException ex = assertThrows(IllegalStateException.class,
-                    () -> service.buildAuthorizationUrl("tdp", base));
-            assertTrue(ex.getMessage().contains("Discovery"));
+            // 桩 issuer 形如 http://127.0.0.1:port，回退端点为 {issuer}/oauth2/authorize
+            String url = service.buildAuthorizationUrl("tdp", base);
+            assertTrue(url.startsWith(base + "/oauth2/authorize"), "实际: " + url);
         }
 
         @Test
-        @DisplayName("Issuer 不可达时抛 Discovery 异常")
+        @DisplayName("Issuer 不可达时回退按 Issuer 推导端点，不抛异常")
         void discoveryUnreachable() {
             enableOidc();
             storeProvider("tdp", Map.of("issuerUri", "http://127.0.0.1:1"));
-            IllegalStateException ex = assertThrows(IllegalStateException.class,
-                    () -> service.buildAuthorizationUrl("tdp", base));
-            assertTrue(ex.getMessage().contains("Discovery"));
+            String url = service.buildAuthorizationUrl("tdp", base);
+            assertTrue(url.startsWith("http://127.0.0.1:1/oauth2/authorize"), "实际: " + url);
+        }
+
+        @Test
+        @DisplayName("Issuer 已含 /oauth2 时不再重复追加")
+        void issuerWithOauth2Segment() {
+            enableOidc();
+            storeProvider("tdp", Map.of("issuerUri", "https://sadp.fan/oauth2"));
+            String url = service.buildAuthorizationUrl("tdp", base);
+            assertTrue(url.startsWith("https://sadp.fan/oauth2/authorize"), "实际: " + url);
         }
 
         @Test

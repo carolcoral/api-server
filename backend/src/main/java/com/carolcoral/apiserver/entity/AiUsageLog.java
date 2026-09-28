@@ -48,8 +48,6 @@ public class AiUsageLog {
 
     private Integer totalTokens;
 
-    private Double cost;
-
     private Long latencyMs;
 
     private Long fallbackFrom;
@@ -87,8 +85,6 @@ public class AiUsageLog {
     public void setCompletionTokens(Integer completionTokens) { this.completionTokens = completionTokens; }
     public Integer getTotalTokens() { return totalTokens; }
     public void setTotalTokens(Integer totalTokens) { this.totalTokens = totalTokens; }
-    public Double getCost() { return cost; }
-    public void setCost(Double cost) { this.cost = cost; }
     public Long getLatencyMs() { return latencyMs; }
     public void setLatencyMs(Long latencyMs) { this.latencyMs = latencyMs; }
     public Long getFallbackFrom() { return fallbackFrom; }

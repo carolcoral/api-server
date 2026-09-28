@@ -23,16 +23,8 @@ public interface AiModelRepository extends JpaRepository<AiModel, Long> {
 
     List<AiModel> findByProviderId(Long providerId);
 
-    List<AiModel> findByProviderIdAndStatusTrue(Long providerId);
-
     Optional<AiModel> findByProviderIdAndModelName(Long providerId, String modelName);
-
-    List<AiModel> findByHealthStatusNotAndStatusTrue(String healthStatus);
-
-    List<AiModel> findByStatusTrue();
 
     @org.springframework.data.jpa.repository.Query("SELECT m FROM AiModel m JOIN FETCH m.provider WHERE m.status = true")
     List<AiModel> findByStatusTrueWithProvider();
-
-    long countByStatusTrue();
 }

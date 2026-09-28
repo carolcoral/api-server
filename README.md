@@ -8,10 +8,10 @@
 </p>
 
 <h1 align="center">API Server</h1>
-<p align="center">Spring Boot + Vue 3 · 全功能 API 模拟与 AI 服务管理平台</p>
+<p align="center">Spring Boot + Vue 3 · 全功能 API 模拟与 AI 智能平台</p>
 
 <p align="center">
-  接口模拟 · 模板引擎 · AI 对话 · AI 服务管理 · 用户自助 · 录制回放 · Markdown 文档导出 · Swagger 生态 · RBAC 权限 · 调试面板 · 运维监控 · 多数据库 · 多语言
+  接口模拟 · 模板引擎 · AI 对话 · AI 代理 · 录制回放 · Markdown 文档导出 · Swagger 生态 · RBAC 权限 · 调试面板 · 运维监控 · 多数据库 · 多语言
 </p>
 
 ---
@@ -21,8 +21,7 @@
 |   | 模块 | 说明 |
 |---|------|------|
 | 🧩 | 接口模拟 | 固定 / 条件匹配 / 加权随机 / Java 动态代码 / 延迟 / 默认响应 / WebSocket Mock |
-| 🤖 | AI 智能平台 | SSE 流式对话 · 多服务商配置切换 · 12+ LLM · AI 代理统一接入 · 一键生成响应/代码/邮件 |
-| 🎛️ | AI 服务管理 | 服务商/模型/额度/API Key 全生命周期管理 · 模型健康检查 · 批量远程导入 |
+| 🤖 | AI 智能平台 | SSE 流式对话 · 多服务商配置切换 · 12+ LLM · OpenAI 兼容代理统一接入 · 一键生成响应/代码/邮件 |
 | 📡 | 录制回放 | HTTP 透明代理录制 · 请求回放对比 · 录制数据搜索与管理 |
 | 📝 | 模板引擎 | Faker.js 风格随机数据生成 `{{name()}}` `{{phone()}}`，模板面板一键预览 |
 | 🔍 | 调试面板 | 实时请求日志追踪 · 延迟分布可视化 · 请求/响应详情 · 搜索与分页 |
@@ -31,7 +30,7 @@
 | 📦 | 项目管理 | 多项目隔离 · 成员权限 · JSON/Swagger 导入导出 |
 | 🧬 | 动态代码 | Monaco Editor 编译验证 · 6 种转换器 · 热加载即时生效 |
 | 🔐 | 权限管理 | RBAC 体系 · 60+ 项细粒度权限 · 权限扫描 · 子权限自动同步 |
-| 🔑 | 单点登录 | OIDC 多服务商（TDP/Keycloak/Auth0…）· 标准授权码 + PKCE · 后台可视化配置 · 账号自动绑定/建号 |
+| 🔑 | 单点登录 | OIDC 多服务商（TDP/Keycloak/Auth0…）· 标准授权码 + PKCE · 自定义登录图标（SVG/PNG/JPG/ICO）· 后台可视化配置 · 账号自动绑定/建号 |
 | 🗄️ | 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，WAL 模式 · 方言自动适配 |
 | 📊 | 数据统计 | 请求趋势 · IP 来源 · AI 调用 · IOPS · JVM/CPU/内存/磁盘 |
 | ✉️ | 邮件系统 | SMTP 配置 · 模板管理 · HTML 预览 · 占位符替换 |
@@ -255,7 +254,7 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 | IP 白名单 | 限制管理接口来源 |
 | CORS | 跨域白名单控制 · 凭据跨域 · 外部地址直接调用 |
 | iframe 白名单 | CSP `frame-ancestors` 动态控制，禁止 / 白名单 / 全部三种模式，默认禁止 |
-| OIDC 单点登录 | 多服务商并行配置 · 标准 OIDC 授权码流程（PKCE S256）· state 防 CSRF · Client Secret 不回显 |
+| OIDC 单点登录 | 多服务商并行配置 · 标准 OIDC 授权码流程（PKCE S256）· 自定义登录图标（存库）· 回调地址按实际访问地址推导 · state 防 CSRF · Client Secret 不回显 |
 | 防注入 | SQL 参数化 · XSS 过滤 · CSRF 防护 |
 | RBAC | 角色-权限体系，页面/按钮级控制，动态菜单显隐 |
 | Actuator 安全 | 监控端点需登录认证，杜绝信息泄露 |

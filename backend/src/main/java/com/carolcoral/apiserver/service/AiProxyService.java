@@ -103,18 +103,8 @@ public class AiProxyService {
             currentModel = candidates.get(0);
         } else {
             // 指定模型：查找启用模型
-            AiModel model = modelSelector.findModel(modelName)
+            currentModel = modelSelector.findModel(modelName)
                     .orElseThrow(() -> new RuntimeException("模型不存在或未启用: " + modelName));
-            if (model.getAutoMode() != null && model.getAutoMode()) {
-                // 自动模式模型，从全局启用模型中自动选择最优模型
-                List<AiModel> candidates = modelSelector.selectModels(strategy);
-                if (candidates.isEmpty()) {
-                    throw new RuntimeException("没有可用的 AI 模型");
-                }
-                currentModel = candidates.get(0);
-            } else {
-                currentModel = model;
-            }
         }
 
         // 主调用 + fallback 重试
@@ -179,7 +169,6 @@ public class AiProxyService {
         requestBody.put("messages", injectDefaultSystemPrompt(request.getMessages()));
         if (request.getTemperature() != null) requestBody.put("temperature", request.getTemperature());
         if (request.getMaxTokens() != null) requestBody.put("max_tokens", request.getMaxTokens());
-        else if (model.getMaxTokens() != null) requestBody.put("max_tokens", model.getMaxTokens());
         if (request.getTopP() != null) requestBody.put("top_p", request.getTopP());
         if (request.getStop() != null) requestBody.put("stop", request.getStop());
 
@@ -188,10 +177,8 @@ public class AiProxyService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        if (provider.getAuthType() != null && !"none".equalsIgnoreCase(provider.getAuthType())) {
-            if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
-                headers.set("Authorization", "Bearer " + provider.getApiKey());
-            }
+        if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
+            headers.set("Authorization", "Bearer " + provider.getApiKey());
         }
 
         HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
@@ -240,16 +227,8 @@ public class AiProxyService {
             if (candidates.isEmpty()) throw new RuntimeException("没有可用的 AI 模型");
             selectedModel = candidates.get(0);
         } else {
-            AiModel model = modelSelector.findModel(modelName)
+            selectedModel = modelSelector.findModel(modelName)
                     .orElseThrow(() -> new RuntimeException("模型不存在或未启用: " + modelName));
-            if (model.getAutoMode() != null && model.getAutoMode()) {
-                isAutoMode = true;
-                List<AiModel> candidates = modelSelector.selectModels(strategy);
-                if (candidates.isEmpty()) throw new RuntimeException("没有可用的 AI 模型");
-                selectedModel = candidates.get(0);
-            } else {
-                selectedModel = model;
-            }
         }
 
         // 提取 ID，通过 repository 重新加载实体
@@ -292,17 +271,9 @@ public class AiProxyService {
             // 记录流式调用使用率
             try {
                 User user = userRepository.getReferenceById(userId);
-                double cost = 0;
-                if (model.getInputPrice() != null) {
-                    cost += model.getInputPrice() * promptTokens / 1000.0;
-                }
-                if (model.getOutputPrice() != null) {
-                    cost += model.getOutputPrice() * completionTokens / 1000.0;
-                }
-                cost = Math.round(cost * 1000000.0) / 1000000.0;
                 usageService.logStreamSuccess(user, provider, model,
                         objectMapper.writeValueAsString(request), promptTokens, completionTokens,
-                        totalTokens, latencyMs, cost);
+                        totalTokens, latencyMs);
             } catch (Exception e) {
                 log.warn("记录流式使用率失败: {}", e.getMessage());
             }
@@ -349,10 +320,8 @@ public class AiProxyService {
 
         log.info("AI Stream 请求: apiUrl={}, model={}", apiUrl, model.getModelName());
 
-        if (provider.getAuthType() != null && !"none".equalsIgnoreCase(provider.getAuthType())) {
-            if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
-                connection.setRequestProperty("Authorization", "Bearer " + provider.getApiKey());
-            }
+        if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer " + provider.getApiKey());
         }
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
@@ -362,7 +331,6 @@ public class AiProxyService {
         requestBody.put("stream_options", Map.of("include_usage", true));
         if (request.getTemperature() != null) requestBody.put("temperature", request.getTemperature());
         if (request.getMaxTokens() != null) requestBody.put("max_tokens", request.getMaxTokens());
-        else if (model.getMaxTokens() != null) requestBody.put("max_tokens", model.getMaxTokens());
 
         String jsonBody = objectMapper.writeValueAsString(requestBody);
 
@@ -506,16 +474,15 @@ public class AiProxyService {
 
             List<AiModel> allModels = modelRepository.findByStatusTrueWithProvider();
             List<AiModel> candidateModels = allModels.stream()
-                    .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
+                    .filter(modelSelector::isModelAvailable)
                     .collect(java.util.stream.Collectors.toList());
 
             log.info("AI Stream 内部路由(auto模式): 全局候选模型数={}, 模型列表={}",
                     candidateModels.size(),
-                    candidateModels.stream().map(m -> m.getModelName() + "(" + m.getHealthStatus() + ")").collect(java.util.stream.Collectors.toList()));
+                    candidateModels.stream().map(AiModel::getModelName).collect(java.util.stream.Collectors.toList()));
 
             if (candidateModels.isEmpty()) {
-                throw new RuntimeException("auto 模式下没有可用的具体模型（共" + allModels.size() + "个启用模型，"
-                        + allModels.stream().filter(m -> m.getAutoMode() != null && m.getAutoMode()).count() + "个是auto模式标记）");
+                throw new RuntimeException("auto 模式下没有可用的具体模型（共" + allModels.size() + "个启用模型）");
             }
 
             selectedModel = candidateModels.get(0);
@@ -540,10 +507,8 @@ public class AiProxyService {
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Accept", "text/event-stream");
-            if (provider.getAuthType() != null && !"none".equalsIgnoreCase(provider.getAuthType())) {
-                if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
-                    connection.setRequestProperty("Authorization", "Bearer " + provider.getApiKey());
-                }
+            if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
+                connection.setRequestProperty("Authorization", "Bearer " + provider.getApiKey());
             }
             try (java.io.OutputStream os = connection.getOutputStream()) {
                 os.write(jsonBody.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -562,21 +527,14 @@ public class AiProxyService {
         List<AiModel> allModels = modelSelector.getAllEnabledModelsIgnoreHealth();
         AiModel model = null;
         for (AiModel m : allModels) {
-            if (m.getModelName().equals(modelName) || m.getDisplayName().equals(modelName)) {
+            if (m.getModelName().equals(modelName)
+                    || (m.getDisplayName() != null && m.getDisplayName().equals(modelName))) {
                 model = m;
                 break;
             }
         }
         if (model == null) {
             throw new RuntimeException("未找到模型: " + modelName);
-        }
-
-        // 如果匹配到的模型是 autoMode，从所有非 auto 模型中选择第一个
-        if (model.getAutoMode() != null && model.getAutoMode()) {
-            model = allModels.stream()
-                    .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("auto 模式下没有可用的具体模型"));
         }
 
         // 重新加载 provider 完整信息（包括 apiKey），避免 LAZY 加载导致 apiKey 为空
@@ -605,13 +563,11 @@ public class AiProxyService {
 
         log.info("AI Stream 请求: apiUrl={}, model={}", apiUrl, model.getModelName());
 
-        if (provider.getAuthType() != null && !"none".equalsIgnoreCase(provider.getAuthType())) {
-            if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
-                connection.setRequestProperty("Authorization", "Bearer " + provider.getApiKey());
-                log.debug("AI Stream 使用 Authorization: Bearer {}...", provider.getApiKey().substring(0, Math.min(8, provider.getApiKey().length())));
-            } else {
-                log.warn("AI Stream 服务商 {} 缺少 API Key", provider.getName());
-            }
+        if (provider.getApiKey() != null && !provider.getApiKey().isBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer " + provider.getApiKey());
+            log.debug("AI Stream 使用 Authorization: Bearer {}...", provider.getApiKey().substring(0, Math.min(8, provider.getApiKey().length())));
+        } else {
+            log.warn("AI Stream 服务商 {} 缺少 API Key", provider.getName());
         }
 
         try (OutputStream os = connection.getOutputStream()) {

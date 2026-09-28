@@ -122,7 +122,7 @@ public class AiProxyController {
     public Map<String, Object> listModels(HttpServletRequest servletRequest) {
         User user = authenticateUser(servletRequest);
 
-        List<AiModel> models = modelRepository.findByStatusTrue();
+        List<AiModel> models = modelRepository.findByStatusTrueWithProvider();
         List<Map<String, Object>> modelList = new ArrayList<>();
         for (AiModel model : models) {
             Map<String, Object> m = new LinkedHashMap<>();

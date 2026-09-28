@@ -58,16 +58,6 @@ public class AiUsageService {
                 logEntry.setPromptTokens(response.getUsage().getPromptTokens());
                 logEntry.setCompletionTokens(response.getUsage().getCompletionTokens());
                 logEntry.setTotalTokens(response.getUsage().getTotalTokens());
-
-                // 计算费用
-                double cost = 0;
-                if (model.getInputPrice() != null) {
-                    cost += model.getInputPrice() * response.getUsage().getPromptTokens() / 1000.0;
-                }
-                if (model.getOutputPrice() != null) {
-                    cost += model.getOutputPrice() * response.getUsage().getCompletionTokens() / 1000.0;
-                }
-                logEntry.setCost(Math.round(cost * 1000000.0) / 1000000.0);
             }
 
             usageLogRepository.save(logEntry);
@@ -83,7 +73,7 @@ public class AiUsageService {
     @Transactional
     public void logStreamSuccess(User user, AiProvider provider, AiModel model,
                                   String requestBody, int promptTokens, int completionTokens,
-                                  int totalTokens, long latencyMs, double cost) {
+                                  int totalTokens, long latencyMs) {
         try {
             AiUsageLog logEntry = new AiUsageLog();
             logEntry.setUser(user);
@@ -95,7 +85,6 @@ public class AiUsageService {
             logEntry.setPromptTokens(promptTokens);
             logEntry.setCompletionTokens(completionTokens);
             logEntry.setTotalTokens(totalTokens);
-            logEntry.setCost(cost);
             usageLogRepository.save(logEntry);
         } catch (Exception e) {
             log.error("记录流式 AI 调用日志失败: {}", e.getMessage());
@@ -119,7 +108,6 @@ public class AiUsageService {
             logEntry.setErrorMsg(errorMsg);
             logEntry.setLatencyMs(latencyMs);
             logEntry.setTotalTokens(0);
-            logEntry.setCost(0.0);
 
             usageLogRepository.save(logEntry);
         } catch (Exception e) {

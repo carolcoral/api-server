@@ -23,13 +23,21 @@ public class OidcPublicProviderDTO {
     /** 登录按钮显示名称 */
     private String buttonLabel;
 
+    /** 登录图标访问地址（无图标时为 null，前端使用默认图标） */
+    private String iconUrl;
+
     public OidcPublicProviderDTO() {
     }
 
     public OidcPublicProviderDTO(String providerId, String name, String buttonLabel) {
+        this(providerId, name, buttonLabel, null);
+    }
+
+    public OidcPublicProviderDTO(String providerId, String name, String buttonLabel, String iconUrl) {
         this.providerId = providerId;
         this.name = name;
         this.buttonLabel = buttonLabel;
+        this.iconUrl = iconUrl;
     }
 
     public String getProviderId() { return providerId; }
@@ -40,4 +48,7 @@ public class OidcPublicProviderDTO {
 
     public String getButtonLabel() { return buttonLabel; }
     public void setButtonLabel(String buttonLabel) { this.buttonLabel = buttonLabel; }
+
+    public String getIconUrl() { return iconUrl; }
+    public void setIconUrl(String iconUrl) { this.iconUrl = iconUrl; }
 }

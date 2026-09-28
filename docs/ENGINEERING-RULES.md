@@ -4,7 +4,7 @@
 > 机器可读的阈值配置见 [`.cnb/quality-gate.yml`](../.cnb/quality-gate.yml)（单一事实来源）。
 > 变更本文件或门禁阈值等同于变更**全局设置**，必须走 PR 并说明理由。
 
-最后更新：2026-09-28（补全门禁指标：逐模块上锁 1 → 14 个模块）
+最后更新：2026-09-28（补全门禁指标：逐模块上锁 1 → 15 个模块；同期补充资源存储约定，见第四节）
 
 ---
 
@@ -60,13 +60,13 @@
 
 | 模块 | 行覆盖 | 分支覆盖 | 入列版本 |
 | --- | --- | --- | --- |
-| `service.OidcService`（含内部类） | 96.6% | 83.5% | Unreleased |
+| `service.OidcService`（含内部类） | 100% | 100% | Unreleased |
 | `service.MockMetricsService` | 100% | 100% | Unreleased |
 | `service.SystemConfigService` | 100% | 100% | Unreleased |
 | `service.MockResponseService` | 100% | 无分支 | Unreleased |
 | `service.AiQuotaService` | 100% | 85.3% | Unreleased |
-| `service.AiUsageService` | 93.7% | 100% | Unreleased |
-| `service.AiModelSelector` | 93.5% | 80.0% | Unreleased |
+| `service.AiUsageService` | 100% | 100% | Unreleased |
+| `service.AiModelSelector` | 100% | 83.3% | Unreleased |
 | `service.ResponseRequestParamService` | 95.5% | 79.2% | Unreleased |
 | `service.PermissionService` | 86.2% | 88.9% | Unreleased |
 | `service.RoleService` | 81.5% | 96.4% | Unreleased |
@@ -74,6 +74,7 @@
 | `util.CacheUtil` | 100% | 96.2% | Unreleased |
 | `util.DatabaseDialectProvider` | 98.5% | 98.0% | Unreleased |
 | `util.DatabaseChecker` | 100% | 83.3% | Unreleased |
+| `util.OidcIconUtil` | 100% | 95.5% | Unreleased |
 
 > 未入列但已补齐单测、暂未达红线的模块（下一批候选）：
 > `service.SystemAnnouncementService`（78.2% 行 / 63.2% 分支）、`service.EmailTemplateService`、
@@ -168,6 +169,22 @@ CI 脚本跑在容器里，**镜像是工具链的唯一来源**，不要依赖�
 - **提交前不删除、不放宽任何既有测试**；确需调整须在 PR 说明原因。
 - **i18n 三语齐备**：新增文案需同时补 `zh-CN` / `en-US` / `ja-JP`。
 - **CHANGELOG 必须同步**：功能、修复、破坏性变更都要记录。
+
+---
+
+## 四、资源类数据存储约定（全局设置）
+
+针对图片、图标等**二进制/文本资源**的持久化，全仓库统一约定如下：
+
+- **小体积资源（单文件 ≤ 256KB）只存数据库**，落成文本列（Base64 / SVG 源码）+ 元数据列，
+  不落本地磁盘、不引入对象存储依赖，保证「单库可迁移、备份可还原」。
+- **必须记录 MIME 类型与原始文件名**，读取时按元数据返回正确的 `Content-Type`。
+- **必须校验**：白名单 MIME/扩展名、Base64 可解码、字节数上限；超限或非法一律拒绝并返回明确错误。
+- **读取接口随属主资源公开**（如登录页图标需匿名可读），但**写入接口必须鉴权**。
+- **前端统一用「上传 → 取 URL → 渲染」**：不要在前端内联 Base64 大字符串，避免撑大接口响应。
+
+> 首个落地场景：OIDC 服务商登录图标（`t_system_config` 中的 `oidcProviders[].icon` + `/api/public/oidc/{providerId}/icon`）。
+> 既有已落地同类实现可参考用户头像（`api/user/avatar`），逻辑保持一致的边界与报错风格。
 
 ---
 

@@ -120,10 +120,16 @@ class AuthControllerOidcTest {
             return r.getHeaders().getFirst("Location");
         }
 
+        /** 回调新增了 HttpServletRequest 参数（用于推导站点地址），统一补在末尾 */
+        private ResponseEntity<Void> callback(String providerId, String code, String state,
+                                              String error, String errorDescription) {
+            return controller.oidcCallback(providerId, code, state, error, errorDescription, request);
+        }
+
         @Test
         @DisplayName("授权方返回 error：重定向并携带错误")
         void providerError() {
-            ResponseEntity<Void> r = controller.oidcCallback(null, null, null, "access_denied", "用户拒绝");
+            ResponseEntity<Void> r = callback(null, null, null, "access_denied", "用户拒绝");
             assertEquals(HttpStatus.FOUND, r.getStatusCode());
             assertTrue(location(r).startsWith("/login?oidc_error="));
             assertTrue(location(r).contains("%E7%94%A8%E6%88%B7"));
@@ -132,7 +138,7 @@ class AuthControllerOidcTest {
         @Test
         @DisplayName("授权方 error 无描述：使用 error 值")
         void providerErrorNoDescription() {
-            ResponseEntity<Void> r = controller.oidcCallback(null, null, null, "server_error", null);
+            ResponseEntity<Void> r = callback(null, null, null, "server_error", null);
             assertTrue(location(r).contains("server_error"));
         }
 
@@ -140,8 +146,8 @@ class AuthControllerOidcTest {
         @DisplayName("登录成功：重定向携带 token")
         void success() {
             LoginResponse lr = LoginResponse.builder().token("jwt-abc").build();
-            when(oidcService.handleCallback(null, "code", "state")).thenReturn(ApiResponse.success(lr));
-            ResponseEntity<Void> r = controller.oidcCallback(null, "code", "state", null, null);
+            when(oidcService.handleCallback(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.eq("code"), org.mockito.ArgumentMatchers.eq("state"), org.mockito.ArgumentMatchers.any())).thenReturn(ApiResponse.success(lr));
+            ResponseEntity<Void> r = callback(null, "code", "state", null, null);
             assertEquals(HttpStatus.FOUND, r.getStatusCode());
             assertEquals("/login?oidc_token=jwt-abc", location(r));
         }
@@ -149,8 +155,8 @@ class AuthControllerOidcTest {
         @Test
         @DisplayName("登录失败：重定向携带错误信息")
         void failure() {
-            when(oidcService.handleCallback("keycloak", "c", "s")).thenReturn(ApiResponse.error("state 无效或已过期"));
-            ResponseEntity<Void> r = controller.oidcCallback("keycloak", "c", "s", null, null);
+            when(oidcService.handleCallback(org.mockito.ArgumentMatchers.eq("keycloak"), org.mockito.ArgumentMatchers.eq("c"), org.mockito.ArgumentMatchers.eq("s"), org.mockito.ArgumentMatchers.any())).thenReturn(ApiResponse.error("state 无效或已过期"));
+            ResponseEntity<Void> r = callback("keycloak", "c", "s", null, null);
             assertTrue(location(r).startsWith("/login?oidc_error="));
             assertFalse(location(r).contains("oidc_token"));
         }
@@ -158,16 +164,16 @@ class AuthControllerOidcTest {
         @Test
         @DisplayName("返回 200 但 data 为 null：视为失败并给出默认提示")
         void successWithoutData() {
-            when(oidcService.handleCallback(null, "c", "s")).thenReturn(ApiResponse.success(null));
-            ResponseEntity<Void> r = controller.oidcCallback(null, "c", "s", null, null);
+            when(oidcService.handleCallback(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.eq("c"), org.mockito.ArgumentMatchers.eq("s"), org.mockito.ArgumentMatchers.any())).thenReturn(ApiResponse.success(null));
+            ResponseEntity<Void> r = callback(null, "c", "s", null, null);
             assertTrue(location(r).contains("oidc_error="));
         }
 
         @Test
         @DisplayName("服务抛异常：捕获并重定向错误")
         void throwsException() {
-            when(oidcService.handleCallback(null, "c", "s")).thenThrow(new RuntimeException("boom"));
-            ResponseEntity<Void> r = controller.oidcCallback(null, "c", "s", null, null);
+            when(oidcService.handleCallback(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.eq("c"), org.mockito.ArgumentMatchers.eq("s"), org.mockito.ArgumentMatchers.any())).thenThrow(new RuntimeException("boom"));
+            ResponseEntity<Void> r = callback(null, "c", "s", null, null);
             assertEquals(HttpStatus.FOUND, r.getStatusCode());
             assertTrue(location(r).startsWith("/login?oidc_error="));
         }

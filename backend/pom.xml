@@ -327,6 +327,8 @@
                                         <include>com.carolcoral.apiserver.util.CacheUtil</include>
                                         <include>com.carolcoral.apiserver.util.DatabaseDialectProvider</include>
                                         <include>com.carolcoral.apiserver.util.DatabaseChecker</include>
+                                        <!-- Issue #36 新增：OIDC 图标校验工具 -->
+                                        <include>com.carolcoral.apiserver.util.OidcIconUtil</include>
                                     </includes>
                                     <limits>
                                         <limit>
