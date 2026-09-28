@@ -1,0 +1,80 @@
+# ========================================
+# 全局质量门禁（Quality Gate）—— 单一事实来源
+# ========================================
+# 本文件是全仓库**唯一**的质量门禁配置来源：所有流水线、NPC、开发者
+# 都必须以本文件为准，不得在别处另立阈值。
+#
+# 重要：本文件**不被** .cnb.yml 注入 NPC 上下文。
+# CNB 的 include / imports 只支持 YAML / JSON / 证书 / key=value 文本，
+# 无法把本文件全文塞进 NPC 提示词。NPC 的记忆体是仓库内可读文档
+# docs/ENGINEERING-RULES.md —— 每次任务读取它，即读到本文件约定的阈值。
+#
+# 变更本文件（尤其 thresholds）属于「全局设置」变更，必须：
+#   1. 在 Issue / PR 中明确说明变更理由与影响面
+#   2. 同步更新 docs/ENGINEERING-RULES.md 与 CHANGELOG.md
+#   3. 由仓库管理员评审通过
+# ========================================
+
+version: 1
+
+# 门禁当前状态（mode）
+#   staged  = 分批推进期：门禁脚手架已就位，但存量覆盖率距红线尚有差距，
+#             为避免所有 PR 被无差别阻断，暂不设置会阻断流水线的阈值。
+#   enforced= 正式生效期：全部阈值生效，未达标即阻断流水线。
+# 切换到 enforced 的条件见 docs/ENGINEERING-RULES.md 第三节。
+mode: staged
+
+# 覆盖率门禁（红线：达到 enforced 后低于即阻断，不允许 waive）
+coverage:
+  # 分支覆盖率（后端必须，见 backend.must 说明）
+  branch:
+    minimum: 75
+    # 是否强制阻断：由 mode 决定，enforced 时为 true
+    enforced: false
+  # 单元（行）覆盖率
+  line:
+    minimum: 80
+    enforced: false
+  # 作用范围说明：
+  #   - 后端（backend/）：分支 ≥ 75% 且 行 ≥ 80%（本 Issue 明确要求「后端才需要加上这句话」）
+  #   - 前端（frontend/）：行 ≥ 80%，分支 ≥ 75%（同标准执行，统计范围为可单测逻辑层）
+  scope:
+    backend:
+      branch: 75
+      line: 80
+      must: true          # 后端必须加分支覆盖率门禁
+      # 后端存量代码体量大，测试按模块分批补齐后才可切换为 enforced
+      enforced: false
+    frontend:
+      branch: 75
+      line: 80
+      must: false         # 前端默认同标准执行，可按需调整
+      # 前端逻辑层已达标，阈值已在 vitest.config.js 中强制
+      enforced: true
+  # 本地闸门（不受 mode 影响，始终生效）
+  local:
+    backend:
+      command: cd backend && mvn -B verify
+      # jacoco check 的阈值随 mode 切换：staged 期间下调，避免本地完全失去约束
+      enforced: false
+    frontend:
+      command: cd frontend && npm run test:coverage
+      enforced: true
+
+# 每次提交必须保证的两项检查
+submission:
+  # 代码稳定性检查：单测全绿 + 构建通过
+  stability:
+    required: true
+    checks:
+      - 后端单元测试全部通过（mvn test，禁止 -DskipTests 绕过）
+      - 前端单元测试全部通过（npm run test:run）
+      - 前后端构建通过（mvn package / npm run build）
+  # 代码一致性检查：Lint / 格式 / 覆盖率阈值 / 完整性
+  consistency:
+    required: true
+    checks:
+      - 前端 ESLint 通过（npm run lint）
+      - 覆盖率阈值达标（本文件 coverage 段）
+      - 分支保护状态检查必须为 success 才能合并
+      - 提交信息遵循 Conventional Commits

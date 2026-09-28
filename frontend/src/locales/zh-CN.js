@@ -548,7 +548,6 @@ export default {
     importDataFormat: '仅支持 .json 格式文件',
     importDataSuccess: '导入成功，共导入 {count} 个接口',
     importDataFailed: '导入失败',
-    pleaseSelectFile: '请先选择文件'
   },
 
   // 接口管理
@@ -786,7 +785,6 @@ export default {
     aiCalls: 'AI 调用统计',
     yearly: '按年',
     monthly: '按月',
-    daily: '按日',
     callCount: '调用次数',
     totalCalls: '总调用次数',
     aiCallsByUser: '按用户统计'
@@ -1446,7 +1444,6 @@ export default {
     apiName: '接口名称',
     apiNamePlaceholder: '请输入接口名称',
     apiNameRequired: '请输入接口名称',
-    description: '接口描述',
     descriptionPlaceholder: '请输入接口描述',
     aiGenerateDesc: 'AI 智能生成描述',
     aiGenerateFailed: 'AI 生成描述失败，请检查 AI 配置',
@@ -1512,7 +1509,6 @@ export default {
     model: '模型',
     status: '状态',
     actions: '操作',
-    description: '描述',
     // 服务商
     addProvider: '添加服务商',
     editProvider: '编辑服务商',

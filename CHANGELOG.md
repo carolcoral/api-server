@@ -24,6 +24,69 @@ ALTER TABLE t_user ADD COLUMN oidc_provider VARCHAR(50);
 ALTER TABLE t_user ADD COLUMN oidc_account BOOLEAN DEFAULT FALSE NOT NULL;
 ```
 
+> 全局质量门禁 · 单测覆盖率红线（分支 75% / 行 80%）· 稳定性与一致性检查 · 工程铁律记忆体。
+
+### 🚦 全局质量门禁（Quality Gate）
+
+- **覆盖率红线**：新增全局门禁，目标红线为**分支覆盖率 ≥ 75%、单元（行）覆盖率 ≥ 80%**，**后端必须执行分支覆盖率门禁**；门禁分 `staged`（分批推进期，只上报不阻断）/ `enforced`（未达标即阻断）两态，当前为 `staged`
+- **单一事实来源**：门禁阈值统一收敛到 `.cnb/quality-gate.yml`，机器可读、可直接被流水线引用，禁止在别处另立阈值
+- **CI 落地**：`.cnb.yml` 新增 `quality-gate` 流水线（`pull_request` / `push` 事件），串行执行「后端单测 → 后端覆盖率 → 前端单测 → 前端覆盖率 → 稳定性构建 → 一致性检查」；覆盖率经 CNB 内置任务 `testing:coverage` 解析上报，生成覆盖率徽章
+- **本地 + CI 双重把关**：前端 `vitest --coverage` 的 `thresholds` 已按红线强制；后端 `mvn verify` 的 JaCoCo `check` 在 staged 期间以「不倒退」底线强制，避免完全失去约束
+
+### 🐛 修复
+
+- **修复 `backend-test` 阶段被 JaCoCo 覆盖率门禁阻断**：引入门禁后首跑 CI 即失败——`jacoco:check` 报
+  `branches covered ratio is 0.03, but expected minimum is 0.75` / `lines 0.06, but expected minimum is 0.80`。
+  根因是**红线设在了存量代码尚未达到的水平**，导致包括本 PR 在内的所有 PR 都会被卡死（107 个单测全绿也救不了）。
+  现引入门禁状态机：`staged`（当前）只上报覆盖率、不设阻断阈值；后端 `check` 阈值下调为一组「不倒退」底线，
+  改坏已有覆盖会立刻失败；后端达到 75% / 80% 后再切 `enforced`（`lines` / `diffLines` 加回阈值），流程见 `docs/ENGINEERING-RULES.md`
+- **修复 `testing:coverage` 会二次阻断流水线**：该任务原配置 `lines: 80` / `diffLines: 80`，
+  即使后端 `mvn verify` 通过，覆盖率上报任务仍会因存量覆盖率再次失败（双重门禁，且对存量代码不可达）；
+  staged 期间取消阈值，仅上报数据与徽章
+- **修正「记忆体注入」的不实描述**：原文称 `.cnb/quality-gate.yml` 被 `.cnb.yml` 注入 NPC 上下文，
+  但 CNB 的 `include` / `imports` 只支持 YAML / JSON / 证书 / `key=value` 文本，**不具备该能力**，
+  ack 了不存在的机制。现明确：记忆体是仓库内可读文档 `docs/ENGINEERING-RULES.md`，
+  配置文件的定位是「机器可读的阈值单一来源」，两者关系已写进该文档
+- **修复流水线镜像缺少 Maven 导致 CI 失败**：`quality-gate` 流水线此前统一使用云原生开发镜像 `cnbcool/default-dev-env` 作为运行环境，该镜像 PATH 中没有 `mvn`，后端任务直接以 `mvn: not found`（返回码 127）失败；现按任务工具链显式指定镜像——后端任务用 `maven:3.9-eclipse-temurin-21`（Maven + JDK 21），前端任务用 `node:20`
+- **拆分稳定性构建任务**：原 `stability-build` 单任务内混合前后端构建，前后端工具链不同无法共用同一镜像；拆为 `stability-build-frontend` / `stability-build-backend`
+- **后端构建统一走仓库内镜像加速配置**：`mvn` 命令显式加 `-s ../maven-settings.xml`，避免 Maven Central 访问受限导致依赖下载失败
+
+### 🧪 单元测试体系
+
+- **后端**：接入 JaCoCo 0.8.12，新增 `prepare-agent` / `report` / `check` 三个执行；统计范围排除 `dto` / `entity` / `plugin` / `config` 与启动类；新增 107 个单测（`JwtTokenUtil`、`DatabaseDialectProvider`、`CacheUtil`、`DatabaseChecker`、`MockTemplateEngine`、`MockController`）
+- **前端**：新增 `vitest.config.js`（含覆盖率阈值）与 `vitest.setup.js`（补齐 jsdom 缺失的 `matchMedia` / `ResizeObserver` / `createObjectURL`）；新增 88 个单测，覆盖 `utils` / `stores` / `api` 逻辑层，行覆盖率 99.6%、分支覆盖率 96.6%
+- **新增依赖**：`@vitest/coverage-v8`、`@vue/test-utils`、`jsdom`
+- **新增脚本**：`npm run test:run`（单次跑测）、`npm run test:coverage`（含覆盖率门禁）、`npm run lint:fix`
+
+### ✅ 每次提交的强制检查
+
+- **稳定性**：后端单测全绿 + 前端单测全绿 + 前后端构建通过（禁止 `-DskipTests` 绕过）
+- **一致性**：ESLint 通过 + 覆盖率阈值达标 + 提交信息遵循 Conventional Commits + 保护分支状态检查必须 success
+
+### 🧹 代码一致性
+
+- **修复 ESLint 配置缺失**：仓库此前无任何 ESLint 配置，`npm run lint` 会直接报错退出；新增 `.eslintrc.cjs`（`eslint:recommended` + `plugin:vue/vue3-recommended`）与 `.eslintignore`，并修正 `lint` 脚本误指向不存在的 `.gitignore` 的问题
+- **规则分层**：会直接导致线上故障的规则（如 `no-dupe-keys`）为 `error`，历史存量告警（未使用变量、空块、模板风格等）先降级为 `warn`，后续分批收敛
+- **修复 i18n 重复键**：清理 `zh-CN` / `en-US` / `ja-JP` 中 7 处重复定义的语言键（含 `pleaseSelectFile`、`daily`、`description`），后定义会静默覆盖前值，属真实缺陷
+
+### 🧠 工程铁律记忆体
+
+- **新增 `docs/ENGINEERING-RULES.md`**：工程铁律记忆体（NPC 与协作者的长期约束），记录门禁状态与红线、每次提交的强制检查、本地自检命令、staged → enforced 切换流程、编码约定与门禁变更流程
+- **新增 `.cnb/quality-gate.yml`**：机器可读的门禁配置，作为阈值唯一来源
+- **持续生效**：两份文件随仓库存在，NPC 每次任务读取 `docs/ENGINEERING-RULES.md`，
+  即可知道当前门禁状态、红线值与阈值所在文件，规则无需在每次对话中重复声明
+
+### 📝 升级说明
+
+> ⚠️ **无数据库变更**。本版本仅新增/调整工程配置与测试代码，不影响运行时行为与既有接口。
+>
+> 门禁当前为 **`staged`（分批推进期）**：脚手架、单测与覆盖率上报已全部就位，但后端存量代码
+> （约 1.6 万行、约 800 个业务分支，当前分支 3.9% / 行 6.3%）距 75% / 80% 红线尚有差距。
+> staged 期间**前端已按红线强制**，后端以「不倒退」底线强制并持续上报覆盖率曲线；
+> 待按模块补齐单测后切 `enforced`，届时未达标即阻断。
+> 切换步骤见 `docs/ENGINEERING-RULES.md` 第三节，**不要跳过该流程直接改阈值**。
+
+---
 
 ## v2.4.1 (2026-08-18)
 

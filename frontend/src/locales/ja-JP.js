@@ -765,7 +765,6 @@ export default {
     aiCalls: 'AI呼び出し統計',
     yearly: '年次',
     monthly: '月次',
-    daily: '日次',
     callCount: '呼び出し回数',
     totalCalls: '総呼び出し回数',
     aiCallsByUser: 'ユーザー別'
@@ -1394,7 +1393,6 @@ export default {
     apiName: 'API名',
     apiNamePlaceholder: 'API名を入力',
     apiNameRequired: 'API名を入力してください',
-    description: '説明',
     descriptionPlaceholder: 'APIの説明を入力',
     aiGenerateDesc: 'AIで説明を生成',
     aiGenerateFailed: 'AI説明の生成に失敗しました。AI設定を確認してください',
@@ -1457,7 +1455,6 @@ export default {
     model: 'モデル',
     status: '状態',
     actions: '操作',
-    description: '説明',
     addProvider: 'プロバイダー追加',
     editProvider: 'プロバイダー編集',
     providerName: 'プロバイダー名',
