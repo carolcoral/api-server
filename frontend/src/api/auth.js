@@ -53,3 +53,14 @@ export function swaggerAutoLogin() {
     method: 'post'
   })
 }
+
+/**
+ * 发起 OIDC 登录，获取授权跳转地址
+ * @returns {Promise}
+ */
+export function oidcAuthorize() {
+  return request({
+    url: '/auth/oidc/authorize',
+    method: 'get'
+  })
+}

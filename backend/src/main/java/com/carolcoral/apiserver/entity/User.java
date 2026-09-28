@@ -112,6 +112,27 @@ public class User implements UserDetails {
     private Boolean enabled = true;
 
     /**
+     * OIDC 唯一标识（TDP OIDC 的 sub 声明），用于账号绑定
+     */
+    @Schema(description = "OIDC 主体标识（sub）")
+    @Column(name = "oidc_sub", length = 128, unique = true)
+    private String oidcSub;
+
+    /**
+     * OIDC 登录来源标识（如 tdp），用于区分不同 OIDC 提供方
+     */
+    @Schema(description = "OIDC 登录来源", example = "tdp")
+    @Column(name = "oidc_provider", length = 50)
+    private String oidcProvider;
+
+    /**
+     * 是否为 OIDC 快捷登录创建的账号（此类账号无本地密码）
+     */
+    @Schema(description = "是否 OIDC 账号", example = "false")
+    @Column(name = "oidc_account")
+    private Boolean oidcAccount = false;
+
+    /**
      * 创建时间，创建时自动设置
      */
     @Schema(description = "创建时间")
@@ -427,6 +448,60 @@ public class User implements UserDetails {
         return enabled != null && enabled;
     }
 
+    /**
+     * 获取 OIDC 主体标识
+     *
+     * @return oidcSub
+     */
+    public String getOidcSub() {
+        return oidcSub;
+    }
+
+    /**
+     * 设置 OIDC 主体标识
+     *
+     * @param oidcSub OIDC sub
+     */
+    public void setOidcSub(String oidcSub) {
+        this.oidcSub = oidcSub;
+    }
+
+    /**
+     * 获取 OIDC 登录来源
+     *
+     * @return oidcProvider
+     */
+    public String getOidcProvider() {
+        return oidcProvider;
+    }
+
+    /**
+     * 设置 OIDC 登录来源
+     *
+     * @param oidcProvider OIDC 提供方
+     */
+    public void setOidcProvider(String oidcProvider) {
+        this.oidcProvider = oidcProvider;
+    }
+
+    /**
+     * 获取是否 OIDC 账号
+     *
+     * @return 是否 OIDC 账号
+     */
+    public Boolean getOidcAccount() {
+        return oidcAccount;
+    }
+
+    /**
+     * 设置是否 OIDC 账号
+     *
+     * @param oidcAccount 是否 OIDC 账号
+     */
+    public void setOidcAccount(Boolean oidcAccount) {
+        this.oidcAccount = oidcAccount;
+    }
+
     // ==================== equals 和 hashCode ====================
 
     /**
@@ -466,6 +541,7 @@ public class User implements UserDetails {
                 ", email='" + email + '\'' +
                 ", role=" + role +
                 ", enabled=" + enabled +
+                ", oidcAccount=" + oidcAccount +
                 ", createTime=" + createTime +
                 ", updateTime=" + updateTime +
                 '}';

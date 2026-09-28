@@ -139,7 +139,10 @@ export default {
     networkError: 'Login failed, please check network connection',
     registerLink: "Don't have an account? Register now",
     forgotPassword: 'Forgot password?',
-    toLogin: 'Already have an account? Back to login'
+    toLogin: 'Already have an account? Back to login',
+    orDivider: 'or',
+    oidcButtonDefault: 'Sign in with TDP',
+    oidcFailed: 'OIDC login failed'
   },
 
   // Forgot Password
@@ -257,6 +260,25 @@ export default {
     iframeAllowedOrigins: 'Allowed Origins',
     iframeAllowedOriginsPlaceholder: 'Enter the origins allowed to embed (Origin), separated by commas, e.g. https://a.example.com,https://b.example.com',
     iframeHint: 'Takes effect immediately after saving. If no origin is configured, embedding is blocked by default; enter * to allow all origins; otherwise only same-origin and listed origins can embed.',
+    oidcLogin: 'OIDC Single Sign-On (TDP)',
+    oidcHint: 'Integrate TDP OpenID Connect as a login method. Register an app in the TDP admin console (Open Platform) to obtain Client ID / Client Secret, and set the redirect URI as below (takes effect immediately).',
+    oidcEnabled: 'Enable OIDC login',
+    oidcProvider: 'Provider',
+    oidcIssuerUri: 'Issuer URI',
+    oidcClientId: 'Client ID',
+    oidcClientIdPlaceholder: 'Enter app Client ID',
+    oidcClientSecret: 'Client Secret',
+    oidcClientSecretPlaceholder: 'Enter app Client Secret',
+    oidcSecretKeep: 'Leave blank to keep the current secret',
+    oidcRedirectUri: 'Redirect URI',
+    oidcRedirectUriPlaceholder: 'Leave blank to auto-derive {site}/api/auth/oidc/callback',
+    oidcScope: 'Scope',
+    oidcButtonLabel: 'Login button label',
+    oidcButtonLabelPlaceholder: 'e.g. Sign in with TDP',
+    oidcAutoCreateUser: 'Auto-create account on first login',
+    oidcUsePkce: 'Enable PKCE (S256)',
+    oidcSaveSuccess: 'OIDC configuration saved',
+    saveOidcSettings: 'Save OIDC configuration',
     tokenExpiration: 'Token Expiration Time',
     tokenExpirationUnit: 'seconds (recommended 15-30 minutes)',
     refreshTokenExpiration: 'Refresh Token Expiration Time',
@@ -526,7 +548,6 @@ export default {
     importDataFormat: 'Only .json files are supported',
     importDataSuccess: 'Import successful, {count} APIs imported',
     importDataFailed: 'Import failed',
-    pleaseSelectFile: 'Please select a file first'
   },
 
   // API Management
@@ -764,7 +785,6 @@ export default {
     aiCalls: 'AI Call Statistics',
     yearly: 'Yearly',
     monthly: 'Monthly',
-    daily: 'Daily',
     callCount: 'Call Count',
     totalCalls: 'Total Calls',
     aiCallsByUser: 'By User'
@@ -1393,7 +1413,6 @@ export default {
     apiName: 'API Name',
     apiNamePlaceholder: 'Enter API name',
     apiNameRequired: 'Please enter API name',
-    description: 'Description',
     descriptionPlaceholder: 'Enter API description',
     aiGenerateDesc: 'AI Generate Description',
     aiGenerateFailed: 'AI description generation failed, please check AI settings',
@@ -1456,7 +1475,6 @@ export default {
     model: 'Model',
     status: 'Status',
     actions: 'Actions',
-    description: 'Description',
     addProvider: 'Add Provider',
     editProvider: 'Edit Provider',
     providerName: 'Provider Name',

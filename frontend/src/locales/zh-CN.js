@@ -139,7 +139,10 @@ export default {
     networkError: '登录失败，请检查网络连接',
     registerLink: '没有账号？立即注册',
     forgotPassword: '忘记密码？',
-    toLogin: '已有账号？返回登录'
+    toLogin: '已有账号？返回登录',
+    orDivider: '或',
+    oidcButtonDefault: '使用 TDP 登录',
+    oidcFailed: 'OIDC 登录失败'
   },
 
   // 忘记密码页面
@@ -257,6 +260,25 @@ export default {
     iframeAllowedOrigins: '允许的来源',
     iframeAllowedOriginsPlaceholder: '请输入允许嵌入的来源（Origin），多个用逗号分隔，例如：https://a.example.com,https://b.example.com',
     iframeHint: '保存后即时生效，无需重启。未配置来源时默认禁止被 iframe 嵌入；输入 * 表示允许所有来源；仅允许同源及列表中来源嵌入。',
+    oidcLogin: 'OIDC 单点登录（TDP）',
+    oidcHint: '接入 TDP OpenID Connect 作为登录方式。需先在 TDP 管理后台「开放平台」注册应用获取 Client ID / Client Secret，并将回调地址配置为下方地址（保存后即时生效）。',
+    oidcEnabled: '启用 OIDC 登录',
+    oidcProvider: '提供方标识',
+    oidcIssuerUri: 'Issuer 地址',
+    oidcClientId: 'Client ID',
+    oidcClientIdPlaceholder: '请输入应用 Client ID',
+    oidcClientSecret: 'Client Secret',
+    oidcClientSecretPlaceholder: '请输入应用 Client Secret',
+    oidcSecretKeep: '留空表示保持现有密钥不变',
+    oidcRedirectUri: '回调地址',
+    oidcRedirectUriPlaceholder: '留空自动推导为「站点地址/api/auth/oidc/callback」',
+    oidcScope: '请求 Scope',
+    oidcButtonLabel: '登录按钮名称',
+    oidcButtonLabelPlaceholder: '例如：使用 TDP 登录',
+    oidcAutoCreateUser: '首次登录自动创建账号',
+    oidcUsePkce: '启用 PKCE（S256）',
+    oidcSaveSuccess: 'OIDC 配置已保存',
+    saveOidcSettings: '保存 OIDC 配置',
     tokenExpiration: 'Token过期时间',
     tokenExpirationUnit: '秒（建议15-30分钟）',
     refreshTokenExpiration: 'Refresh Token过期时间',
@@ -526,7 +548,6 @@ export default {
     importDataFormat: '仅支持 .json 格式文件',
     importDataSuccess: '导入成功，共导入 {count} 个接口',
     importDataFailed: '导入失败',
-    pleaseSelectFile: '请先选择文件'
   },
 
   // 接口管理
@@ -764,7 +785,6 @@ export default {
     aiCalls: 'AI 调用统计',
     yearly: '按年',
     monthly: '按月',
-    daily: '按日',
     callCount: '调用次数',
     totalCalls: '总调用次数',
     aiCallsByUser: '按用户统计'
@@ -1424,7 +1444,6 @@ export default {
     apiName: '接口名称',
     apiNamePlaceholder: '请输入接口名称',
     apiNameRequired: '请输入接口名称',
-    description: '接口描述',
     descriptionPlaceholder: '请输入接口描述',
     aiGenerateDesc: 'AI 智能生成描述',
     aiGenerateFailed: 'AI 生成描述失败，请检查 AI 配置',
@@ -1490,7 +1509,6 @@ export default {
     model: '模型',
     status: '状态',
     actions: '操作',
-    description: '描述',
     // 服务商
     addProvider: '添加服务商',
     editProvider: '编辑服务商',
