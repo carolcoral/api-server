@@ -49,7 +49,7 @@ coverage:
       # 已按红线强制的模块（每补齐一个模块的单测即加入此名单）
       # 名单与 backend/pom.xml 的 CLASS 级 includes 必须保持一致
       enforced_modules:
-        - com.carolcoral.apiserver.service.OidcService*                # 94.0% 行 / 78.8% 分支
+        - com.carolcoral.apiserver.service.OidcService*                # 96.6% 行 / 83.5% 分支
         - com.carolcoral.apiserver.service.MockMetricsService          # 100% 行 / 100% 分支
         - com.carolcoral.apiserver.service.SystemConfigService         # 100% 行 / 100% 分支
         - com.carolcoral.apiserver.service.MockResponseService         # 100% 行 / 无分支

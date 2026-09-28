@@ -31,7 +31,7 @@
 | 📦 | 项目管理 | 多项目隔离 · 成员权限 · JSON/Swagger 导入导出 |
 | 🧬 | 动态代码 | Monaco Editor 编译验证 · 6 种转换器 · 热加载即时生效 |
 | 🔐 | 权限管理 | RBAC 体系 · 60+ 项细粒度权限 · 权限扫描 · 子权限自动同步 |
-| 🔑 | 单点登录 | TDP OIDC（OpenID Connect）登录 · 后台可视化配置 · 账号自动绑定/建号 |
+| 🔑 | 单点登录 | OIDC 多服务商（TDP/Keycloak/Auth0…）· 标准授权码 + PKCE · 后台可视化配置 · 账号自动绑定/建号 |
 | 🗄️ | 多数据库 | SQLite / PostgreSQL / MySQL 一键切换，WAL 模式 · 方言自动适配 |
 | 📊 | 数据统计 | 请求趋势 · IP 来源 · AI 调用 · IOPS · JVM/CPU/内存/磁盘 |
 | ✉️ | 邮件系统 | SMTP 配置 · 模板管理 · HTML 预览 · 占位符替换 |
@@ -255,7 +255,7 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 | IP 白名单 | 限制管理接口来源 |
 | CORS | 跨域白名单控制 · 凭据跨域 · 外部地址直接调用 |
 | iframe 白名单 | CSP `frame-ancestors` 动态控制，禁止 / 白名单 / 全部三种模式，默认禁止 |
-| OIDC 单点登录 | 标准 OIDC 授权码流程（PKCE S256）· state 防 CSRF · Client Secret 不回显 |
+| OIDC 单点登录 | 多服务商并行配置 · 标准 OIDC 授权码流程（PKCE S256）· state 防 CSRF · Client Secret 不回显 |
 | 防注入 | SQL 参数化 · XSS 过滤 · CSRF 防护 |
 | RBAC | 角色-权限体系，页面/按钮级控制，动态菜单显隐 |
 | Actuator 安全 | 监控端点需登录认证，杜绝信息泄露 |

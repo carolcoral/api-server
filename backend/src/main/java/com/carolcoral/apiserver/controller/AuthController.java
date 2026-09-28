@@ -358,15 +358,17 @@ public class AuthController {
      * @param request HTTP 请求（用于推导回调基础地址）
      * @return 授权跳转地址
      */
-    @Operation(summary = "发起 OIDC 登录", description = "生成 TDP OIDC 授权跳转地址")
+    @Operation(summary = "发起 OIDC 登录", description = "生成指定 OIDC 服务商的授权跳转地址")
     @GetMapping("/oidc/authorize")
-    public ApiResponse<Map<String, String>> oidcAuthorize(jakarta.servlet.http.HttpServletRequest request) {
+    public ApiResponse<Map<String, String>> oidcAuthorize(
+            @RequestParam(value = "providerId", required = false) String providerId,
+            jakarta.servlet.http.HttpServletRequest request) {
         try {
             if (!oidcService.isEnabledAndConfigured()) {
                 return ApiResponse.error("OIDC 登录未启用或配置不完整");
             }
             String baseUrl = resolveBaseUrl(request);
-            String authorizationUrl = oidcService.buildAuthorizationUrl(baseUrl);
+            String authorizationUrl = oidcService.buildAuthorizationUrl(providerId, baseUrl);
             Map<String, String> data = new java.util.HashMap<>();
             data.put("authorizationUrl", authorizationUrl);
             return ApiResponse.success(data);
@@ -384,9 +386,10 @@ public class AuthController {
      * @param state 状态参数
      * @return 重定向响应
      */
-    @Operation(summary = "OIDC 回调", description = "处理 TDP OIDC 授权回调并完成登录")
+    @Operation(summary = "OIDC 回调", description = "处理 OIDC 授权回调并完成登录")
     @GetMapping("/oidc/callback")
     public org.springframework.http.ResponseEntity<Void> oidcCallback(
+            @RequestParam(value = "providerId", required = false) String providerId,
             @RequestParam(value = "code", required = false) String code,
             @RequestParam(value = "state", required = false) String state,
             @RequestParam(value = "error", required = false) String error,
@@ -397,7 +400,7 @@ public class AuthController {
                 log.warn("OIDC 授权返回错误: {} - {}", error, errorDescription);
                 return redirectToFrontend(frontendCallback + "?oidc_error=" + urlEncode(errorDescription != null ? errorDescription : error));
             }
-            ApiResponse<LoginResponse> result = oidcService.handleCallback(code, state);
+            ApiResponse<LoginResponse> result = oidcService.handleCallback(providerId, code, state);
             if (result.getCode() != null && result.getCode() == 200 && result.getData() != null) {
                 String token = result.getData().getToken();
                 return redirectToFrontend(frontendCallback + "?oidc_token=" + urlEncode(token));

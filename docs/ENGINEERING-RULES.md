@@ -60,7 +60,7 @@
 
 | 模块 | 行覆盖 | 分支覆盖 | 入列版本 |
 | --- | --- | --- | --- |
-| `service.OidcService`（含内部类） | 94.0% | 78.8% | Unreleased |
+| `service.OidcService`（含内部类） | 96.6% | 83.5% | Unreleased |
 | `service.MockMetricsService` | 100% | 100% | Unreleased |
 | `service.SystemConfigService` | 100% | 100% | Unreleased |
 | `service.MockResponseService` | 100% | 无分支 | Unreleased |

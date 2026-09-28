@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 /**
- * AuthController 中 TDP OIDC 相关端点的单元测试。
+ * AuthController 中 OIDC（多服务商）相关端点的单元测试。
  * <p>覆盖发起登录（authorize）与回调（callback）的成功、失败与异常分支。</p>
  */
 @ExtendWith(MockitoExtension.class)
@@ -71,7 +71,7 @@ class AuthControllerOidcTest {
         @DisplayName("未启用：返回错误，不生成 URL")
         void notEnabled() {
             when(oidcService.isEnabledAndConfigured()).thenReturn(false);
-            ApiResponse<Map<String, String>> r = controller.oidcAuthorize(request);
+            ApiResponse<Map<String, String>> r = controller.oidcAuthorize(null, request);
             assertEquals(500, r.getCode());
             assertTrue(r.getMessage().contains("未启用"));
             assertNull(r.getData());
@@ -81,8 +81,8 @@ class AuthControllerOidcTest {
         @DisplayName("成功：返回授权地址，默认端口不拼接端口号")
         void success() {
             when(oidcService.isEnabledAndConfigured()).thenReturn(true);
-            when(oidcService.buildAuthorizationUrl("https://app.fan")).thenReturn("https://tdp.fan/authorize?x=1");
-            ApiResponse<Map<String, String>> r = controller.oidcAuthorize(request);
+            when(oidcService.buildAuthorizationUrl(null, "https://app.fan")).thenReturn("https://tdp.fan/authorize?x=1");
+            ApiResponse<Map<String, String>> r = controller.oidcAuthorize(null, request);
             assertEquals(200, r.getCode());
             assertEquals("https://tdp.fan/authorize?x=1", r.getData().get("authorizationUrl"));
         }
@@ -93,19 +93,20 @@ class AuthControllerOidcTest {
             when(request.getScheme()).thenReturn("http");
             when(request.getServerPort()).thenReturn(8080);
             when(oidcService.isEnabledAndConfigured()).thenReturn(true);
-            when(oidcService.buildAuthorizationUrl("http://app.fan:8080")).thenReturn("url");
-            controller.oidcAuthorize(request);
-            // 通过 mock 校验 baseUrl 推导正确
-            org.mockito.Mockito.verify(oidcService).buildAuthorizationUrl("http://app.fan:8080");
+            when(oidcService.buildAuthorizationUrl("keycloak", "http://app.fan:8080")).thenReturn("url");
+            controller.oidcAuthorize("keycloak", request);
+            // 通过 mock 校验 baseUrl 推导正确，且 providerId 透传
+            org.mockito.Mockito.verify(oidcService).buildAuthorizationUrl("keycloak", "http://app.fan:8080");
         }
 
         @Test
         @DisplayName("构建 URL 抛异常：捕获并返回错误")
         void buildThrows() {
             when(oidcService.isEnabledAndConfigured()).thenReturn(true);
-            when(oidcService.buildAuthorizationUrl(org.mockito.ArgumentMatchers.anyString()))
+            when(oidcService.buildAuthorizationUrl(org.mockito.ArgumentMatchers.nullable(String.class),
+                            org.mockito.ArgumentMatchers.anyString()))
                     .thenThrow(new IllegalStateException("discovery down"));
-            ApiResponse<Map<String, String>> r = controller.oidcAuthorize(request);
+            ApiResponse<Map<String, String>> r = controller.oidcAuthorize(null, request);
             assertEquals(500, r.getCode());
             assertTrue(r.getMessage().contains("发起 OIDC 登录失败"));
         }
@@ -122,7 +123,7 @@ class AuthControllerOidcTest {
         @Test
         @DisplayName("授权方返回 error：重定向并携带错误")
         void providerError() {
-            ResponseEntity<Void> r = controller.oidcCallback(null, null, "access_denied", "用户拒绝");
+            ResponseEntity<Void> r = controller.oidcCallback(null, null, null, "access_denied", "用户拒绝");
             assertEquals(HttpStatus.FOUND, r.getStatusCode());
             assertTrue(location(r).startsWith("/login?oidc_error="));
             assertTrue(location(r).contains("%E7%94%A8%E6%88%B7"));
@@ -131,7 +132,7 @@ class AuthControllerOidcTest {
         @Test
         @DisplayName("授权方 error 无描述：使用 error 值")
         void providerErrorNoDescription() {
-            ResponseEntity<Void> r = controller.oidcCallback(null, null, "server_error", null);
+            ResponseEntity<Void> r = controller.oidcCallback(null, null, null, "server_error", null);
             assertTrue(location(r).contains("server_error"));
         }
 
@@ -139,8 +140,8 @@ class AuthControllerOidcTest {
         @DisplayName("登录成功：重定向携带 token")
         void success() {
             LoginResponse lr = LoginResponse.builder().token("jwt-abc").build();
-            when(oidcService.handleCallback("code", "state")).thenReturn(ApiResponse.success(lr));
-            ResponseEntity<Void> r = controller.oidcCallback("code", "state", null, null);
+            when(oidcService.handleCallback(null, "code", "state")).thenReturn(ApiResponse.success(lr));
+            ResponseEntity<Void> r = controller.oidcCallback(null, "code", "state", null, null);
             assertEquals(HttpStatus.FOUND, r.getStatusCode());
             assertEquals("/login?oidc_token=jwt-abc", location(r));
         }
@@ -148,8 +149,8 @@ class AuthControllerOidcTest {
         @Test
         @DisplayName("登录失败：重定向携带错误信息")
         void failure() {
-            when(oidcService.handleCallback("c", "s")).thenReturn(ApiResponse.error("state 无效或已过期"));
-            ResponseEntity<Void> r = controller.oidcCallback("c", "s", null, null);
+            when(oidcService.handleCallback("keycloak", "c", "s")).thenReturn(ApiResponse.error("state 无效或已过期"));
+            ResponseEntity<Void> r = controller.oidcCallback("keycloak", "c", "s", null, null);
             assertTrue(location(r).startsWith("/login?oidc_error="));
             assertFalse(location(r).contains("oidc_token"));
         }
@@ -157,16 +158,16 @@ class AuthControllerOidcTest {
         @Test
         @DisplayName("返回 200 但 data 为 null：视为失败并给出默认提示")
         void successWithoutData() {
-            when(oidcService.handleCallback("c", "s")).thenReturn(ApiResponse.success(null));
-            ResponseEntity<Void> r = controller.oidcCallback("c", "s", null, null);
+            when(oidcService.handleCallback(null, "c", "s")).thenReturn(ApiResponse.success(null));
+            ResponseEntity<Void> r = controller.oidcCallback(null, "c", "s", null, null);
             assertTrue(location(r).contains("oidc_error="));
         }
 
         @Test
         @DisplayName("服务抛异常：捕获并重定向错误")
         void throwsException() {
-            when(oidcService.handleCallback("c", "s")).thenThrow(new RuntimeException("boom"));
-            ResponseEntity<Void> r = controller.oidcCallback("c", "s", null, null);
+            when(oidcService.handleCallback(null, "c", "s")).thenThrow(new RuntimeException("boom"));
+            ResponseEntity<Void> r = controller.oidcCallback(null, "c", "s", null, null);
             assertEquals(HttpStatus.FOUND, r.getStatusCode());
             assertTrue(location(r).startsWith("/login?oidc_error="));
         }

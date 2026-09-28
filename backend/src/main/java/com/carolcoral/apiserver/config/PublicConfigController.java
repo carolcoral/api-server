@@ -53,11 +53,19 @@ public class PublicConfigController {
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("enableRegistration", parseBooleanConfig("enableRegistration", false));
         config.put("enableEmailVerification", parseBooleanConfig("enableEmailVerification", false));
-        // OIDC（TDP）登录公开配置，供登录页判断是否展示登录入口
+        // OIDC 登录公开配置，供登录页渲染各服务商登录入口（不含敏感信息）
         com.carolcoral.apiserver.dto.oidc.OidcPublicConfigDTO oidc = oidcService.getPublicConfig();
         config.put("oidcEnabled", oidc.getEnabled());
-        config.put("oidcProvider", oidc.getProvider());
-        config.put("oidcButtonLabel", oidc.getButtonLabel());
+        config.put("oidcProviders", oidc.getProviders());
+        // 兼容旧前端字段：首个可用服务商作为默认入口
+        if (!oidc.getProviders().isEmpty()) {
+            com.carolcoral.apiserver.dto.oidc.OidcPublicProviderDTO first = oidc.getProviders().get(0);
+            config.put("oidcProvider", first.getProviderId());
+            config.put("oidcButtonLabel", first.getButtonLabel());
+        } else {
+            config.put("oidcProvider", null);
+            config.put("oidcButtonLabel", null);
+        }
         return ApiResponse.success(config);
     }
 

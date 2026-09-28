@@ -56,11 +56,13 @@ export function swaggerAutoLogin() {
 
 /**
  * 发起 OIDC 登录，获取授权跳转地址
+ * @param {string} [providerId] 服务商标识（多服务商时必传；仅一个可用服务商时可省略）
  * @returns {Promise}
  */
-export function oidcAuthorize() {
+export function oidcAuthorize(providerId) {
   return request({
     url: '/auth/oidc/authorize',
-    method: 'get'
+    method: 'get',
+    params: providerId ? { providerId } : undefined
   })
 }

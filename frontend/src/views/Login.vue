@@ -76,23 +76,26 @@
         </el-form-item>
       </el-form>
 
-      <!-- OIDC（TDP）登录入口 -->
-      <div v-if="oidcEnabled" class="oidc-section">
+      <!-- OIDC 登录入口：可同时配置多个允许 OIDC 的服务商，逐一渲染登录按钮 -->
+      <div v-if="oidcProviders.length" class="oidc-section">
         <div class="oidc-divider">
           <span>{{ $t('login.orDivider') }}</span>
         </div>
         <el-button
+          v-for="provider in oidcProviders"
+          :key="provider.providerId"
           class="oidc-button"
           size="large"
-          :loading="oidcLoading"
-          @click="handleOidcLogin"
+          :loading="oidcLoading === provider.providerId"
+          :disabled="oidcLoading !== '' && oidcLoading !== provider.providerId"
+          @click="handleOidcLogin(provider)"
         >
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2a10 10 0 1 0 10 10"/>
             <path d="M12 6v6l4 2"/>
             <path d="M21 3l-6 6"/>
           </svg>
-          <span>{{ oidcButtonLabel }}</span>
+          <span>{{ provider.buttonLabel || provider.name || provider.providerId }}</span>
         </el-button>
       </div>
 
@@ -128,10 +131,10 @@ const loading = ref(false)
 const registrationEnabled = ref(false)
 const showGuide = ref(false)
 
-// OIDC（TDP）登录
-const oidcEnabled = ref(false)
-const oidcButtonLabel = ref(t('login.oidcButtonDefault'))
-const oidcLoading = ref(false)
+// OIDC 登录（支持多个服务商）
+const oidcProviders = ref([])
+// 当前正在发起登录的服务商标识，空串表示空闲
+const oidcLoading = ref('')
 
 const { bgImage, fetchBingBg } = useBingBackground()
 
@@ -193,9 +196,18 @@ const fetchRegistrationConfig = async () => {
     if (response.data && response.data.code === 200 && response.data.data) {
       const data = response.data.data
       registrationEnabled.value = data.enableRegistration || false
-      oidcEnabled.value = data.oidcEnabled || false
-      if (data.oidcButtonLabel) {
-        oidcButtonLabel.value = data.oidcButtonLabel
+      const providers = Array.isArray(data.oidcProviders) ? data.oidcProviders : []
+      if (providers.length) {
+        oidcProviders.value = providers
+      } else if (data.oidcEnabled && data.oidcProvider) {
+        // 兼容旧后端：仅返回单一服务商字段
+        oidcProviders.value = [{
+          providerId: data.oidcProvider,
+          name: data.oidcProvider,
+          buttonLabel: data.oidcButtonLabel || t('login.oidcButtonDefault')
+        }]
+      } else {
+        oidcProviders.value = []
       }
     }
   } catch {
@@ -203,20 +215,20 @@ const fetchRegistrationConfig = async () => {
   }
 }
 
-// 点击 OIDC 登录：获取授权地址并跳转
-const handleOidcLogin = async () => {
-  oidcLoading.value = true
+// 点击 OIDC 登录：获取授权地址并跳转（按服务商发起）
+const handleOidcLogin = async (provider) => {
+  oidcLoading.value = provider.providerId
   try {
-    const response = await oidcAuthorize()
+    const response = await oidcAuthorize(provider.providerId)
     if (response.code === 200 && response.data && response.data.authorizationUrl) {
       window.location.href = response.data.authorizationUrl
     } else {
       ElMessage.error(response.message || t('login.oidcFailed'))
-      oidcLoading.value = false
+      oidcLoading.value = ''
     }
   } catch (error) {
     ElMessage.error(error.message || t('login.oidcFailed'))
-    oidcLoading.value = false
+    oidcLoading.value = ''
   }
 }
 

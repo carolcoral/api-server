@@ -143,7 +143,7 @@
                 <div class="iframe-hint">{{ $t('settings.iframeHint') }}</div>
               </el-form-item>
 
-              <!-- OIDC（TDP）单点登录 -->
+              <!-- OIDC 单点登录：支持配置多个允许 OIDC 的服务商 -->
               <el-divider content-position="left">
                 <el-tag size="small" type="success">OIDC</el-tag>
                 {{ $t('settings.oidcLogin') }}
@@ -153,37 +153,62 @@
               <el-form-item :label="$t('settings.oidcEnabled')">
                 <el-switch v-model="oidcSettings.enabled" />
               </el-form-item>
-              <el-form-item :label="$t('settings.oidcProvider')">
-                <el-input v-model="oidcSettings.provider" placeholder="tdp" />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcIssuerUri')">
-                <el-input v-model="oidcSettings.issuerUri" placeholder="https://tdp.fan/oidc" />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcClientId')">
-                <el-input v-model="oidcSettings.clientId" :placeholder="$t('settings.oidcClientIdPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcClientSecret')">
-                <el-input
-                  v-model="oidcSettings.clientSecret"
-                  type="password"
-                  show-password
-                  :placeholder="oidcSecretConfigured ? $t('settings.oidcSecretKeep') : $t('settings.oidcClientSecretPlaceholder')"
-                />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcRedirectUri')">
-                <el-input v-model="oidcSettings.redirectUri" :placeholder="$t('settings.oidcRedirectUriPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcScope')">
-                <el-input v-model="oidcSettings.scope" placeholder="openid profile email tdp:role" />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcButtonLabel')">
-                <el-input v-model="oidcSettings.buttonLabel" :placeholder="$t('settings.oidcButtonLabelPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcAutoCreateUser')">
-                <el-switch v-model="oidcSettings.autoCreateUser" />
-              </el-form-item>
-              <el-form-item :label="$t('settings.oidcUsePkce')">
-                <el-switch v-model="oidcSettings.usePkce" />
+
+              <div v-for="(provider, index) in oidcSettings.providers" :key="index" class="oidc-provider-card">
+                <div class="oidc-provider-header">
+                  <span class="oidc-provider-index">#{{ index + 1 }}</span>
+                  <el-tag v-if="provider.clientSecretConfigured" size="small" type="success">
+                    {{ $t('settings.oidcSecretConfigured') }}
+                  </el-tag>
+                  <el-button
+                    type="danger"
+                    size="small"
+                    link
+                    @click="removeOidcProvider(index)"
+                  >{{ $t('settings.oidcRemoveProvider') }}</el-button>
+                </div>
+                <el-form-item :label="$t('settings.oidcProviderId')">
+                  <el-input v-model="provider.providerId" placeholder="keycloak" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcProviderName')">
+                  <el-input v-model="provider.name" placeholder="Keycloak" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcIssuerUri')">
+                  <el-input v-model="provider.issuerUri" placeholder="https://keycloak.example.com/realms/demo" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcClientId')">
+                  <el-input v-model="provider.clientId" :placeholder="$t('settings.oidcClientIdPlaceholder')" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcClientSecret')">
+                  <el-input
+                    v-model="provider.clientSecret"
+                    type="password"
+                    show-password
+                    :placeholder="provider.clientSecretConfigured ? $t('settings.oidcSecretKeep') : $t('settings.oidcClientSecretPlaceholder')"
+                  />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcRedirectUri')">
+                  <el-input v-model="provider.redirectUri" :placeholder="$t('settings.oidcRedirectUriPlaceholder')" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcScope')">
+                  <el-input v-model="provider.scope" placeholder="openid profile email" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcButtonLabel')">
+                  <el-input v-model="provider.buttonLabel" :placeholder="$t('settings.oidcButtonLabelPlaceholder')" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcAutoCreateUser')">
+                  <el-switch v-model="provider.autoCreateUser" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcUsePkce')">
+                  <el-switch v-model="provider.usePkce" />
+                </el-form-item>
+                <el-form-item :label="$t('settings.oidcEnabledProvider')">
+                  <el-switch v-model="provider.enabled" />
+                </el-form-item>
+              </div>
+
+              <el-form-item>
+                <el-button size="small" @click="addOidcProvider">+ {{ $t('settings.oidcAddProvider') }}</el-button>
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="saveOidcSettings" :loading="saving">{{ $t('settings.saveOidcSettings') }}</el-button>
@@ -788,21 +813,37 @@ const securitySettings = reactive({
   iframeAllowedOrigins: ''
 })
 
-// OIDC（TDP）单点登录配置
-const oidcSettings = reactive({
-  enabled: false,
-  provider: 'tdp',
-  issuerUri: 'https://tdp.fan/oidc',
+// OIDC 单点登录配置（支持多个服务商）
+const createOidcProvider = () => ({
+  providerId: '',
+  name: '',
+  buttonLabel: '',
+  enabled: true,
+  issuerUri: '',
   clientId: '',
   clientSecret: '',
+  clientSecretStatus: 'keep',
+  clientSecretConfigured: false,
   redirectUri: '',
-  scope: 'openid profile email tdp:role',
-  buttonLabel: '使用 TDP 登录',
+  scope: 'openid profile email',
   autoCreateUser: true,
   usePkce: true
 })
-// 标记服务端是否已配置客户端密钥（密钥不回显）
-const oidcSecretConfigured = ref(false)
+
+const oidcSettings = reactive({
+  enabled: false,
+  providers: []
+})
+
+// 新增一个空白服务商配置
+const addOidcProvider = () => {
+  oidcSettings.providers.push(createOidcProvider())
+}
+
+// 移除指定服务商配置
+const removeOidcProvider = (index) => {
+  oidcSettings.providers.splice(index, 1)
+}
 
 // JWT配置
 const jwtSettings = reactive({
@@ -1016,42 +1057,64 @@ const loadSecuritySettings = async () => {
   } catch (error) {
     console.error('加载 iframe 白名单配置失败:', error)
   }
-  // 加载 OIDC 配置
+  // 加载 OIDC 配置（多服务商）
   try {
     const oidcResp = await request.get('/system-config/oidc')
     if (oidcResp.code === 200 && oidcResp.data) {
       const d = oidcResp.data
       oidcSettings.enabled = !!d.enabled
-      oidcSettings.provider = d.provider || 'tdp'
-      oidcSettings.issuerUri = d.issuerUri || 'https://tdp.fan/oidc'
-      oidcSettings.clientId = d.clientId || ''
-      oidcSettings.clientSecret = ''
-      oidcSettings.redirectUri = d.redirectUri || ''
-      oidcSettings.scope = d.scope || 'openid profile email tdp:role'
-      oidcSettings.buttonLabel = d.buttonLabel || '使用 TDP 登录'
-      oidcSettings.autoCreateUser = d.autoCreateUser !== false
-      oidcSettings.usePkce = d.usePkce !== false
-      oidcSecretConfigured.value = oidcSettings.clientId !== ''
+      const list = Array.isArray(d.providers) ? d.providers : []
+      oidcSettings.providers = list.map((p) => ({
+        ...createOidcProvider(),
+        ...p,
+        providerId: p.providerId || '',
+        name: p.name || '',
+        buttonLabel: p.buttonLabel || '',
+        enabled: p.enabled !== false,
+        issuerUri: p.issuerUri || '',
+        clientId: p.clientId || '',
+        clientSecret: '',
+        clientSecretStatus: 'keep',
+        clientSecretConfigured: !!p.clientSecretConfigured,
+        redirectUri: p.redirectUri || '',
+        scope: p.scope || 'openid profile email',
+        autoCreateUser: p.autoCreateUser !== false,
+        usePkce: p.usePkce !== false
+      }))
     }
   } catch (error) {
     console.error('加载 OIDC 配置失败:', error)
   }
 }
 
-// 保存 OIDC 配置
+// 保存 OIDC 配置（整体覆盖式提交，未填写的 Secret 保持原值）
 const saveOidcSettings = async () => {
   saving.value = true
   try {
-    const payload = { ...oidcSettings }
-    // clientSecret 为空表示保持原值不变，避免误清空
-    if (!payload.clientSecret) {
-      delete payload.clientSecret
-    }
-    await request.post('/system-config/oidc', payload)
-    if (payload.clientSecret) {
-      oidcSecretConfigured.value = true
-      oidcSettings.clientSecret = ''
-    }
+    const providers = oidcSettings.providers.map((p) => {
+      const item = { ...p }
+      // clientSecret 为空表示保持原值不变，避免误清空
+      if (!item.clientSecret) {
+        delete item.clientSecret
+        item.clientSecretStatus = 'keep'
+      } else {
+        item.clientSecretStatus = 'normal'
+      }
+      delete item.clientSecretConfigured
+      return item
+    })
+    await request.post('/system-config/oidc', {
+      enabled: oidcSettings.enabled,
+      providers
+    })
+    // 已提交的新密钥不回显：标记为已配置并清空输入框
+    oidcSettings.providers.forEach((provider) => {
+      if (provider.clientSecret) {
+        provider.clientSecretConfigured = true
+        provider.clientSecret = ''
+        provider.clientSecretStatus = 'keep'
+      }
+    })
     ElMessage.success(t('settings.settingsSaved'))
   } catch (error) {
     console.error('保存 OIDC 配置失败:', error)
@@ -1840,5 +1903,26 @@ h2 {
   font-size: 12px;
   line-height: 1.6;
 }
+
+/* OIDC 多服务商配置卡片 */
+.oidc-provider-card {
+  border: 1px solid var(--el-border-color-light, #e4e7ed);
+  border-radius: 6px;
+  padding: 12px 12px 0;
+  margin-bottom: 12px;
+}
+
+.oidc-provider-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.oidc-provider-index {
+  font-weight: 600;
+  color: var(--el-text-color-secondary, #909399);
+}
+
 </style>
 

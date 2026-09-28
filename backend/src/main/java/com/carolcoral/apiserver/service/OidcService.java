@@ -9,7 +9,9 @@ package com.carolcoral.apiserver.service;
 import com.carolcoral.apiserver.dto.ApiResponse;
 import com.carolcoral.apiserver.dto.LoginResponse;
 import com.carolcoral.apiserver.dto.oidc.OidcConfigDTO;
+import com.carolcoral.apiserver.dto.oidc.OidcProviderDTO;
 import com.carolcoral.apiserver.dto.oidc.OidcPublicConfigDTO;
+import com.carolcoral.apiserver.dto.oidc.OidcPublicProviderDTO;
 import com.carolcoral.apiserver.dto.oidc.OidcUserInfo;
 import com.carolcoral.apiserver.entity.AiQuota;
 import com.carolcoral.apiserver.entity.Role;
@@ -20,6 +22,8 @@ import com.carolcoral.apiserver.repository.UserRepository;
 import com.carolcoral.apiserver.util.JwtTokenUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.stereotype.Service;
@@ -35,7 +39,10 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -43,35 +50,35 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * TDP OIDC 登录服务
+ * OIDC 登录服务（多服务商）
  * <p>
  * 基于标准 OpenID Connect Authorization Code Flow（含 PKCE），
- * 允许用户使用 TDP 账号（https://tdp.fan/oidc）登录本系统。
+ * 支持配置<strong>任意</strong>允许 OIDC 的服务商（TDP、Keycloak、Auth0、Casdoor…）作为登录方式，
+ * 每个服务商独立配置 Issuer / Client ID / Client Secret / Scope / 回调地址等参数，
+ * 登录页按启用状态渲染多个登录入口。
  * 参考文档：https://cnb.cool/tdp/docs/-/blob/docs/zh/oidc.md
  * </p>
  *
  * @author carolcoral
  */
-@Tag(name = "OIDC 登录服务", description = "TDP OIDC 登录业务逻辑处理")
+@Tag(name = "OIDC 登录服务", description = "多服务商 OIDC 登录业务逻辑处理")
 @Service
 public class OidcService {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OidcService.class);
 
-    /** 系统配置键前缀 */
+    /** 系统配置键：OIDC 总开关（与配置列表共用同一套键，保持向后兼容） */
     private static final String KEY_ENABLED = "oidcEnabled";
-    private static final String KEY_PROVIDER = "oidcProvider";
-    private static final String KEY_ISSUER = "oidcIssuerUri";
-    private static final String KEY_CLIENT_ID = "oidcClientId";
-    private static final String KEY_CLIENT_SECRET = "oidcClientSecret";
-    private static final String KEY_REDIRECT_URI = "oidcRedirectUri";
-    private static final String KEY_SCOPE = "oidcScope";
-    private static final String KEY_AUTO_CREATE = "oidcAutoCreateUser";
-    private static final String KEY_BUTTON_LABEL = "oidcButtonLabel";
-    private static final String KEY_USE_PKCE = "oidcUsePkce";
+
+    /** 系统配置键：OIDC 服务商列表（JSON 数组） */
+    private static final String KEY_PROVIDERS = "oidcProviders";
+
+    /** 系统配置键：OIDC 服务商列表配置说明 */
+    private static final String KEY_PROVIDERS_DESC = "OIDC 服务商列表（JSON）";
 
     /** 默认配置值 */
-    private static final String DEFAULT_PROVIDER = "tdp";
+    private static final String DEFAULT_PROVIDER_ID = "tdp";
+    private static final String DEFAULT_PROVIDER_NAME = "TDP";
     private static final String DEFAULT_ISSUER = "https://tdp.fan/oidc";
     private static final String DEFAULT_SCOPE = "openid profile email tdp:role";
     private static final String DEFAULT_BUTTON_LABEL = "使用 TDP 登录";
@@ -79,8 +86,14 @@ public class OidcService {
     /** state/PKCE 缓存有效期（10 分钟） */
     private static final long STATE_TTL_SECONDS = 600;
 
+    /** Discovery 文档缓存有效期（1 小时） */
+    private static final long DISCOVERY_TTL_SECONDS = 3600;
+
     /** 待处理的授权请求（state -> 上下文） */
     private final Map<String, PendingAuthRequest> pendingRequests = new ConcurrentHashMap<>();
+
+    /** Discovery 文档缓存（providerId -> 文档） */
+    private final Map<String, CachedDiscovery> discoveryCache = new ConcurrentHashMap<>();
 
     private final SystemConfigService systemConfigService;
     private final UserRepository userRepository;
@@ -89,10 +102,6 @@ public class OidcService {
     private final PermissionService permissionService;
     private final JwtTokenUtil jwtTokenUtil;
     private final ObjectMapper objectMapper;
-
-    /** 缓存的 Discovery 文档 */
-    private volatile JsonNode discoveryDocument;
-    private volatile Instant discoveryFetchedAt;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -119,16 +128,18 @@ public class OidcService {
     }
 
     /**
-     * 待处理的授权请求上下文
+     * 待处理的授权请求上下文（记录发起登录时使用的服务商与 PKCE/回调信息）
      */
     private static class PendingAuthRequest {
         private final String state;
+        private final String providerId;
         private final String codeVerifier;
         private final String redirectUri;
         private final Instant createdAt;
 
-        PendingAuthRequest(String state, String codeVerifier, String redirectUri) {
+        PendingAuthRequest(String state, String providerId, String codeVerifier, String redirectUri) {
             this.state = state;
+            this.providerId = providerId;
             this.codeVerifier = codeVerifier;
             this.redirectUri = redirectUri;
             this.createdAt = Instant.now();
@@ -140,41 +151,97 @@ public class OidcService {
     }
 
     /**
-     * 读取完整 OIDC 配置
+     * Discovery 文档缓存项
+     */
+    private record CachedDiscovery(JsonNode document, Instant fetchedAt) {
+        boolean isExpired() {
+            return Instant.now().isAfter(fetchedAt.plusSeconds(DISCOVERY_TTL_SECONDS));
+        }
+    }
+
+    // ------------------------------------------------------------------ 配置
+
+    /**
+     * 读取完整 OIDC 配置（总开关 + 服务商列表）
      *
      * @return 配置DTO
      */
     @Operation(summary = "读取 OIDC 配置")
     public OidcConfigDTO getConfig() {
         OidcConfigDTO dto = new OidcConfigDTO();
+        // 兼容历史单一服务商配置：未启用多服务商时，按旧键回显为一个服务商，避免配置丢失
         dto.setEnabled(parseBoolean(KEY_ENABLED, false));
-        dto.setProvider(getConfigOrDefault(KEY_PROVIDER, DEFAULT_PROVIDER));
-        dto.setIssuerUri(getConfigOrDefault(KEY_ISSUER, DEFAULT_ISSUER));
-        dto.setClientId(systemConfigService.getConfig(KEY_CLIENT_ID));
-        // 出于安全考虑，不回显 clientSecret 原文，由前端根据是否已配置决定占位
-        dto.setClientSecret(null);
-        dto.setRedirectUri(systemConfigService.getConfig(KEY_REDIRECT_URI));
-        dto.setScope(getConfigOrDefault(KEY_SCOPE, DEFAULT_SCOPE));
-        dto.setAutoCreateUser(parseBoolean(KEY_AUTO_CREATE, true));
-        dto.setButtonLabel(getConfigOrDefault(KEY_BUTTON_LABEL, DEFAULT_BUTTON_LABEL));
-        dto.setUsePkce(parseBoolean(KEY_USE_PKCE, true));
+        List<OidcProviderDTO> providers = loadProviders();
+        if (providers.isEmpty()) {
+            OidcProviderDTO legacy = loadLegacyProvider();
+            if (legacy != null) {
+                providers.add(legacy);
+            }
+        }
+        providers.forEach(this::maskSecret);
+        dto.setProviders(providers);
         return dto;
     }
 
     /**
-     * 判断 OIDC 登录是否已启用且配置完整
+     * 保存 OIDC 配置（整体覆盖式保存，未提交的 Secret 保持原值）
+     *
+     * @param dto 配置DTO
+     */
+    @Operation(summary = "保存 OIDC 配置")
+    @Transactional
+    public void saveConfig(OidcConfigDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        if (dto.getEnabled() != null) {
+            systemConfigService.saveConfig(KEY_ENABLED, String.valueOf(dto.getEnabled()), "是否启用 OIDC 登录");
+        }
+        List<OidcProviderDTO> incoming = dto.getProviders();
+        if (incoming != null) {
+            List<OidcProviderDTO> normalized = new ArrayList<>();
+            List<String> usedIds = new ArrayList<>();
+            for (OidcProviderDTO provider : incoming) {
+                OidcProviderDTO existing = provider.getProviderId() == null ? null
+                        : findProvider(loadProviders(), provider.getProviderId());
+                OidcProviderDTO item = normalizeProvider(provider, existing);
+                if (item == null) {
+                    continue;
+                }
+                String base = item.getProviderId();
+                if (usedIds.contains(base)) {
+                    // 同一次提交内 ID 重复：跳过后者，避免覆盖
+                    log.warn("OIDC 配置保存：服务商标识重复，已忽略: {}", base);
+                    continue;
+                }
+                usedIds.add(base);
+                normalized.add(item);
+            }
+            systemConfigService.saveConfig(KEY_PROVIDERS, writeProviders(normalized), KEY_PROVIDERS_DESC);
+            // 服务商配置变更后清空 Discovery 缓存
+            discoveryCache.clear();
+            log.info("OIDC 配置已更新: enabled={}, providers={}", dto.getEnabled(),
+                    normalized.stream().map(OidcProviderDTO::getProviderId).toList());
+        }
+    }
+
+    /**
+     * 判断 OIDC 登录是否至少有一个可用服务商
      *
      * @return 是否可用
      */
     public boolean isEnabledAndConfigured() {
-        boolean enabled = parseBoolean(KEY_ENABLED, false);
-        String clientId = systemConfigService.getConfig(KEY_CLIENT_ID);
-        String clientSecret = systemConfigService.getConfig(KEY_CLIENT_SECRET);
-        String issuer = systemConfigService.getConfig(KEY_ISSUER);
-        return enabled
-                && clientId != null && !clientId.isEmpty()
-                && clientSecret != null && !clientSecret.isEmpty()
-                && issuer != null && !issuer.isEmpty();
+        return !getAvailableProviders().isEmpty();
+    }
+
+    /**
+     * 判断指定服务商是否可用（用于发起登录前的白名单校验）
+     *
+     * @param providerId 服务商标识
+     * @return 是否可用
+     */
+    public boolean isProviderAvailable(String providerId) {
+        return providerId != null && findProvider(getAvailableProviders(), providerId) != null;
     }
 
     /**
@@ -184,57 +251,235 @@ public class OidcService {
      */
     @Operation(summary = "获取 OIDC 公开配置")
     public OidcPublicConfigDTO getPublicConfig() {
-        boolean available = isEnabledAndConfigured();
-        return new OidcPublicConfigDTO(
-                available,
-                getConfigOrDefault(KEY_PROVIDER, DEFAULT_PROVIDER),
-                getConfigOrDefault(KEY_BUTTON_LABEL, DEFAULT_BUTTON_LABEL));
+        List<OidcPublicProviderDTO> list = new ArrayList<>();
+        for (OidcProviderDTO provider : getAvailableProviders()) {
+            String label = provider.getButtonLabel();
+            list.add(new OidcPublicProviderDTO(provider.getProviderId(), provider.getName(), label));
+        }
+        return new OidcPublicConfigDTO(!list.isEmpty(), list);
     }
 
     /**
-     * 保存 OIDC 配置
-     *
-     * @param dto 配置DTO
+     * 列出所有已启用的可用服务商（总开关开启 + 配置完整）
      */
-    @Operation(summary = "保存 OIDC 配置")
-    @Transactional
-    public void saveConfig(OidcConfigDTO dto) {
-        if (dto.getEnabled() != null) {
-            systemConfigService.saveConfig(KEY_ENABLED, String.valueOf(dto.getEnabled()), "是否启用 TDP OIDC 登录");
+    private List<OidcProviderDTO> getAvailableProviders() {
+        List<OidcProviderDTO> available = new ArrayList<>();
+        if (!parseBoolean(KEY_ENABLED, false)) {
+            return available;
         }
-        if (dto.getProvider() != null && !dto.getProvider().trim().isEmpty()) {
-            systemConfigService.saveConfig(KEY_PROVIDER, dto.getProvider().trim(), "OIDC 提供方标识");
+        List<OidcProviderDTO> providers = loadProviders();
+        if (providers.isEmpty()) {
+            // 兼容历史单一服务商配置：升级后尚未保存新列表时按旧键生效，避免登录入口中断
+            OidcProviderDTO legacy = loadLegacyProvider();
+            if (legacy != null) {
+                providers.add(legacy);
+            }
         }
-        if (dto.getIssuerUri() != null) {
-            systemConfigService.saveConfig(KEY_ISSUER, dto.getIssuerUri().trim(), "OIDC Issuer 地址");
+        for (OidcProviderDTO provider : providers) {
+            if (isComplete(provider)) {
+                available.add(provider);
+            }
         }
-        if (dto.getClientId() != null) {
-            systemConfigService.saveConfig(KEY_CLIENT_ID, dto.getClientId().trim(), "OIDC Client ID");
+        return available;
+    }
+
+    /**
+     * 配置是否完整可用：启用 + issuer/clientId/clientSecret 齐备
+     */
+    private boolean isComplete(OidcProviderDTO provider) {
+        return provider != null
+                && Boolean.TRUE.equals(provider.getEnabled())
+                && notBlank(provider.getIssuerUri())
+                && notBlank(provider.getClientId())
+                && notBlank(provider.getClientSecret());
+    }
+
+    /**
+     * 按标识查找服务商
+     */
+    private OidcProviderDTO findProvider(List<OidcProviderDTO> providers, String providerId) {
+        if (providers == null || providerId == null) {
+            return null;
         }
-        // clientSecret 允许留空表示保持原值不变
-        if (dto.getClientSecret() != null && !dto.getClientSecret().trim().isEmpty()) {
-            systemConfigService.saveConfig(KEY_CLIENT_SECRET, dto.getClientSecret().trim(), "OIDC Client Secret");
+        for (OidcProviderDTO provider : providers) {
+            if (providerId.equals(provider.getProviderId())) {
+                return provider;
+            }
         }
-        if (dto.getRedirectUri() != null) {
-            systemConfigService.saveConfig(KEY_REDIRECT_URI, dto.getRedirectUri().trim(), "OIDC 回调地址（留空自动推导）");
+        return null;
+    }
+
+    /**
+     * 规范化单个服务商配置：补齐默认值、唯一化标识、处理 Secret 保留/清空、回填历史 Secret
+     *
+     * @param incoming 本次提交的服务商配置
+     * @param existing 已存的服务商配置（可为空）
+     * @return 规范化后的配置；providerId/clientId 非法时返回 null（忽略该项）
+     */
+    private OidcProviderDTO normalizeProvider(OidcProviderDTO incoming, OidcProviderDTO existing) {
+        if (incoming == null) {
+            return null;
         }
-        if (dto.getScope() != null && !dto.getScope().trim().isEmpty()) {
-            systemConfigService.saveConfig(KEY_SCOPE, dto.getScope().trim(), "OIDC 请求 Scope");
+        String name = trimToNull(incoming.getName());
+        String providerId = trimToNull(incoming.getProviderId());
+        if (providerId == null) {
+            // 未提供标识时按展示名称推导，仍无则忽略
+            providerId = name == null ? null : name.replaceAll("[^a-zA-Z0-9_.-]", "_").toLowerCase(java.util.Locale.ROOT);
         }
-        if (dto.getAutoCreateUser() != null) {
-            systemConfigService.saveConfig(KEY_AUTO_CREATE, String.valueOf(dto.getAutoCreateUser()), "OIDC 首次登录自动创建账号");
+        if (providerId == null || providerId.isEmpty()) {
+            log.warn("OIDC 配置保存：服务商标识为空，已忽略该服务商");
+            return null;
         }
-        if (dto.getButtonLabel() != null && !dto.getButtonLabel().trim().isEmpty()) {
-            systemConfigService.saveConfig(KEY_BUTTON_LABEL, dto.getButtonLabel().trim(), "OIDC 登录按钮显示名称");
+        OidcProviderDTO result = new OidcProviderDTO();
+        result.setProviderId(providerId);
+        result.setName(name != null ? name : providerId);
+        result.setButtonLabel(trimToNull(incoming.getButtonLabel()) != null
+                ? trimToNull(incoming.getButtonLabel())
+                : result.getName());
+        result.setEnabled(incoming.getEnabled() == null || incoming.getEnabled());
+        result.setIssuerUri(trimToNull(incoming.getIssuerUri()));
+        result.setRedirectUri(trimToNull(incoming.getRedirectUri()));
+        result.setScope(trimToNull(incoming.getScope()) != null
+                ? trimToNull(incoming.getScope())
+                : DEFAULT_SCOPE);
+        result.setAutoCreateUser(incoming.getAutoCreateUser() == null || incoming.getAutoCreateUser());
+        result.setUsePkce(incoming.getUsePkce() == null || incoming.getUsePkce());
+
+        // clientId 允许留空（沿用已存值），避免前端未改动时误清空
+        String clientId = trimToNull(incoming.getClientId());
+        if (clientId == null && existing != null) {
+            clientId = existing.getClientId();
         }
-        if (dto.getUsePkce() != null) {
-            systemConfigService.saveConfig(KEY_USE_PKCE, String.valueOf(dto.getUsePkce()), "OIDC 是否启用 PKCE");
+        result.setClientId(clientId);
+
+        // clientSecret：默认保持原值，仅在显式提供新值或标记 clear 时变更
+        result.setClientSecret(resolveSecret(incoming, existing));
+        return result;
+    }
+
+    /**
+     * 解析 Client Secret 的写入值
+     * <p>优先级：显式 clear → 本次提交的非空新值 → 已存值。</p>
+     */
+    private String resolveSecret(OidcProviderDTO incoming, OidcProviderDTO existing) {
+        String status = trimToNull(incoming.getClientSecretStatus());
+        if ("clear".equalsIgnoreCase(status)) {
+            return null;
         }
-        // 配置变更后失效 discovery 缓存
-        this.discoveryDocument = null;
-        this.discoveryFetchedAt = null;
-        log.info("OIDC 配置已更新: enabled={}, issuer={}, clientId={}",
-                dto.getEnabled(), dto.getIssuerUri(), dto.getClientId());
+        String provided = trimToNull(incoming.getClientSecret());
+        if (provided != null && !"keep".equalsIgnoreCase(status)) {
+            return provided;
+        }
+        return existing != null ? existing.getClientSecret() : provided;
+    }
+
+    /**
+     * 去除 Secret 与敏感字段后返回（列表接口不回显密钥原文）
+     */
+    private void maskSecret(OidcProviderDTO provider) {
+        boolean configured = notBlank(provider.getClientSecret());
+        provider.setClientSecret(null);
+        provider.setClientSecretConfigured(configured);
+        if (provider.getClientSecretStatus() == null) {
+            provider.setClientSecretStatus("keep");
+        }
+    }
+
+    /**
+     * 读取服务商列表（JSON 数组）
+     */
+    private List<OidcProviderDTO> loadProviders() {
+        String raw = systemConfigService.getConfig(KEY_PROVIDERS);
+        if (raw == null || raw.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            if (!node.isArray()) {
+                return new ArrayList<>();
+            }
+            List<OidcProviderDTO> providers = new ArrayList<>();
+            for (JsonNode item : node) {
+                providers.add(fromJson(item));
+            }
+            return providers;
+        } catch (Exception e) {
+            log.warn("解析 OIDC 服务商列表失败: {}", e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * JSON 节点 → 服务商配置
+     */
+    private OidcProviderDTO fromJson(JsonNode node) {
+        OidcProviderDTO provider = new OidcProviderDTO();
+        provider.setProviderId(textOf(node, "providerId"));
+        provider.setName(textOf(node, "name"));
+        provider.setButtonLabel(textOf(node, "buttonLabel"));
+        provider.setEnabled(node.path("enabled").asBoolean(false));
+        provider.setIssuerUri(textOf(node, "issuerUri"));
+        provider.setClientId(textOf(node, "clientId"));
+        provider.setClientSecret(textOf(node, "clientSecret"));
+        provider.setRedirectUri(textOf(node, "redirectUri"));
+        provider.setScope(textOf(node, "scope"));
+        provider.setAutoCreateUser(node.path("autoCreateUser").asBoolean(true));
+        provider.setUsePkce(node.path("usePkce").asBoolean(true));
+        return provider;
+    }
+
+    /**
+     * 服务商配置 → JSON 字符串
+     */
+    private String writeProviders(List<OidcProviderDTO> providers) {
+        ArrayNode array = objectMapper.createArrayNode();
+        for (OidcProviderDTO provider : providers) {
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("providerId", provider.getProviderId());
+            node.put("name", provider.getName());
+            node.put("buttonLabel", provider.getButtonLabel());
+            node.put("enabled", Boolean.TRUE.equals(provider.getEnabled()));
+            node.put("issuerUri", provider.getIssuerUri());
+            node.put("clientId", provider.getClientId());
+            node.put("clientSecret", provider.getClientSecret());
+            node.put("redirectUri", provider.getRedirectUri());
+            node.put("scope", provider.getScope());
+            node.put("autoCreateUser", !Boolean.FALSE.equals(provider.getAutoCreateUser()));
+            node.put("usePkce", !Boolean.FALSE.equals(provider.getUsePkce()));
+            array.add(node);
+        }
+        return array.toString();
+    }
+
+    /**
+     * 读取历史单一服务商配置（旧版键），升级后首次读取时用于回显/迁移
+     *
+     * @return 历史配置；未配置过返回 null
+     */
+    private OidcProviderDTO loadLegacyProvider() {
+        String clientId = trimToNull(systemConfigService.getConfig("oidcClientId"));
+        String clientSecret = trimToNull(systemConfigService.getConfig("oidcClientSecret"));
+        String issuer = trimToNull(systemConfigService.getConfig("oidcIssuerUri"));
+        if (clientId == null && clientSecret == null && issuer == null) {
+            return null;
+        }
+        OidcProviderDTO provider = new OidcProviderDTO();
+        provider.setProviderId(trimToNull(systemConfigService.getConfig("oidcProvider")) != null
+                ? trimToNull(systemConfigService.getConfig("oidcProvider"))
+                : DEFAULT_PROVIDER_ID);
+        provider.setName(provider.getProviderId().toUpperCase(java.util.Locale.ROOT));
+        String label = trimToNull(systemConfigService.getConfig("oidcButtonLabel"));
+        provider.setButtonLabel(label != null ? label : DEFAULT_BUTTON_LABEL);
+        provider.setEnabled(parseBoolean(KEY_ENABLED, false));
+        provider.setIssuerUri(issuer != null ? issuer : DEFAULT_ISSUER);
+        provider.setClientId(clientId);
+        provider.setClientSecret(clientSecret);
+        provider.setRedirectUri(trimToNull(systemConfigService.getConfig("oidcRedirectUri")));
+        String scope = trimToNull(systemConfigService.getConfig("oidcScope"));
+        provider.setScope(scope != null ? scope : DEFAULT_SCOPE);
+        provider.setAutoCreateUser(parseBoolean("oidcAutoCreateUser", true));
+        provider.setUsePkce(parseBoolean("oidcUsePkce", true));
+        return provider;
     }
 
     /**
@@ -244,28 +489,29 @@ public class OidcService {
         pendingRequests.entrySet().removeIf(entry -> entry.getValue().isExpired());
     }
 
+    // -------------------------------------------------------------- 授权与回调
+
     /**
      * 生成授权跳转 URL（Authorization Code Flow + PKCE）
      *
-     * @param baseUrl 站点基础地址（用于自动推导回调地址，可为空）
+     * @param providerId 服务商标识
+     * @param baseUrl    站点基础地址（用于自动推导回调地址，可为空）
      * @return 授权 URL
      */
     @Operation(summary = "生成 OIDC 授权跳转 URL")
-    public String buildAuthorizationUrl(String baseUrl) {
-        if (!isEnabledAndConfigured()) {
-            throw new IllegalStateException("OIDC 登录未启用或配置不完整");
-        }
+    public String buildAuthorizationUrl(String providerId, String baseUrl) {
+        OidcProviderDTO provider = resolveAvailableProvider(providerId);
         evictExpiredRequests();
 
-        JsonNode discovery = fetchDiscovery();
+        JsonNode discovery = fetchDiscovery(provider);
         String authorizationEndpoint = textOf(discovery, "authorization_endpoint");
         if (authorizationEndpoint == null || authorizationEndpoint.isEmpty()) {
             throw new IllegalStateException("无法从 Discovery 文档获取授权端点");
         }
 
         String state = UUID.randomUUID().toString().replace("-", "");
-        String redirectUri = resolveRedirectUri(baseUrl);
-        boolean usePkce = parseBoolean(KEY_USE_PKCE, true);
+        String redirectUri = resolveRedirectUri(provider, baseUrl);
+        boolean usePkce = provider.getUsePkce() == null || provider.getUsePkce();
 
         String codeVerifier = null;
         String codeChallenge = null;
@@ -274,33 +520,35 @@ public class OidcService {
             codeChallenge = generateCodeChallenge(codeVerifier);
         }
 
-        pendingRequests.put(state, new PendingAuthRequest(state, codeVerifier, redirectUri));
+        pendingRequests.put(state, new PendingAuthRequest(state, provider.getProviderId(), codeVerifier, redirectUri));
 
         StringBuilder url = new StringBuilder(authorizationEndpoint);
         url.append(authorizationEndpoint.contains("?") ? "&" : "?");
-        url.append("client_id=").append(enc(getConfigOrDefault(KEY_CLIENT_ID, "")));
+        url.append("client_id=").append(enc(provider.getClientId()));
         url.append("&redirect_uri=").append(enc(redirectUri));
         url.append("&response_type=code");
-        url.append("&scope=").append(enc(getConfigOrDefault(KEY_SCOPE, DEFAULT_SCOPE)));
+        url.append("&scope=").append(enc(provider.getScope()));
         url.append("&state=").append(enc(state));
         if (usePkce && codeChallenge != null) {
             url.append("&code_challenge=").append(enc(codeChallenge));
             url.append("&code_challenge_method=S256");
         }
-        log.info("生成 OIDC 授权 URL: state={}, redirectUri={}, pkce={}", state, redirectUri, usePkce);
+        log.info("生成 OIDC 授权 URL: provider={}, state={}, redirectUri={}, pkce={}",
+                provider.getProviderId(), state, redirectUri, usePkce);
         return url.toString();
     }
 
     /**
      * 处理 OIDC 回调：换取 Token、获取用户信息、绑定/创建本地账号并签发 JWT
      *
-     * @param code  授权码
-     * @param state 状态参数
+     * @param providerId 服务商标识（可为空，为空时按 state 记录的服务商处理）
+     * @param code       授权码
+     * @param state      状态参数
      * @return 登录响应
      */
     @Operation(summary = "处理 OIDC 回调并完成登录")
     @Transactional
-    public ApiResponse<LoginResponse> handleCallback(String code, String state) {
+    public ApiResponse<LoginResponse> handleCallback(String providerId, String code, String state) {
         if (code == null || code.isEmpty()) {
             return ApiResponse.error("缺少授权码 code");
         }
@@ -314,16 +562,28 @@ public class OidcService {
         if (pending.isExpired()) {
             return ApiResponse.error("登录请求已过期，请重新发起登录");
         }
+        // 回调携带的 providerId 仅作校验：以 state 中记录的为准，防止串用其他服务商配置
+        if (providerId != null && !providerId.isEmpty() && !providerId.equals(pending.providerId)) {
+            log.warn("OIDC 回调服务商不匹配: callback={}, state={}", providerId, pending.providerId);
+            return ApiResponse.error("OIDC 服务商不匹配，请重新发起登录");
+        }
+
+        OidcProviderDTO provider;
+        try {
+            provider = resolveAvailableProvider(pending.providerId);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(e.getMessage());
+        }
 
         try {
-            JsonNode discovery = fetchDiscovery();
+            JsonNode discovery = fetchDiscovery(provider);
             String tokenEndpoint = textOf(discovery, "token_endpoint");
             if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
                 return ApiResponse.error("无法从 Discovery 文档获取 Token 端点");
             }
 
             // 1. 用 code 换取 Token
-            JsonNode tokenResponse = exchangeCodeForToken(tokenEndpoint, code, pending);
+            JsonNode tokenResponse = exchangeCodeForToken(provider, tokenEndpoint, code, pending);
             if (tokenResponse == null) {
                 return ApiResponse.error("换取访问令牌失败");
             }
@@ -336,14 +596,14 @@ public class OidcService {
             // 2. 获取用户信息：优先使用 UserInfo 端点，回退解析 ID Token
             OidcUserInfo userInfo = fetchUserInfo(discovery, accessToken);
             if (userInfo == null && idToken != null) {
-                userInfo = parseIdToken(idToken);
+                userInfo = parseIdToken(provider, idToken);
             }
             if (userInfo == null || userInfo.getSub() == null || userInfo.getSub().isEmpty()) {
                 return ApiResponse.error("无法获取 OIDC 用户信息");
             }
 
             // 3. 绑定或创建本地账号
-            return bindOrCreateUser(userInfo);
+            return bindOrCreateUser(provider, userInfo);
 
         } catch (Exception e) {
             log.error("处理 OIDC 回调失败: {}", e.getMessage(), e);
@@ -352,15 +612,40 @@ public class OidcService {
     }
 
     /**
+     * 解析并校验可用服务商
+     */
+    private OidcProviderDTO resolveAvailableProvider(String providerId) {
+        if (!parseBoolean(KEY_ENABLED, false)) {
+            throw new IllegalStateException("OIDC 登录未启用或配置不完整");
+        }
+        List<OidcProviderDTO> available = getAvailableProviders();
+        OidcProviderDTO provider = null;
+        if (providerId == null || providerId.isEmpty()) {
+            if (available.size() == 1) {
+                provider = available.get(0);
+            }
+        } else {
+            provider = findProvider(available, providerId);
+        }
+        if (provider == null) {
+            throw new IllegalStateException(providerId == null || providerId.isEmpty()
+                    ? "OIDC 登录未启用或配置不完整"
+                    : "OIDC 服务商不存在或未启用: " + providerId);
+        }
+        return provider;
+    }
+
+    /**
      * 用授权码换取 Token
      */
-    private JsonNode exchangeCodeForToken(String tokenEndpoint, String code, PendingAuthRequest pending) {
+    private JsonNode exchangeCodeForToken(OidcProviderDTO provider, String tokenEndpoint,
+                                          String code, PendingAuthRequest pending) {
         StringBuilder form = new StringBuilder();
         form.append("grant_type=authorization_code");
         form.append("&code=").append(enc(code));
         form.append("&redirect_uri=").append(enc(pending.redirectUri));
-        form.append("&client_id=").append(enc(getConfigOrDefault(KEY_CLIENT_ID, "")));
-        form.append("&client_secret=").append(enc(getConfigOrDefault(KEY_CLIENT_SECRET, "")));
+        form.append("&client_id=").append(enc(provider.getClientId()));
+        form.append("&client_secret=").append(enc(provider.getClientSecret()));
         if (pending.codeVerifier != null) {
             form.append("&code_verifier=").append(enc(pending.codeVerifier));
         }
@@ -417,7 +702,7 @@ public class OidcService {
      * 解析 ID Token（仅做载荷解析，不校验签名——签名校验交由 TLS + issuer 保障）
      * <p>为增强安全性，此处会校验 iss 与 exp 声明。</p>
      */
-    private OidcUserInfo parseIdToken(String idToken) {
+    private OidcUserInfo parseIdToken(OidcProviderDTO provider, String idToken) {
         try {
             String[] parts = idToken.split("\\.");
             if (parts.length < 2) {
@@ -435,7 +720,7 @@ public class OidcService {
                 }
             }
             // 校验 iss
-            String expectedIssuer = getConfigOrDefault(KEY_ISSUER, DEFAULT_ISSUER);
+            String expectedIssuer = provider.getIssuerUri();
             String iss = textOf(claims, "iss");
             if (iss != null && !iss.equals(expectedIssuer)) {
                 log.warn("ID Token issuer 不匹配: expected={}, actual={}", expectedIssuer, iss);
@@ -469,9 +754,11 @@ public class OidcService {
     /**
      * 绑定已有账号或按配置自动创建本地账号，并签发 JWT
      */
-    private ApiResponse<LoginResponse> bindOrCreateUser(OidcUserInfo userInfo) {
+    private ApiResponse<LoginResponse> bindOrCreateUser(OidcProviderDTO provider, OidcUserInfo userInfo) {
         String sub = userInfo.getSub();
-        Optional<User> existingOpt = userRepository.findByOidcSub(sub);
+        // 多服务商下的 sub 可能碰撞，统一带上服务商前缀作为本地唯一标识
+        String accountKey = buildAccountKey(provider.getProviderId(), sub);
+        Optional<User> existingOpt = userRepository.findByOidcSub(accountKey);
 
         User user;
         if (existingOpt.isPresent()) {
@@ -491,24 +778,24 @@ public class OidcService {
                 user = userRepository.save(user);
             }
         } else {
-            // 首次登录：尝试按邮箱匹配已有账号并绑定，否则按配置自动建号
-            user = null;
-            if (userInfo.getEmail() != null && !userInfo.getEmail().isEmpty()) {
+            // 首次登录：优先按「带服务商前缀」的账号标识匹配，兼容历史库中保存的裸 sub
+            user = resolveLegacyBoundUser(sub, accountKey);
+            if (user == null && userInfo.getEmail() != null && !userInfo.getEmail().isEmpty()) {
                 Optional<User> byEmail = userRepository.findByEmail(userInfo.getEmail());
                 if (byEmail.isPresent()) {
                     user = byEmail.get();
-                    user.setOidcSub(sub);
-                    user.setOidcProvider(getConfigOrDefault(KEY_PROVIDER, DEFAULT_PROVIDER));
+                    user.setOidcSub(accountKey);
+                    user.setOidcProvider(provider.getProviderId());
                     user = userRepository.save(user);
                     log.info("OIDC 首次登录，已按邮箱绑定已有账号: {}", user.getUsername());
                 }
             }
             if (user == null) {
-                boolean autoCreate = parseBoolean(KEY_AUTO_CREATE, true);
+                boolean autoCreate = provider.getAutoCreateUser() == null || provider.getAutoCreateUser();
                 if (!autoCreate) {
                     return ApiResponse.error(403, "OIDC 账号未绑定本地用户，且系统未开启自动创建账号");
                 }
-                user = createUserFromOidc(userInfo, sub);
+                user = createUserFromOidc(provider, userInfo, accountKey);
                 if (user == null) {
                     return ApiResponse.error("自动创建本地账号失败");
                 }
@@ -519,18 +806,44 @@ public class OidcService {
     }
 
     /**
+     * 构建本地账号标识：{providerId}:{sub}，避免多服务商 sub 冲突
+     */
+    private String buildAccountKey(String providerId, String sub) {
+        if (providerId == null || providerId.isEmpty() || sub == null) {
+            return sub;
+        }
+        return providerId + ":" + sub;
+    }
+
+    /**
+     * 兼容历史数据：查找以裸 sub 绑定的账号并升级为带服务商前缀的标识
+     */
+    private User resolveLegacyBoundUser(String sub, String accountKey) {
+        Optional<User> legacyOpt = userRepository.findByOidcSub(sub);
+        if (legacyOpt.isEmpty()) {
+            return null;
+        }
+        User legacy = legacyOpt.get();
+        if (!legacy.getEnabled()) {
+            return null;
+        }
+        legacy.setOidcSub(accountKey);
+        return userRepository.save(legacy);
+    }
+
+    /**
      * 根据 OIDC 用户信息创建本地账号
      */
-    private User createUserFromOidc(OidcUserInfo userInfo, String sub) {
+    private User createUserFromOidc(OidcProviderDTO provider, OidcUserInfo userInfo, String accountKey) {
         User user = new User();
-        user.setUsername(generateUsername(userInfo, sub));
+        user.setUsername(generateUsername(provider, userInfo, accountKey));
         // OIDC 账号无本地密码，写入随机占位密码（BCrypt 不可逆，无法用于常规密码登录）
         user.setPassword(UUID.randomUUID().toString());
         user.setEmail(userInfo.getEmail());
         user.setRole(User.UserRole.USER);
         user.setEnabled(true);
-        user.setOidcSub(sub);
-        user.setOidcProvider(getConfigOrDefault(KEY_PROVIDER, DEFAULT_PROVIDER));
+        user.setOidcSub(accountKey);
+        user.setOidcProvider(provider.getProviderId());
         user.setOidcAccount(true);
         resolveDefaultRoleId(user);
 
@@ -555,7 +868,7 @@ public class OidcService {
     /**
      * 生成唯一用户名（优先 preferred_username / name，冲突时追加随机后缀）
      */
-    private String generateUsername(OidcUserInfo userInfo, String sub) {
+    private String generateUsername(OidcProviderDTO provider, OidcUserInfo userInfo, String accountKey) {
         String base = userInfo.getPreferredUsername();
         if (base == null || base.trim().isEmpty()) {
             base = userInfo.getName();
@@ -564,7 +877,7 @@ public class OidcService {
             if (userInfo.getEmail() != null && userInfo.getEmail().contains("@")) {
                 base = userInfo.getEmail().substring(0, userInfo.getEmail().indexOf('@'));
             } else {
-                base = "tdp_" + sub;
+                base = provider.getProviderId() + "_" + userInfo.getSub();
             }
         }
         // 仅保留安全字符
@@ -644,15 +957,15 @@ public class OidcService {
     }
 
     /**
-     * 获取 Discovery 文档（带内存缓存，有效期 1 小时）
+     * 获取 Discovery 文档（按服务商缓存，有效期 1 小时）
      */
-    private JsonNode fetchDiscovery() {
-        JsonNode cached = discoveryDocument;
-        if (cached != null && discoveryFetchedAt != null
-                && Instant.now().isBefore(discoveryFetchedAt.plusSeconds(3600))) {
-            return cached;
+    private JsonNode fetchDiscovery(OidcProviderDTO provider) {
+        String providerId = provider.getProviderId();
+        CachedDiscovery cached = discoveryCache.get(providerId);
+        if (cached != null && !cached.isExpired()) {
+            return cached.document();
         }
-        String issuer = getConfigOrDefault(KEY_ISSUER, DEFAULT_ISSUER);
+        String issuer = provider.getIssuerUri();
         String discoveryUrl = issuer.endsWith("/")
                 ? issuer + ".well-known/openid-configuration"
                 : issuer + "/.well-known/openid-configuration";
@@ -668,8 +981,7 @@ public class OidcService {
                 throw new IllegalStateException("Discovery 文档请求失败，状态码: " + response.statusCode());
             }
             JsonNode doc = objectMapper.readTree(response.body());
-            this.discoveryDocument = doc;
-            this.discoveryFetchedAt = Instant.now();
+            discoveryCache.put(providerId, new CachedDiscovery(doc, Instant.now()));
             return doc;
         } catch (IllegalStateException e) {
             throw e;
@@ -679,16 +991,15 @@ public class OidcService {
     }
 
     /**
-     * 推导回调地址：优先使用显式配置，否则基于站点配置或请求地址推导
+     * 推导回调地址：优先使用服务商显式配置，否则基于站点配置或请求地址推导
      */
-    private String resolveRedirectUri(String baseUrl) {
-        String configured = systemConfigService.getConfig(KEY_REDIRECT_URI);
-        if (configured != null && !configured.trim().isEmpty()) {
-            return configured.trim();
+    private String resolveRedirectUri(OidcProviderDTO provider, String baseUrl) {
+        if (notBlank(provider.getRedirectUri())) {
+            return provider.getRedirectUri();
         }
         // 依次回退：systemConfig 的 siteBaseUrl -> 本次请求的 baseUrl
         String siteBaseUrl = systemConfigService.getConfig("siteBaseUrl");
-        String base = (siteBaseUrl != null && !siteBaseUrl.trim().isEmpty())
+        String base = notBlank(siteBaseUrl)
                 ? siteBaseUrl.trim()
                 : (baseUrl != null ? baseUrl.trim() : "");
         if (base.endsWith("/")) {
@@ -721,17 +1032,6 @@ public class OidcService {
     }
 
     /**
-     * 读取配置，不存在时返回默认值
-     */
-    private String getConfigOrDefault(String key, String defaultValue) {
-        String value = systemConfigService.getConfig(key);
-        if (value == null || value.trim().isEmpty()) {
-            return defaultValue;
-        }
-        return value;
-    }
-
-    /**
      * 解析布尔型配置
      */
     private boolean parseBoolean(String key, boolean defaultValue) {
@@ -740,6 +1040,24 @@ public class OidcService {
             return defaultValue;
         }
         return Boolean.parseBoolean(value);
+    }
+
+    /**
+     * 字符串是否非空白
+     */
+    private boolean notBlank(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    /**
+     * 去空白，空白返回 null
+     */
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**
