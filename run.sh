@@ -44,8 +44,12 @@ else
 fi
 
 # 加载 .env
+# 使用 set -a + source 的方式，避免 xargs/词分割对含特殊字符（*, &, ! 等）的密码造成破坏
 if [ -f ".env" ]; then
-    export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
+    set -a
+    # shellcheck disable=SC1091
+    . "./.env"
+    set +a
 else
     print_error "未找到 .env 配置文件"
     exit 1
@@ -53,6 +57,171 @@ fi
 
 SERVER_PORT=${SERVER_PORT:-8080}
 FRONTEND_PORT=${FRONTEND_PORT:-3000}
+
+# ========== 管理员账号自检与自动创建 ==========
+# 说明：
+#   每次启动前检查数据库中是否已存在管理员账号（默认用户名 admin）。
+#   若不存在则在 .env 中写入一个随机强密码（每次生成都不同），并在脚本日志中输出一次；
+#   已存在（或已生成过）时不再输出，避免密码每次启动都刷屏。
+ADMIN_DIR="$(dirname "$JAR_FILE")"
+if [ "$ADMIN_DIR" = "$SCRIPT_DIR" ]; then
+    ADMIN_DB_FILE="$SCRIPT_DIR/data/mock-server.db"
+else
+    ADMIN_DB_FILE="$SCRIPT_DIR/backend/data/mock-server.db"
+fi
+
+# 解析 .env 中指定 key 的当前值（去注释、去首尾空白、去引号）
+env_get() {
+    local key="$1" file="$2"
+    [ -f "$file" ] || return 1
+    sed -n "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//p" "$file" | tail -n 1 | sed 's/^"//; s/"$//; s/^'"'"'//; s/'"'"'$//'
+}
+
+# 写入/更新 .env 中指定 key 的值（存在则替换，不存在则追加）
+env_set() {
+    local key="$1" value="$2" file="$3"
+    if grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$file" 2>/dev/null; then
+        # 用 | 作为 sed 分隔符，并对值中的特殊字符转义（& \ |）
+        local esc
+        esc=$(printf '%s' "$value" | sed -e 's/[&\\|]/\\&/g')
+        sed -i.bak -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key}=${esc}|" "$file" && rm -f "${file}.bak"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+
+# 从字符集中随机取一个字符
+pick_char() {
+    local set="$1" len="${#1}" n
+    n=$(od -An -N2 -tu2 < /dev/urandom | tr -d ' ')
+    printf '%s' "${set:$((n % len)):1}"
+}
+
+# 生成强随机密码：大小写字母 + 数字 + 特殊字符，长度 20
+# 逐个字符集取样，确保每类字符至少出现一次，再打乱顺序
+gen_strong_password() {
+    local upper='ABCDEFGHJKLMNPQRSTUVWXYZ'
+    local lower='abcdefghijkmnpqrstuvwxyz'
+    local digit='23456789'
+    local special='@$%!*?&'
+    local all="${upper}${lower}${digit}${special}"
+    local pwd="" i idx
+
+    pwd="${pwd}$(pick_char "$upper")"
+    pwd="${pwd}$(pick_char "$lower")"
+    pwd="${pwd}$(pick_char "$digit")"
+    pwd="${pwd}$(pick_char "$special")"
+    for i in $(seq 1 16); do
+        pwd="${pwd}$(pick_char "$all")"
+    done
+
+    # 打乱顺序（基于 /dev/urandom，兼容无 shuf 的环境）
+    pwd="$(printf '%s' "$pwd" | awk '
+        BEGIN { srand(); }
+        { n=split($0,c,"");
+          for(i=n;i>1;i--){ j=int(rand()*i)+1; t=c[i]; c[i]=c[j]; c[j]=t; }
+          for(i=1;i<=n;i++) printf "%s", c[i];
+        }')"
+    printf '%s' "$pwd"
+}
+
+# 判断密码是否满足后端强密码规则：≥8 位，含大小写、数字、特殊字符（@$!%*?&）
+is_strong_password() {
+    local p="$1"
+    [ "${#p}" -ge 8 ] || return 1
+    printf '%s' "$p" | grep -q '[A-Z]' || return 1
+    printf '%s' "$p" | grep -q '[a-z]' || return 1
+    printf '%s' "$p" | grep -q '[0-9]' || return 1
+    printf '%s' "$p" | grep -q '[@$!%*?&]' || return 1
+    return 0
+}
+
+# 检测数据库中是否已存在管理员账号，返回 0=存在
+# 优先使用 sqlite3 CLI，其次 python3，最后退化为 .env 标记判断
+admin_exists_in_db() {
+    local db="$1" user="$2"
+    [ -f "$db" ] || return 1
+
+    if command -v sqlite3 >/dev/null 2>&1; then
+        local cnt
+        cnt=$(sqlite3 "$db" "SELECT COUNT(*) FROM t_user WHERE username='${user}';" 2>/dev/null)
+        [ -n "$cnt" ] && [ "$cnt" -gt 0 ] 2>/dev/null && return 0
+        return 1
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$db" "$user" <<'PY' 2>/dev/null
+import sqlite3, sys
+db, user = sys.argv[1], sys.argv[2]
+try:
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM t_user WHERE username=?", (user,))
+    sys.exit(0 if cur.fetchone()[0] > 0 else 1)
+except Exception:
+    sys.exit(2)
+PY
+        local rc=$?
+        [ "$rc" -eq 0 ] && return 0
+        return 1
+    fi
+
+    # 无可用 SQLite 工具，交给 .env 标记兜底
+    return 2
+}
+
+ENV_FILE="$SCRIPT_DIR/.env"
+ADMIN_USER="${ADMIN_USERNAME:-admin}"
+# 标记：.env 中的密码是否由本脚本自动生成（用于「每次生成新密码、但只显示第一次」）
+AUTO_GEN_FLAG="$(env_get ADMIN_PASSWORD_AUTO_GENERATED "$ENV_FILE" 2>/dev/null)"
+CURRENT_PASSWORD="$(env_get ADMIN_PASSWORD "$ENV_FILE" 2>/dev/null)"
+
+DB_ADMIN_STATE=1
+admin_exists_in_db "$ADMIN_DB_FILE" "$ADMIN_USER" && DB_ADMIN_STATE=0
+
+if [ "$DB_ADMIN_STATE" -eq 0 ]; then
+    # 数据库中已存在管理员账号：不生成、不输出、不修改 .env
+    print_info "管理员账号已存在: $ADMIN_USER（跳过密码生成）"
+elif [ -n "$CURRENT_PASSWORD" ] && [ "$AUTO_GEN_FLAG" != "1" ]; then
+    # 用户已在 .env 中手动配置了固定密码：尊重用户配置，不覆盖
+    print_info "管理员账号待创建，使用 .env 中已配置的固定密码"
+    export ADMIN_USERNAME="$ADMIN_USER"
+    export ADMIN_PASSWORD="$CURRENT_PASSWORD"
+else
+    # 需要自动生成：管理员不存在时，每次运行都生成一个不同的强密码
+    NEW_ADMIN_PASSWORD="$(gen_strong_password)"
+    if ! is_strong_password "$NEW_ADMIN_PASSWORD"; then
+        print_error "生成的密码未通过强度校验，请重试或手动设置 ADMIN_PASSWORD"
+        exit 1
+    fi
+
+    env_set "ADMIN_USERNAME" "$ADMIN_USER" "$ENV_FILE"
+    env_set "ADMIN_PASSWORD" "$NEW_ADMIN_PASSWORD" "$ENV_FILE"
+    if [ -z "$(env_get ADMIN_EMAIL "$ENV_FILE" 2>/dev/null)" ]; then
+        env_set "ADMIN_EMAIL" "admin@mockserver.com" "$ENV_FILE"
+    fi
+
+    # 同步到当前环境，供 Java 启动参数使用
+    export ADMIN_USERNAME="$ADMIN_USER"
+    export ADMIN_PASSWORD="$NEW_ADMIN_PASSWORD"
+
+    if [ "$AUTO_GEN_FLAG" != "1" ]; then
+        # 仅第一次（首次生成）输出密码
+        env_set "ADMIN_PASSWORD_AUTO_GENERATED" "1" "$ENV_FILE"
+        echo ""
+        echo "=========================================="
+        print_success "首次创建管理员账号，已生成随机强密码"
+        echo "  用户名: $ADMIN_USER"
+        echo "  密  码: $NEW_ADMIN_PASSWORD"
+        echo "  （密码已写入 .env，仅本次显示，请妥善保存）"
+        echo "=========================================="
+        echo ""
+    else
+        # 非首次：密码已更新，但不重复显示
+        print_info "管理员账号待创建，已更新随机强密码（不再重复显示，详见 .env）"
+    fi
+fi
+# ========== 管理员账号自检结束 ==========
 
 # 检测操作系统
 OS="$(uname -s)"
