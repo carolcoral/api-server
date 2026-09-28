@@ -83,10 +83,18 @@ cd docker && docker-compose up -d
 
 | 环境 | 用户名 | 密码 | 备注 |
 |------|--------|------|------|
-| 开发 | `admin` | `Admin@123` | 首次启动自动创建 |
+| 开发 | `admin` | 随机强密码 | `run.sh` 首次启动时自动生成，见 `.env` 与脚本日志 |
 | 生产 | `$ADMIN_USERNAME` | `$ADMIN_PASSWORD` | 务必修改强密码 |
 
+> `./run.sh` 启动前会检查数据库中是否已存在管理员账号：
+> - **不存在** → 自动生成随机强密码（大小写 + 数字 + 特殊字符，20 位）并写入 `.env` 的 `ADMIN_PASSWORD`；
+>   每次启动都会刷新为不同的新密码，但**只在第一次生成时输出到脚本日志**，之后请查看 `.env`。
+> - **已存在** → 跳过，不生成、不输出。
+> - 若你在 `.env` 中手动填写了固定 `ADMIN_PASSWORD`（且无自动生成标记），脚本会尊重该配置、不覆盖。
+
 ```bash
+# 方式一：交给 run.sh 自动生成（推荐，留空即可）
+# 方式二：手动指定固定密码
 export ADMIN_USERNAME=admin
 export ADMIN_PASSWORD=YourStrongP@ssw0rd123
 export JWT_SECRET=your-super-secret-jwt-key-at-least-256-bits-long
