@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-> TDP OIDC 单点登录 · 账号自动绑定 · 后台可视化配置。
+> OIDC 多服务商单点登录 · 账号自动绑定 · 后台可视化配置。
 
 ### 🗑️ 移除 AI 订阅及相关功能
 
@@ -13,7 +13,22 @@
 - **选路改造**：`AiModelSelector` / `AiProxyService` 由「按用户订阅选路」改为「按全局启用模型选路」，保留 auto 模式与故障回落能力；智能选模默认按输入单价升序。
 - **兼容性**：存量数据库中的 `t_ai_subscription` 表不再使用，保留无副作用；`t_ai_quota.subscription_id` 列不再读写。
 
-### 🔐 TDP OIDC 登录
+### 🔐 OIDC 单点登录（多服务商，Issue #33）
+
+- **不再局限于 TDP**：任何标准 OpenID Connect 服务（TDP / Keycloak / Auth0 / Casdoor / 任意自建 IdP）都可配置为登录方式；
+  后台可添加、删除、逐个启停服务商，登录页按启用状态渲染多个登录按钮。
+- **配置模型升级**：`t_system_config` 由单一键组（`oidcIssuerUri` / `oidcClientId` …）升级为 JSON 列表键
+  `oidcProviders`，每项含 `providerId` / `name` / `buttonLabel` / `enabled` / `issuerUri` / `clientId` /
+  `clientSecret` / `redirectUri` / `scope` / `autoCreateUser` / `usePkce`。
+- **历史配置自动兼容**：旧版单一服务商配置在首次读取时自动回显为列表中的一项（未改列表前仍按旧键生效），
+  **升级后无需重新配置、登录入口不中断**。
+- **账号标识防冲突**：本地 `t_user.oidc_sub` 统一写入 `{providerId}:{sub}`，避免多服务商 `sub` 碰撞；
+  历史库中已保存的裸 `sub` 在下次登录时自动升级为带前缀标识，按邮箱绑定的逻辑保持不变。
+- **接口变更**：`GET /api/auth/oidc/authorize` 与 `GET /api/auth/oidc/callback` 新增 `providerId` 参数（多服务商时必传）；
+  `GET /api/public/system-config` 返回 `oidcProviders` 列表（保留 `oidcProvider` / `oidcButtonLabel` 旧字段作为首个可用服务商，兼容旧前端）。
+- **安全加固**：回调时校验 `providerId` 与 `state` 中记录的服务商一致，防止串用其他服务商配置；Discovery 文档按服务商独立缓存。
+
+### 🔐 OIDC 登录（初版，TDP）
 
 - **标准 OIDC 接入**：基于 OpenID Connect Authorization Code Flow（含 PKCE S256），支持以 TDP（`https://tdp.fan/oidc`）作为登录方式，参考 [TDP OIDC 接入指南](https://cnb.cool/tdp/docs/-/blob/docs/zh/oidc.md)
 - **后台可视化配置**：系统设置 → 安全配置新增 OIDC 配置区，可开关登录、配置 Issuer / Client ID / Client Secret / 回调地址 / Scope / 登录按钮名称 / 自动建号 / PKCE

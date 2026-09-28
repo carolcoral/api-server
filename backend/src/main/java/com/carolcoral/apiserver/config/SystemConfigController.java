@@ -52,7 +52,7 @@ public class SystemConfigController {
 
     /**
      * 获取 OIDC 登录配置
-     * <p>需要管理员权限。返回 TDP OIDC 登录相关配置，客户端密钥不回显原文。</p>
+     * <p>需要管理员权限。返回所有允许 OIDC 登录的服务商配置，客户端密钥不回显原文。</p>
      *
      * @return OIDC 配置
      */
@@ -75,8 +75,8 @@ public class SystemConfigController {
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('settings:security')")
     public ApiResponse<Void> saveOidcConfig(@RequestBody com.carolcoral.apiserver.dto.oidc.OidcConfigDTO dto) {
         oidcService.saveConfig(dto);
-        log.info("管理员更新 OIDC 登录配置: enabled={}, issuer={}, clientId={}",
-                dto.getEnabled(), dto.getIssuerUri(), dto.getClientId());
+        log.info("管理员更新 OIDC 登录配置: enabled={}, providers={}",
+                dto.getEnabled(), dto.getProviders() == null ? 0 : dto.getProviders().size());
         return ApiResponse.success();
     }
 

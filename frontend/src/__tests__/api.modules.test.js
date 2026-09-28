@@ -44,6 +44,20 @@ describe('API 模块请求契约', () => {
     expect(lastCall()).toMatchObject({ url: '/auth/swagger-auto-login', method: 'post' })
   })
 
+  it('auth：OIDC 授权（多服务商 providerId 透传）', async () => {
+    const auth = await import('@/api/auth')
+
+    await auth.oidcAuthorize()
+    expect(lastCall()).toEqual({ url: '/auth/oidc/authorize', method: 'get', params: undefined })
+
+    await auth.oidcAuthorize('keycloak')
+    expect(lastCall()).toEqual({
+      url: '/auth/oidc/authorize',
+      method: 'get',
+      params: { providerId: 'keycloak' }
+    })
+  })
+
   it('user：搜索与启用用户列表', async () => {
     const user = await import('@/api/user')
     await user.searchUsers('li')

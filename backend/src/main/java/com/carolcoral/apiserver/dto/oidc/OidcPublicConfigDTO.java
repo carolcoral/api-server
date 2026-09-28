@@ -6,6 +6,9 @@
 
 package com.carolcoral.apiserver.dto.oidc;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * OIDC 公开配置DTO（无需认证）
  * <p>供登录页判断是否展示 OIDC 登录入口，不含敏感信息。</p>
@@ -14,30 +17,25 @@ package com.carolcoral.apiserver.dto.oidc;
  */
 public class OidcPublicConfigDTO {
 
-    /** 是否启用 OIDC 登录 */
+    /** 是否启用 OIDC 登录（存在至少一个可用服务商时为 true） */
     private Boolean enabled;
 
-    /** OIDC 提供方标识 */
-    private String provider;
-
-    /** 登录按钮显示名称 */
-    private String buttonLabel;
+    /** 可用于登录的服务商列表（仅公开字段） */
+    private List<OidcPublicProviderDTO> providers = new ArrayList<>();
 
     public OidcPublicConfigDTO() {
     }
 
-    public OidcPublicConfigDTO(Boolean enabled, String provider, String buttonLabel) {
+    public OidcPublicConfigDTO(Boolean enabled, List<OidcPublicProviderDTO> providers) {
         this.enabled = enabled;
-        this.provider = provider;
-        this.buttonLabel = buttonLabel;
+        this.providers = providers != null ? providers : new ArrayList<>();
     }
 
     public Boolean getEnabled() { return enabled; }
     public void setEnabled(Boolean enabled) { this.enabled = enabled; }
 
-    public String getProvider() { return provider; }
-    public void setProvider(String provider) { this.provider = provider; }
-
-    public String getButtonLabel() { return buttonLabel; }
-    public void setButtonLabel(String buttonLabel) { this.buttonLabel = buttonLabel; }
+    public List<OidcPublicProviderDTO> getProviders() { return providers; }
+    public void setProviders(List<OidcPublicProviderDTO> providers) {
+        this.providers = providers != null ? providers : new ArrayList<>();
+    }
 }
