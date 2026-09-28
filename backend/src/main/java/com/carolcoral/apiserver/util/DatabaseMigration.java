@@ -595,8 +595,6 @@ public class DatabaseMigration implements CommandLineRunner {
             // 请求录制与回放
             {"录制回放-页面访问", "record-replay:view", "业务管理", "PAGE", "52"},
             {"录制回放-执行回放", "record-replay:replay", "业务管理", "BUTTON", "53"},
-            // AI 服务管理
-            {"AI服务管理-页面访问", "ai-service:view", "系统管理", "PAGE", "54"},
         };
 
         String valuesClause = "VALUES (?, ?, ?, ?, ?, " + now + ", " + now + ")";
@@ -644,10 +642,29 @@ public class DatabaseMigration implements CommandLineRunner {
             "record-replay:view", "record-replay:replay"
         });
 
-        // 将 AI 服务管理权限同步赋予已有 settings:view 权限的角色
-        syncPermissionsToRoles("settings:view", new String[]{
-            "ai-service:view"
-        });
+        // 停用后的「AI 服务管理」权限：自检查起不再下发，并从既有角色中回收
+        revokeRemovedPermissions("ai-service:view");
+    }
+
+    /**
+     * 回收已下线功能的权限：从所有角色解绑并删除权限记录
+     * <p>用于「AI 服务管理」这类整体移除的功能，避免权限扫描器再次把它扫进权限表，
+     * 也避免角色权限页残留无效条目。</p>
+     *
+     * @param permissionCode 权限编码
+     */
+    private void revokeRemovedPermissions(String permissionCode) {
+        try {
+            int unbound = jdbcTemplate.update(
+                "DELETE FROM t_role_permission WHERE permission_id IN " +
+                    "(SELECT id FROM t_permission WHERE code = ?)", permissionCode);
+            int removed = jdbcTemplate.update("DELETE FROM t_permission WHERE code = ?", permissionCode);
+            if (unbound > 0 || removed > 0) {
+                log.info("已下线权限 {}: 解绑 {} 条角色关联，删除 {} 条权限记录", permissionCode, unbound, removed);
+            }
+        } catch (Exception e) {
+            log.warn("回收权限 {} 失败: {}", permissionCode, e.getMessage());
+        }
     }
 
     /**

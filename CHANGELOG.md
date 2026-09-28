@@ -2,7 +2,43 @@
 
 ## Unreleased
 
-> OIDC 多服务商单点登录 · 账号自动绑定 · 后台可视化配置。
+> OIDC 多服务商单点登录 · 登录图标自定义 · 账号自动绑定 · 后台可视化配置。
+
+### 🔐 OIDC 登录体验修复与增强（Issue #36）
+
+- **修复 OIDC 登录 400（`/oauth2/authorize` → 400）**：
+  回调地址原先按「系统设置中的 `siteBaseUrl` → 请求地址」顺序推导，`siteBaseUrl` 往往是内网 / 旧域名，
+  与 IdP 侧注册的 `redirect_uri` 不一致，授权端直接以 400 拒绝（日志表现为 `redirectUris=[...]` 与实际回调不符）。
+  现改为 **优先使用浏览器实际访问地址**（`Origin` → `X-Forwarded-Host` → `Host`，并识别 `X-Forwarded-Proto`），
+  仅在完全拿不到请求地址时才回退 `siteBaseUrl`；`siteBaseUrl` 仍可在设置中手动指定以强制固定回调地址。
+- **Issuer 推导端点兜底**：部分简化实现只暴露 `/oauth2/authorize`、`/oauth2/token`，没有标准
+  `/.well-known/openid-configuration`。此前整条登录链路直接失败；现在在 Discovery 请求失败（非 2xx / 不可达）时，
+  按 Issuer 推导端点作为兜底（`{issuer}/oauth2/authorize`、`{issuer}/oauth2/token`，Issuer 已以 `/oauth2` 结尾则只追加
+  `authorize` / `token`）。
+- **新增服务商登录图标**：后台「系统设置 → 安全配置 → OIDC」可为每个服务商上传登录图标，
+  支持 **SVG / PNG / JPG / ICO（icon）**，单文件 ≤ 256KB，以 data URI 形式随服务商配置**持久化在数据库中**（`t_system_config.oidcProviders[].icon`）。
+- **图标公开读取接口**：新增 `GET /api/public/oidc/{providerId}/icon`（无需认证，直接返回 data URI，带 1 小时缓存）；
+  `GET /api/public/system-config` 的服务商项新增 `iconUrl` 字段，未配置图标时返回 `null`，前端自动回退内置默认图标。
+- **图标校验**：新增 `OidcIconUtil`，白名单校验 MIME、Base64 可解码性与体积上限；
+  后台保存时非法 / 超限图标被忽略并保留原图标，支持显式 `iconStatus=clear` 移除。
+- **本地化**：图标相关文案已补齐 `zh-CN` / `en-US` / `ja-JP` 三语。
+- **编码约定沉淀**：`docs/ENGINEERING-RULES.md` 新增「资源类数据存储约定（全局设置）」一节，
+  明确小体积图片 / 图标统一存库（文本列 + 元数据列）、必须校验 MIME 与体积、读取接口随属主资源公开而写入接口必须鉴权。
+
+### 🗑️ 移除「AI 服务」相关页面及功能（Issue #36）
+
+- **移除管理页面**：删除前端 `AiService.vue` 与 `aiService/` 面板目录（服务商 / 模型 / 额度 / API Key / 调用日志）、
+  `/ai-service` 路由、侧边栏菜单项、`api/aiService.js` 封装与三语 i18n 文案。
+- **移除后端管理接口**：删除 `AiAdminController`（`/api/admin/ai/**`）与 `AiHealthCheckService`（模型健康检查）。
+- **权限回收**：移除 `ai-service:view` 权限；`DatabaseMigration` 启动时自动从既有角色解绑并删除该权限记录，
+  同时不再向权限扫描器的分组白名单输出「AI 管理」。
+- **选路简化**：`AiModelSelector` / `AiProxyService` 去掉人工维护的模型定价、健康状态、auto 标记等选路依据，
+  统一按模型名稳定排序；熔断仅保留连续失败计数与冷却时间（`consecutive_failures` / `cooldown_until`）。
+- **实体瘦身**：`AiModel` / `AiProvider` 仅保留 AI 代理路由所需字段（AI 配置同步创建），
+  删除 `AiModelHealth` 实体、`AiModelRepository` 中仅供管理页使用的方法、`AiUsageLog.cost` 费用字段，
+  以及随之无用的 `AiModelDTO` / `AiProviderDTO`。
+- **兼容性**：`t_ai_model` / `t_ai_provider` / `t_ai_usage_log` 表结构保留（含历史列），
+  存量数据库无需重建；`AiConfigService` 在保存 AI 配置时仍会自动同步服务商与模型，AI 对话 / OpenAI 兼容代理不受影响。
 
 ### 🗑️ 移除 AI 订阅及相关功能
 

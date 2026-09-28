@@ -173,6 +173,30 @@
                 <el-form-item :label="$t('settings.oidcProviderName')">
                   <el-input v-model="provider.name" placeholder="Keycloak" />
                 </el-form-item>
+                <el-form-item :label="$t('settings.oidcIcon')">
+                  <div class="oidc-icon-field">
+                    <div class="oidc-icon-preview">
+                      <img v-if="provider.icon" :src="provider.icon" :alt="provider.iconName || provider.name" />
+                      <el-icon v-else><Picture /></el-icon>
+                    </div>
+                    <div class="oidc-icon-actions">
+                      <input
+                        :ref="(el) => setIconInputRef(el, index)"
+                        type="file"
+                        class="oidc-icon-input"
+                        :accept="oidcIconAccept"
+                        @change="(e) => handleIconChange(e, index)"
+                      />
+                      <el-button size="small" @click="triggerIconPick(index)">
+                        {{ $t('settings.oidcIconUpload') }}
+                      </el-button>
+                      <el-button v-if="provider.icon" size="small" type="danger" plain @click="clearIcon(index)">
+                        {{ $t('settings.oidcIconRemove') }}
+                      </el-button>
+                      <div class="oidc-icon-tip">{{ $t('settings.oidcIconHint') }}</div>
+                    </div>
+                  </div>
+                </el-form-item>
                 <el-form-item :label="$t('settings.oidcIssuerUri')">
                   <el-input v-model="provider.issuerUri" placeholder="https://keycloak.example.com/realms/demo" />
                 </el-form-item>
@@ -704,12 +728,13 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Setting, Lock, Key, Connection, InfoFilled, Bell, Edit, Delete, Refresh, Timer, UserFilled } from '@element-plus/icons-vue'
+import { Setting, Lock, Key, Connection, InfoFilled, Bell, Edit, Delete, Refresh, Timer, UserFilled, Picture } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 import { setDateFormat } from '@/utils/dateFormat'
+import { OIDC_ICON_ACCEPT, readIconAsDataUri } from '@/utils/oidcIcon'
 import axios from 'axios'
 
 const { t, locale } = useI18n()
@@ -827,7 +852,10 @@ const createOidcProvider = () => ({
   redirectUri: '',
   scope: 'openid profile email',
   autoCreateUser: true,
-  usePkce: true
+  usePkce: true,
+  icon: '',
+  iconName: '',
+  iconStatus: 'keep'
 })
 
 const oidcSettings = reactive({
@@ -843,6 +871,55 @@ const addOidcProvider = () => {
 // 移除指定服务商配置
 const removeOidcProvider = (index) => {
   oidcSettings.providers.splice(index, 1)
+}
+
+// ========== OIDC 服务商登录图标（svg / png / jpg / ico，随配置持久化到数据库） ==========
+// 允许的文件类型（供 <input accept> 使用，与后端 OidcIconUtil 白名单一致）
+const oidcIconAccept = OIDC_ICON_ACCEPT
+const iconInputRefs = ref([])
+
+const setIconInputRef = (el, index) => {
+  if (el) iconInputRefs.value[index] = el
+}
+
+const triggerIconPick = (index) => {
+  const input = iconInputRefs.value[index]
+  if (input) {
+    input.value = ''
+    input.click()
+  }
+}
+
+const handleIconChange = async (event, index) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  try {
+    const { dataUri, name } = await readIconAsDataUri(file)
+    const provider = oidcSettings.providers[index]
+    if (!provider) return
+    provider.icon = dataUri
+    provider.iconName = name
+    provider.iconStatus = 'normal'
+    ElMessage.success(t('settings.oidcIconSelected'))
+  } catch (error) {
+    const message = error?.message === 'unsupported'
+      ? t('settings.oidcIconUnsupported')
+      : error?.message === 'tooLarge'
+        ? t('settings.oidcIconTooLarge')
+        : t('settings.oidcIconInvalid')
+    ElMessage.error(message)
+  } finally {
+    if (event?.target) event.target.value = ''
+  }
+}
+
+const clearIcon = (index) => {
+  const provider = oidcSettings.providers[index]
+  if (!provider) return
+  provider.icon = ''
+  provider.iconName = ''
+  // clear 表示显式通知后端移除图标
+  provider.iconStatus = 'clear'
 }
 
 // JWT配置
@@ -1079,7 +1156,10 @@ const loadSecuritySettings = async () => {
         redirectUri: p.redirectUri || '',
         scope: p.scope || 'openid profile email',
         autoCreateUser: p.autoCreateUser !== false,
-        usePkce: p.usePkce !== false
+        usePkce: p.usePkce !== false,
+        icon: p.icon || '',
+        iconName: p.iconName || '',
+        iconStatus: 'keep'
       }))
     }
   } catch (error) {
@@ -1101,6 +1181,13 @@ const saveOidcSettings = async () => {
         item.clientSecretStatus = 'normal'
       }
       delete item.clientSecretConfigured
+      // icon 为空且未显式 clear 时按 keep 提交，避免误清除已保存的图标
+      if (!item.icon && item.iconStatus !== 'clear') {
+        delete item.icon
+        item.iconStatus = 'keep'
+      } else if (item.icon) {
+        item.iconStatus = 'normal'
+      }
       return item
     })
     await request.post('/system-config/oidc', {
@@ -1114,6 +1201,7 @@ const saveOidcSettings = async () => {
         provider.clientSecret = ''
         provider.clientSecretStatus = 'keep'
       }
+      provider.iconStatus = 'keep'
     })
     ElMessage.success(t('settings.settingsSaved'))
   } catch (error) {
@@ -1922,6 +2010,51 @@ h2 {
 .oidc-provider-index {
   font-weight: 600;
   color: var(--el-text-color-secondary, #909399);
+}
+
+/* OIDC 服务商登录图标上传 */
+.oidc-icon-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.oidc-icon-preview {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--el-border-color, #dcdfe6);
+  border-radius: 8px;
+  background: var(--el-fill-color-blank, #fff);
+  overflow: hidden;
+  color: var(--el-text-color-placeholder, #a8abb2);
+}
+
+.oidc-icon-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.oidc-icon-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.oidc-icon-input {
+  display: none;
+}
+
+.oidc-icon-tip {
+  width: 100%;
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #909399);
+  line-height: 1.5;
 }
 
 </style>

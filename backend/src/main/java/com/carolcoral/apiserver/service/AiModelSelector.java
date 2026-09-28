@@ -61,15 +61,16 @@ public class AiModelSelector {
 
     /**
      * 自动选择模型（auto 模式）
+     * <p>模型随 AI 配置自动同步，不再维护人工优先级、单价与延迟等排序依据，
+     * 因此统一按模型名做稳定排序：priority / cost_first / performance_first 语义等价，
+     * random 在候选集内随机打散。</p>
      *
      * @param fallbackStrategy 策略：priority/random/cost_first/performance_first
      * @return 排序后的候选模型列表（排第一的为推荐模型）
      */
     public List<AiModel> selectModels(String fallbackStrategy) {
-        // 从所有全局启用模型中选择（排除 autoMode 虚拟模型）
         List<AiModel> candidates = modelRepository.findByStatusTrueWithProvider().stream()
                 .filter(this::isModelAvailable)
-                .filter(m -> m.getAutoMode() == null || !m.getAutoMode())
                 .collect(Collectors.toList());
 
         if (candidates.isEmpty()) {
@@ -77,28 +78,14 @@ public class AiModelSelector {
             return Collections.emptyList();
         }
 
-        // 按策略排序
         String strategy = fallbackStrategy != null ? fallbackStrategy : "priority";
-        switch (strategy) {
-            case "random":
-                Collections.shuffle(candidates);
-                break;
-            case "cost_first":
-                candidates.sort(Comparator.comparing(
-                        m -> m.getInputPrice() != null ? m.getInputPrice() : Double.MAX_VALUE));
-                break;
-            case "performance_first":
-                candidates.sort(Comparator.comparing(
-                        m -> m.getAvgLatencyMs() != null ? m.getAvgLatencyMs() : Long.MAX_VALUE));
-                break;
-            case "priority":
-            default:
-                // 无用户订阅优先级，按输入单价（越低越优先）作为稳定的默认排序
-                candidates.sort(Comparator.comparing(
-                        m -> m.getInputPrice() != null ? m.getInputPrice() : Double.MAX_VALUE));
-                break;
+        if ("random".equals(strategy)) {
+            Collections.shuffle(candidates);
+        } else {
+            // 稳定排序，保证同一配置下选择结果可预期
+            candidates.sort(Comparator.comparing(
+                    m -> m.getModelName() == null ? "" : m.getModelName()));
         }
-
         return candidates;
     }
 
@@ -116,7 +103,6 @@ public class AiModelSelector {
      */
     public boolean isModelAvailable(AiModel model) {
         if (model == null || !model.getStatus()) return false;
-        if ("offline".equals(model.getHealthStatus())) return false;
         if (model.getCooldownUntil() != null
                 && LocalDateTime.now().isBefore(model.getCooldownUntil())) {
             return false;
@@ -156,13 +142,12 @@ public class AiModelSelector {
     public void markModelFailureAsync(Long modelId) {
         AiModel model = modelRepository.findById(modelId).orElse(null);
         if (model == null) return;
-        int failures = model.getConsecutiveFailures() + 1;
+        int failures = (model.getConsecutiveFailures() == null ? 0 : model.getConsecutiveFailures()) + 1;
         model.setConsecutiveFailures(failures);
-        model.setHealthStatus("degraded");
         if (failures >= OFFLINE_THRESHOLD) {
-            model.setHealthStatus("offline");
+            // 连续失败达到阈值：进入冷却期，冷却期间不再被选中
             model.setCooldownUntil(LocalDateTime.now().plusMinutes(COOLDOWN_MINUTES));
-            log.warn("模型 {} 连续失败 {} 次，标记为 offline，冷却 {} 分钟",
+            log.warn("模型 {} 连续失败 {} 次，进入冷却 {} 分钟",
                     model.getModelName(), failures, COOLDOWN_MINUTES);
         }
         modelRepository.save(model);
@@ -176,15 +161,7 @@ public class AiModelSelector {
         AiModel model = modelRepository.findById(modelId).orElse(null);
         if (model == null) return;
         model.setConsecutiveFailures(0);
-        model.setHealthStatus("online");
         model.setCooldownUntil(null);
-        if (model.getAvgLatencyMs() == null) {
-            model.setAvgLatencyMs(latencyMs);
-        } else {
-            // 指数移动平均
-            model.setAvgLatencyMs((model.getAvgLatencyMs() * 9 + latencyMs) / 10);
-        }
-        model.setLastHealthCheck(LocalDateTime.now());
         modelRepository.save(model);
     }
 

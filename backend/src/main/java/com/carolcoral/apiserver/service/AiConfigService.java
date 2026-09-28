@@ -137,8 +137,6 @@ public class AiConfigService {
             provider.setCode(code);
             provider.setName(config.getProviderName() != null ? config.getProviderName() : code);
             provider.setBaseUrl(config.getApiUrl());
-            provider.setApiType(code);
-            provider.setAuthType("bearer");
             provider.setApiKey(config.getApiKey());
             provider.setStatus(true);
         } else {
@@ -183,7 +181,6 @@ public class AiConfigService {
                 model.setDisplayName(modelName);
                 model.setSupportsStream(true);
                 model.setStatus(true);
-                model.setAutoMode(false);
                 modelRepository.save(model);
                 log.info("从 AI 配置同步创建模型: provider={}, model={}", provider.getName(), modelName);
             }

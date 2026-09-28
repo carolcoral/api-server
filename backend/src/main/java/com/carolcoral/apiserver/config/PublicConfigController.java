@@ -69,6 +69,31 @@ public class PublicConfigController {
         return ApiResponse.success(config);
     }
 
+    /**
+     * 读取 OIDC 服务商登录图标（无需认证）
+     * <p>登录页按 {@code oidcProviders[].iconUrl} 加载该接口渲染图标；
+     * 未配置图标时返回 404，前端回退到内置默认图标。</p>
+     *
+     * @param providerId 服务商标识
+     * @return 图标响应（data URI 原样返回，浏览器可直接渲染）
+     */
+    @GetMapping("/oidc/{providerId}/icon")
+    @Operation(summary = "读取 OIDC 服务商登录图标")
+    public org.springframework.http.ResponseEntity<byte[]> getOidcProviderIcon(
+            @org.springframework.web.bind.annotation.PathVariable("providerId") String providerId) {
+        String dataUri = oidcService.getProviderIcon(providerId);
+        if (dataUri == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+        String mime = com.carolcoral.apiserver.util.OidcIconUtil.mimeOf(dataUri);
+        byte[] body = dataUri.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, mime + ";charset=UTF-8")
+                // 图标随配置变更而变，缓存 1 小时，降低登录页请求压力
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
+                .body(body);
+    }
+
     private boolean parseBooleanConfig(String key, boolean defaultValue) {
         String value = systemConfigService.getConfig(key);
         if (value != null && !value.isEmpty()) {

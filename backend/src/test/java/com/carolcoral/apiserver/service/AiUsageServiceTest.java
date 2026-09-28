@@ -42,11 +42,9 @@ class AiUsageServiceTest {
         service = new AiUsageService(repository, new ObjectMapper());
     }
 
-    private AiModel model(Double in, Double out) {
+    private AiModel model() {
         AiModel m = new AiModel();
         m.setId(1L);
-        m.setInputPrice(in);
-        m.setOutputPrice(out);
         return m;
     }
 
@@ -67,42 +65,39 @@ class AiUsageServiceTest {
     class LogSuccess {
 
         @Test
-        @DisplayName("按单价计算费用并入库")
-        void computesCost() {
-            service.logSuccess(new User(), new AiProvider(), model(1.0, 2.0),
+        @DisplayName("写入 token 用量并入库")
+        void writesTokens() {
+            service.logSuccess(new User(), new AiProvider(), model(),
                     "req", response(1000, 500), 12L, null);
 
             ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
             verify(repository).save(captor.capture());
             AiUsageLog saved = captor.getValue();
             assertEquals(200, saved.getStatusCode());
-            // 1.0 * 1000 / 1000 + 2.0 * 500 / 1000 = 2.0
-            assertEquals(2.0, saved.getCost(), 1e-9);
             assertEquals(1000, saved.getPromptTokens());
             assertEquals(500, saved.getCompletionTokens());
             assertEquals(1500, saved.getTotalTokens());
         }
 
         @Test
-        @DisplayName("usage 为空时不计 token 与费用")
+        @DisplayName("usage 为空时不写 token")
         void noUsage() {
-            service.logSuccess(new User(), new AiProvider(), model(1.0, 2.0),
+            service.logSuccess(new User(), new AiProvider(), model(),
                     "req", response(null, null), 5L, null);
 
             ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
             verify(repository).save(captor.capture());
-            assertNull(captor.getValue().getCost());
+            assertNull(captor.getValue().getTotalTokens());
         }
 
         @Test
-        @DisplayName("单价为空时费用按 0 处理")
-        void nullPrices() {
-            service.logSuccess(new User(), new AiProvider(), model(null, null),
+        @DisplayName("保留 fallback 来源标记")
+        void keepsFallbackFrom() {
+            service.logSuccess(new User(), new AiProvider(), model(),
                     "req", response(10, 10), 1L, 7L);
 
             ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
             verify(repository).save(captor.capture());
-            assertEquals(0.0, captor.getValue().getCost(), 1e-9);
             assertEquals(7L, captor.getValue().getFallbackFrom());
         }
 
@@ -111,7 +106,7 @@ class AiUsageServiceTest {
         void swallowsException() {
             when(repository.save(any())).thenThrow(new RuntimeException("db down"));
             assertDoesNotThrow(() -> service.logSuccess(new User(), new AiProvider(),
-                    model(1.0, 1.0), "req", response(1, 1), 1L, null));
+                    model(), "req", response(1, 1), 1L, null));
         }
     }
 
@@ -120,10 +115,10 @@ class AiUsageServiceTest {
     class LogStream {
 
         @Test
-        @DisplayName("写入 token 与费用")
+        @DisplayName("写入 token 用量")
         void writes() {
-            service.logStreamSuccess(new User(), new AiProvider(), model(1.0, 1.0),
-                    "req", 10, 20, 30, 99L, 0.5);
+            service.logStreamSuccess(new User(), new AiProvider(), model(),
+                    "req", 10, 20, 30, 99L);
 
             ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
             verify(repository).save(captor.capture());
@@ -131,7 +126,6 @@ class AiUsageServiceTest {
             assertEquals(10, saved.getPromptTokens());
             assertEquals(20, saved.getCompletionTokens());
             assertEquals(30, saved.getTotalTokens());
-            assertEquals(0.5, saved.getCost(), 1e-9);
         }
     }
 
@@ -142,7 +136,7 @@ class AiUsageServiceTest {
         @Test
         @DisplayName("记录错误状态与信息")
         void writes() {
-            service.logFailure(new User(), new AiProvider(), model(1.0, 1.0),
+            service.logFailure(new User(), new AiProvider(), model(),
                     "req", 500, "boom", 3L);
 
             ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
@@ -150,7 +144,7 @@ class AiUsageServiceTest {
             AiUsageLog saved = captor.getValue();
             assertEquals(500, saved.getStatusCode());
             assertEquals("boom", saved.getErrorMsg());
-            assertEquals(0.0, saved.getCost(), 1e-9);
+            assertEquals(0, saved.getTotalTokens());
         }
     }
 
@@ -162,7 +156,7 @@ class AiUsageServiceTest {
         @DisplayName("超长请求体被截断并追加标记")
         void truncated() {
             String longBody = "x".repeat(6000);
-            service.logFailure(new User(), new AiProvider(), model(null, null),
+            service.logFailure(new User(), new AiProvider(), model(),
                     longBody, 400, "e", 1L);
 
             ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);
@@ -175,7 +169,7 @@ class AiUsageServiceTest {
         @Test
         @DisplayName("空请求体保持 null")
         void nullBody() {
-            service.logFailure(new User(), new AiProvider(), model(null, null),
+            service.logFailure(new User(), new AiProvider(), model(),
                     null, 400, "e", 1L);
 
             ArgumentCaptor<AiUsageLog> captor = ArgumentCaptor.forClass(AiUsageLog.class);

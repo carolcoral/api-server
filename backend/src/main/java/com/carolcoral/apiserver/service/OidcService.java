@@ -20,6 +20,7 @@ import com.carolcoral.apiserver.repository.AiQuotaRepository;
 import com.carolcoral.apiserver.repository.RoleRepository;
 import com.carolcoral.apiserver.repository.UserRepository;
 import com.carolcoral.apiserver.util.JwtTokenUtil;
+import com.carolcoral.apiserver.util.OidcIconUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -88,6 +89,9 @@ public class OidcService {
 
     /** Discovery 文档缓存有效期（1 小时） */
     private static final long DISCOVERY_TTL_SECONDS = 3600;
+
+    /** 图标读取接口路径前缀：/api/public/oidc/{providerId}/icon */
+    private static final String ICON_PATH_PREFIX = "/api/public/oidc/";
 
     /** 待处理的授权请求（state -> 上下文） */
     private final Map<String, PendingAuthRequest> pendingRequests = new ConcurrentHashMap<>();
@@ -254,7 +258,9 @@ public class OidcService {
         List<OidcPublicProviderDTO> list = new ArrayList<>();
         for (OidcProviderDTO provider : getAvailableProviders()) {
             String label = provider.getButtonLabel();
-            list.add(new OidcPublicProviderDTO(provider.getProviderId(), provider.getName(), label));
+            // 图标以「读取接口地址」而非内联 Base64 下发，避免撑大登录页接口响应
+            list.add(new OidcPublicProviderDTO(provider.getProviderId(), provider.getName(), label,
+                    iconUrlOf(provider)));
         }
         return new OidcPublicConfigDTO(!list.isEmpty(), list);
     }
@@ -344,6 +350,7 @@ public class OidcService {
                 : DEFAULT_SCOPE);
         result.setAutoCreateUser(incoming.getAutoCreateUser() == null || incoming.getAutoCreateUser());
         result.setUsePkce(incoming.getUsePkce() == null || incoming.getUsePkce());
+        resolveIcon(incoming, existing, result);
 
         // clientId 允许留空（沿用已存值），避免前端未改动时误清空
         String clientId = trimToNull(incoming.getClientId());
@@ -371,6 +378,72 @@ public class OidcService {
             return provided;
         }
         return existing != null ? existing.getClientSecret() : provided;
+    }
+
+    /**
+     * 解析图标写入值
+     * <p>优先级：显式 clear → 本次提交的新 data URI → 已存值。</p>
+     *
+     * @param incoming 本次提交的配置
+     * @param existing 已存配置（可为空）
+     * @param result   待写入的结果对象
+     */
+    private void resolveIcon(OidcProviderDTO incoming, OidcProviderDTO existing, OidcProviderDTO result) {
+        String status = trimToNull(incoming.getIconStatus());
+        if ("clear".equalsIgnoreCase(status)) {
+            result.setIcon(null);
+            result.setIconName(null);
+            return;
+        }
+        String provided = trimToNull(incoming.getIcon());
+        if (provided != null) {
+            // 校验格式与体积，非法图标直接忽略（保留原图标），避免脏数据入库
+            String validated = OidcIconUtil.normalizeDataUri(provided);
+            if (validated == null) {
+                log.warn("OIDC 配置保存：服务商 {} 图标格式非法或超出体积上限，已忽略本次图标", result.getProviderId());
+            } else {
+                result.setIcon(validated);
+                String iconName = trimToNull(incoming.getIconName());
+                result.setIconName(iconName);
+                return;
+            }
+        }
+        if (existing != null) {
+            result.setIcon(existing.getIcon());
+            result.setIconName(existing.getIconName());
+        }
+    }
+
+    /**
+     * 生成服务商的图标访问地址（无图标返回 null）
+     *
+     * @param provider 服务商配置
+     * @return 图标访问地址
+     */
+    private String iconUrlOf(OidcProviderDTO provider) {
+        if (provider == null || !notBlank(provider.getIcon())) {
+            return null;
+        }
+        return ICON_PATH_PREFIX + provider.getProviderId() + "/icon";
+    }
+
+    /**
+     * 读取指定服务商的图标（返回给浏览器的 data URI）
+     * <p>不依赖总开关与配置完整性，仅要求该服务商已保存图标，便于登录页在开关切换时也能正常渲染。</p>
+     *
+     * @param providerId 服务商标识
+     * @return 图标 data URI；不存在或未配置返回 null
+     */
+    @Operation(summary = "读取 OIDC 服务商登录图标")
+    public String getProviderIcon(String providerId) {
+        if (!notBlank(providerId)) {
+            return null;
+        }
+        OidcProviderDTO provider = findProvider(loadProviders(), providerId);
+        if (provider == null || !notBlank(provider.getIcon())) {
+            return null;
+        }
+        return OidcIconUtil.normalizeDataUri(provider.getIcon());
     }
 
     /**
@@ -425,6 +498,8 @@ public class OidcService {
         provider.setScope(textOf(node, "scope"));
         provider.setAutoCreateUser(node.path("autoCreateUser").asBoolean(true));
         provider.setUsePkce(node.path("usePkce").asBoolean(true));
+        provider.setIcon(textOf(node, "icon"));
+        provider.setIconName(textOf(node, "iconName"));
         return provider;
     }
 
@@ -446,6 +521,9 @@ public class OidcService {
             node.put("scope", provider.getScope());
             node.put("autoCreateUser", !Boolean.FALSE.equals(provider.getAutoCreateUser()));
             node.put("usePkce", !Boolean.FALSE.equals(provider.getUsePkce()));
+            // 图标以 data URI 形式随配置一并持久化（体积上限见 OidcIconUtil）
+            node.put("icon", provider.getIcon());
+            node.put("iconName", provider.getIconName());
             array.add(node);
         }
         return array.toString();
@@ -549,6 +627,21 @@ public class OidcService {
     @Operation(summary = "处理 OIDC 回调并完成登录")
     @Transactional
     public ApiResponse<LoginResponse> handleCallback(String providerId, String code, String state) {
+        return handleCallback(providerId, code, state, null);
+    }
+
+    /**
+     * 处理 OIDC 回调：换取 Token、获取用户信息、绑定/创建本地账号并签发 JWT
+     *
+     * @param providerId 服务商标识（可为空，为空时按 state 记录的服务商处理）
+     * @param code       授权码
+     * @param state      状态参数
+     * @param baseUrl    站点基础地址（用于服务商未配置 Discovery 时补 Token 端点，可为空）
+     * @return 登录响应
+     */
+    @Operation(summary = "处理 OIDC 回调并完成登录")
+    @Transactional
+    public ApiResponse<LoginResponse> handleCallback(String providerId, String code, String state, String baseUrl) {
         if (code == null || code.isEmpty()) {
             return ApiResponse.error("缺少授权码 code");
         }
@@ -576,7 +669,7 @@ public class OidcService {
         }
 
         try {
-            JsonNode discovery = fetchDiscovery(provider);
+            JsonNode discovery = fetchDiscovery(provider, baseUrl);
             String tokenEndpoint = textOf(discovery, "token_endpoint");
             if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
                 return ApiResponse.error("无法从 Discovery 文档获取 Token 端点");
@@ -958,8 +1051,25 @@ public class OidcService {
 
     /**
      * 获取 Discovery 文档（按服务商缓存，有效期 1 小时）
+     *
+     * @param provider 服务商配置
+     * @return Discovery 文档
      */
     private JsonNode fetchDiscovery(OidcProviderDTO provider) {
+        return fetchDiscovery(provider, null);
+    }
+
+    /**
+     * 获取 Discovery 文档（按服务商缓存，有效期 1 小时）
+     * <p>若服务商未提供标准的 {@code /.well-known/openid-configuration}（例如只暴露
+     * {@code /oauth2/authorize}、{@code /oauth2/token} 的简化实现），则按 Issuer 推导端点，
+     * 避免整条 OIDC 登录链路因缺少 Discovery 而完全不可用。</p>
+     *
+     * @param provider 服务商配置
+     * @param baseUrl  站点基础地址（用于补全相对端点，可为空）
+     * @return Discovery 文档
+     */
+    private JsonNode fetchDiscovery(OidcProviderDTO provider, String baseUrl) {
         String providerId = provider.getProviderId();
         CachedDiscovery cached = discoveryCache.get(providerId);
         if (cached != null && !cached.isExpired()) {
@@ -978,30 +1088,75 @@ public class OidcService {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("Discovery 文档请求失败，状态码: " + response.statusCode());
+                log.warn("Discovery 文档请求失败（状态码 {}），回退按 Issuer 推导端点: provider={}",
+                        response.statusCode(), providerId);
+                return buildFallbackDiscovery(provider, baseUrl);
             }
             JsonNode doc = objectMapper.readTree(response.body());
             discoveryCache.put(providerId, new CachedDiscovery(doc, Instant.now()));
             return doc;
-        } catch (IllegalStateException e) {
-            throw e;
         } catch (Exception e) {
-            throw new IllegalStateException("获取 OIDC Discovery 文档失败: " + e.getMessage(), e);
+            log.warn("获取 OIDC Discovery 文档失败（{}），回退按 Issuer 推导端点: provider={}",
+                    e.getMessage(), providerId);
+            return buildFallbackDiscovery(provider, baseUrl);
         }
     }
 
     /**
-     * 推导回调地址：优先使用服务商显式配置，否则基于站点配置或请求地址推导
+     * 按 Issuer 推导端点，构造「伪 Discovery 文档」
+     * <p>约定：授权端点 {@code {issuer}/oauth2/authorize}、Token 端点 {@code {issuer}/oauth2/token}；
+     * 若 Issuer 自身路径已以 {@code /oauth2} 结尾则只追加 {@code /authorize}、{@code /token}。
+     * 回调地址优先取服务商显式配置，否则基于站点基础地址推导。</p>
+     *
+     * @param provider 服务商配置
+     * @param baseUrl  站点基础地址（可为空）
+     * @return 伪 Discovery 文档
+     */
+    private JsonNode buildFallbackDiscovery(OidcProviderDTO provider, String baseUrl) {
+        String issuer = provider.getIssuerUri();
+        if (!notBlank(issuer)) {
+            throw new IllegalStateException("OIDC Issuer 未配置，无法推导授权端点");
+        }
+        String normalized = issuer.endsWith("/") ? issuer.substring(0, issuer.length() - 1) : issuer;
+        String authorizeEndpoint;
+        String tokenEndpoint;
+        if (normalized.endsWith("/oauth2")) {
+            authorizeEndpoint = normalized + "/authorize";
+            tokenEndpoint = normalized + "/token";
+        } else {
+            authorizeEndpoint = normalized + "/oauth2/authorize";
+            tokenEndpoint = normalized + "/oauth2/token";
+        }
+        ObjectNode doc = objectMapper.createObjectNode();
+        doc.put("issuer", issuer);
+        doc.put("authorization_endpoint", authorizeEndpoint);
+        doc.put("token_endpoint", tokenEndpoint);
+        doc.put("userinfo_endpoint", normalized + "/userinfo");
+        log.info("OIDC 使用 Issuer 推导端点: provider={}, authorize={}, token={}",
+                provider.getProviderId(), authorizeEndpoint, tokenEndpoint);
+        return doc;
+    }
+
+    /**
+     * 推导回调地址
+     * <p>优先级：服务商显式配置 → 本次请求的实际访问地址（浏览器地址栏，最不易出错）
+     * → 系统设置中的 {@code siteBaseUrl}。</p>
+     * <p>注意：必须与 OIDC 服务商后台注册的 redirect_uri 完全一致，
+     * 不一致时授权端点会直接返回 400（redirect_uri mismatch）。</p>
+     *
+     * @param provider 服务商配置
+     * @param baseUrl  本次请求推导出的站点基础地址
+     * @return 回调地址
      */
     private String resolveRedirectUri(OidcProviderDTO provider, String baseUrl) {
         if (notBlank(provider.getRedirectUri())) {
             return provider.getRedirectUri();
         }
-        // 依次回退：systemConfig 的 siteBaseUrl -> 本次请求的 baseUrl
+        // 依次回退：本次请求的实际地址 -> systemConfig 的 siteBaseUrl
         String siteBaseUrl = systemConfigService.getConfig("siteBaseUrl");
-        String base = notBlank(siteBaseUrl)
-                ? siteBaseUrl.trim()
-                : (baseUrl != null ? baseUrl.trim() : "");
+        String base = notBlank(baseUrl)
+                ? baseUrl.trim()
+                : (notBlank(siteBaseUrl) ? siteBaseUrl.trim() : "");
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }

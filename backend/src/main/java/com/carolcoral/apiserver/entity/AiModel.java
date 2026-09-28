@@ -6,19 +6,23 @@
 
 package com.carolcoral.apiserver.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
 /**
  * AI 模型实体类
+ * <p>由 {@code AiConfigService} 依据系统设置中的 AI 配置自动同步，用于 AI 代理的模型路由。
+ * 原本独立维护在「AI 服务管理」页面中的定价、健康检查等字段随该页面一并下线。</p>
  *
  * @author carolcoral
  */
 @Schema(description = "AI 模型实体")
 @Entity
-@Table(name = "t_ai_model")
+@Table(name = "t_ai_model", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_ai_model_provider_name", columnNames = {"provider_id", "model_name"})
+})
 public class AiModel {
 
     @Id
@@ -27,54 +31,39 @@ public class AiModel {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "provider_id", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private AiProvider provider;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "model_name", nullable = false, length = 100)
     private String modelName;
 
-    @Column(length = 100)
+    @Column(name = "display_name", length = 100)
     private String displayName;
 
-    private Double inputPrice;
-
-    private Double outputPrice;
-
-    private Integer maxTokens;
-
-    @Column(nullable = false)
+    @Column(name = "supports_stream", nullable = false)
     private Boolean supportsStream = true;
 
-    @Column(length = 20)
-    private String healthStatus = "online";
-
-    private LocalDateTime lastHealthCheck;
-
-    private LocalDateTime cooldownUntil;
-
-    @Column(nullable = false)
+    /** 连续失败次数（运行期统计，用于熔断） */
+    @Column(name = "consecutive_failures", nullable = false)
     private Integer consecutiveFailures = 0;
 
-    private Long avgLatencyMs;
-
-    @Column(nullable = false)
-    private Boolean autoMode = false;
+    /** 熔断冷却截止时间 */
+    @Column(name = "cooldown_until")
+    private LocalDateTime cooldownUntil;
 
     @Column(nullable = false)
     private Boolean status = true;
 
-    @Column(nullable = false, updatable = false)
+    @Column(name = "create_time", nullable = false, updatable = false)
     private LocalDateTime createTime;
 
-    @Column(nullable = false)
+    @Column(name = "update_time", nullable = false)
     private LocalDateTime updateTime;
-
-    public AiModel() {}
 
     @PrePersist
     protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        createTime = now;
+        updateTime = now;
     }
 
     @PreUpdate
@@ -82,39 +71,36 @@ public class AiModel {
         updateTime = LocalDateTime.now();
     }
 
-    // Getters and Setters
+    public AiModel() {
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
     public AiProvider getProvider() { return provider; }
     public void setProvider(AiProvider provider) { this.provider = provider; }
+
     public String getModelName() { return modelName; }
     public void setModelName(String modelName) { this.modelName = modelName; }
+
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
-    public Double getInputPrice() { return inputPrice; }
-    public void setInputPrice(Double inputPrice) { this.inputPrice = inputPrice; }
-    public Double getOutputPrice() { return outputPrice; }
-    public void setOutputPrice(Double outputPrice) { this.outputPrice = outputPrice; }
-    public Integer getMaxTokens() { return maxTokens; }
-    public void setMaxTokens(Integer maxTokens) { this.maxTokens = maxTokens; }
+
     public Boolean getSupportsStream() { return supportsStream; }
     public void setSupportsStream(Boolean supportsStream) { this.supportsStream = supportsStream; }
-    public Boolean getAutoMode() { return autoMode; }
-    public void setAutoMode(Boolean autoMode) { this.autoMode = autoMode; }
-    public String getHealthStatus() { return healthStatus; }
-    public void setHealthStatus(String healthStatus) { this.healthStatus = healthStatus; }
-    public LocalDateTime getLastHealthCheck() { return lastHealthCheck; }
-    public void setLastHealthCheck(LocalDateTime lastHealthCheck) { this.lastHealthCheck = lastHealthCheck; }
-    public LocalDateTime getCooldownUntil() { return cooldownUntil; }
-    public void setCooldownUntil(LocalDateTime cooldownUntil) { this.cooldownUntil = cooldownUntil; }
+
     public Integer getConsecutiveFailures() { return consecutiveFailures; }
     public void setConsecutiveFailures(Integer consecutiveFailures) { this.consecutiveFailures = consecutiveFailures; }
-    public Long getAvgLatencyMs() { return avgLatencyMs; }
-    public void setAvgLatencyMs(Long avgLatencyMs) { this.avgLatencyMs = avgLatencyMs; }
+
+    public LocalDateTime getCooldownUntil() { return cooldownUntil; }
+    public void setCooldownUntil(LocalDateTime cooldownUntil) { this.cooldownUntil = cooldownUntil; }
+
     public Boolean getStatus() { return status; }
     public void setStatus(Boolean status) { this.status = status; }
+
     public LocalDateTime getCreateTime() { return createTime; }
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
+
     public LocalDateTime getUpdateTime() { return updateTime; }
     public void setUpdateTime(LocalDateTime updateTime) { this.updateTime = updateTime; }
 }

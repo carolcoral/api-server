@@ -145,39 +145,6 @@ describe('API 模块请求契约', () => {
       expect(lastCall()).toMatchObject(expected)
     }
   })
-
-  it('aiService：服务商/模型/订阅/额度/APIKey 管理接口', async () => {
-    const s = await import('@/api/aiService')
-    const cases = [
-      [() => s.listProviders(), { url: '/admin/ai/providers', method: 'get' }],
-      [() => s.createProvider({}), { url: '/admin/ai/providers', method: 'post' }],
-      [() => s.updateProvider(1, {}), { url: '/admin/ai/providers/1', method: 'put' }],
-      [() => s.deleteProvider(1), { url: '/admin/ai/providers/1', method: 'delete' }],
-      [() => s.listModels(1), { url: '/admin/ai/providers/1/models', method: 'get' }],
-      [() => s.createModel(1, {}), { url: '/admin/ai/providers/1/models', method: 'post' }],
-      [() => s.updateModel(1, 2, {}), { url: '/admin/ai/providers/1/models/2', method: 'put' }],
-      [() => s.deleteModel(1, 2), { url: '/admin/ai/providers/1/models/2', method: 'delete' }],
-      [() => s.fetchProviderModels(1), { url: '/admin/ai/providers/1/fetch-models', method: 'post' }],
-      [() => s.batchCreateModels(1, ['a']), { url: '/admin/ai/providers/1/models/batch', method: 'post' }],
-      [() => s.getModelsHealth(), { url: '/admin/ai/models/health', method: 'get' }],
-      [() => s.healthCheckModel(2), { url: '/admin/ai/models/2/health-check', method: 'post' }],
-      [() => s.listQuotas({}), { url: '/admin/ai/quotas', method: 'get' }],
-      [() => s.createQuota({}), { url: '/admin/ai/quotas', method: 'post' }],
-      [() => s.updateQuota(1, {}), { url: '/admin/ai/quotas/1', method: 'put' }],
-      [() => s.deleteQuota(1), { url: '/admin/ai/quotas/1', method: 'delete' }],
-      [() => s.listApiKeys({}), { url: '/admin/ai/api-keys', method: 'get' }],
-      [() => s.createApiKey({}), { url: '/admin/ai/api-keys', method: 'post' }],
-      [() => s.deleteApiKey(1), { url: '/admin/ai/api-keys/1', method: 'delete' }],
-      [() => s.listAiUsers(), { url: '/admin/ai/users', method: 'get' }],
-      [() => s.getAiStatistics(), { url: '/admin/ai/statistics', method: 'get' }],
-      [() => s.getUsageLogs({}), { url: '/admin/ai/usage-logs', method: 'get' }],
-      [() => s.getFallbackLogs({}), { url: '/admin/ai/fallback-logs', method: 'get' }]
-    ]
-    for (const [fn, expected] of cases) {
-      await fn()
-      expect(lastCall()).toMatchObject(expected)
-    }
-  })
 })
 
 describe('mockApi Markdown 导出', () => {

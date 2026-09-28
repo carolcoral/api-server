@@ -58,8 +58,6 @@ public class PermissionService {
         "邮件模板管理",     // 7. 系统管理 > 邮件模板 /email-templates
         "AI配置",           //    系统管理 > AI 设置 /ai-settings
         "AI配置管理",       //    （AI设置别名，同组紧随）
-        "AI管理",           //    系统管理 > AI 服务管理 /ai-service
-        "AI代理",           //    （AI代理功能，附属于AI管理）
         "系统配置",         //    系统管理 > 系统设置 /settings
         "系统信息",         //    （系统信息子页面）
         "系统管理",         //    （系统管理其他）

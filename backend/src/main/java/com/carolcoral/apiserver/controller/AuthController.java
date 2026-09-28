@@ -393,14 +393,16 @@ public class AuthController {
             @RequestParam(value = "code", required = false) String code,
             @RequestParam(value = "state", required = false) String state,
             @RequestParam(value = "error", required = false) String error,
-            @RequestParam(value = "error_description", required = false) String errorDescription) {
+            @RequestParam(value = "error_description", required = false) String errorDescription,
+            jakarta.servlet.http.HttpServletRequest request) {
         String frontendCallback = "/login";
         try {
             if (error != null && !error.isEmpty()) {
                 log.warn("OIDC 授权返回错误: {} - {}", error, errorDescription);
                 return redirectToFrontend(frontendCallback + "?oidc_error=" + urlEncode(errorDescription != null ? errorDescription : error));
             }
-            ApiResponse<LoginResponse> result = oidcService.handleCallback(providerId, code, state);
+            ApiResponse<LoginResponse> result = oidcService.handleCallback(providerId, code, state,
+                    resolveBaseUrl(request));
             if (result.getCode() != null && result.getCode() == 200 && result.getData() != null) {
                 String token = result.getData().getToken();
                 return redirectToFrontend(frontendCallback + "?oidc_token=" + urlEncode(token));
@@ -435,17 +437,90 @@ public class AuthController {
 
     /**
      * 从请求推导站点基础地址（scheme://host[:port]）
+     * <p>优先取浏览器地址栏可见的地址（Origin / 转发头 / Host），避免网关回源时
+     * 把内部地址（如 {@code *-8080.cnb.run}）写成 OIDC 回调地址，导致授权端
+     * 因 {@code redirect_uri} 与注册值不一致而返回 400。</p>
+     *
+     * @param request HTTP 请求
+     * @return 站点基础地址
      */
     private String resolveBaseUrl(jakarta.servlet.http.HttpServletRequest request) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(request.getScheme()).append("://").append(request.getServerName());
-        int port = request.getServerPort();
-        boolean defaultPort = ("http".equals(request.getScheme()) && port == 80)
-                || ("https".equals(request.getScheme()) && port == 443);
-        if (!defaultPort) {
-            sb.append(":").append(port);
+        // 1. 浏览器同源请求会带 Origin，优先使用
+        String origin = firstNonBlank(request.getHeader("Origin"),
+                request.getHeader("X-Forwarded-Origin"));
+        if (origin != null && !"null".equalsIgnoreCase(origin)) {
+            return stripTrailingSlash(origin);
         }
-        return sb.toString();
+        // 2. 网关转发头：取第一个（最靠近浏览器）的 host
+        String forwarded = firstNonBlank(request.getHeader("X-Forwarded-Host"),
+                request.getHeader("X-Forwarded-Server"));
+        String forwardedHost = firstSegment(forwarded);
+        // 3. 回退到请求的 Host 头（同样取第一个）
+        if (forwardedHost == null) {
+            forwardedHost = firstSegment(request.getHeader("Host"));
+        }
+        String scheme = firstSegment(firstNonBlank(request.getHeader("X-Forwarded-Proto"), request.getScheme()));
+        if (scheme == null || scheme.isEmpty()) {
+            scheme = request.getScheme();
+        }
+        if (forwardedHost != null && !forwardedHost.isEmpty()) {
+            // Host 头可能已包含端口（如 example.com:8443），仅在缺失端口时才补默认端口
+            return stripTrailingSlash(buildBase(scheme, forwardedHost));
+        }
+        // 4. 最后回退到 Servlet 容器解析出的主机信息
+        String host = request.getServerName();
+        int port = request.getServerPort();
+        boolean defaultPort = ("http".equals(scheme) && port == 80)
+                || ("https".equals(scheme) && port == 443);
+        return stripTrailingSlash(buildBase(scheme, defaultPort ? host : host + ":" + port));
+    }
+
+    /**
+     * 拼装 scheme://host
+     */
+    private String buildBase(String scheme, String host) {
+        return scheme + "://" + host;
+    }
+
+    /**
+     * 去掉末尾斜杠
+     */
+    private String stripTrailingSlash(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    /**
+     * 取逗号分隔头部的第一段（网关链路中第一个即最靠近浏览器的一跳）
+     */
+    private String firstSegment(String value) {
+        if (value == null) {
+            return null;
+        }
+        int comma = value.indexOf(',');
+        String segment = (comma >= 0 ? value.substring(0, comma) : value).trim();
+        return segment.isEmpty() ? null : segment;
+    }
+
+    /**
+     * 返回首个非空白值
+     */
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     /**

@@ -63,6 +63,7 @@ coverage:
         - com.carolcoral.apiserver.util.CacheUtil                      # 100% 行 / 96.2% 分支
         - com.carolcoral.apiserver.util.DatabaseDialectProvider        # 98.5% 行 / 98.0% 分支
         - com.carolcoral.apiserver.util.DatabaseChecker                # 100% 行 / 83.3% 分支
+        - com.carolcoral.apiserver.util.OidcIconUtil                   # 100% 行 / 95.5% 分支
     frontend:
       branch: 75
       line: 80

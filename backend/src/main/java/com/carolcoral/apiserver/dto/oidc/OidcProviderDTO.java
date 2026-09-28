@@ -54,6 +54,15 @@ public class OidcProviderDTO {
     /** 是否启用 PKCE（推荐开启） */
     private Boolean usePkce;
 
+    /** 登录图标：形如 `data:image/png;base64,xxx`（或 SVG 的 data URI），留空则使用默认图标 */
+    private String icon;
+
+    /** 图标原始文件名（可选，仅用于前端展示） */
+    private String iconName;
+
+    /** 图标状态：keep / clear（用于前端提交意图，clear 表示移除图标） */
+    private String iconStatus;
+
     public String getProviderId() { return providerId; }
     public void setProviderId(String providerId) { this.providerId = providerId; }
 
@@ -92,4 +101,13 @@ public class OidcProviderDTO {
 
     public Boolean getUsePkce() { return usePkce; }
     public void setUsePkce(Boolean usePkce) { this.usePkce = usePkce; }
+
+    public String getIcon() { return icon; }
+    public void setIcon(String icon) { this.icon = icon; }
+
+    public String getIconName() { return iconName; }
+    public void setIconName(String iconName) { this.iconName = iconName; }
+
+    public String getIconStatus() { return iconStatus; }
+    public void setIconStatus(String iconStatus) { this.iconStatus = iconStatus; }
 }
